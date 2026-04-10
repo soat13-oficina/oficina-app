@@ -17,7 +17,9 @@ import br.com.oficina.ordemservico.application.usecase.AlterarClienteUseCase;
 import br.com.oficina.ordemservico.application.usecase.CadastrarClienteUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarClienteUseCase;
 import br.com.oficina.ordemservico.application.usecase.ExcluirClienteUseCase;
-import br.com.oficina.ordemservico.domain.model.Cliente;
+import br.com.oficina.ordemservico.infrastructure.controller.dto.AlterarClienteRequest;
+import br.com.oficina.ordemservico.infrastructure.controller.dto.CadastrarClienteRequest;
+import br.com.oficina.ordemservico.infrastructure.controller.dto.ClienteResponse;
 
 @RestController
 @RequestMapping("/clientes")
@@ -39,8 +41,9 @@ public class ClienteController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> cadastrar(@RequestBody CadastrarClienteUseCase.CadastrarClienteRequest request) {
-        cadastrarClienteUseCase.cadastrarCliente(request);
+    public ResponseEntity<Void> cadastrar(@RequestBody CadastrarClienteRequest request) {
+        cadastrarClienteUseCase
+                .cadastrarCliente(new CadastrarClienteUseCase.CadastrarClienteRequest(request.id(), request.nome()));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(request.id())
@@ -66,14 +69,5 @@ public class ClienteController {
     public ResponseEntity<Void> excluir(@PathVariable String clienteId) {
         excluirClienteUseCase.excluirCliente(new ExcluirClienteUseCase.ExcluirClienteRequest(clienteId));
         return ResponseEntity.noContent().build();
-    }
-
-    record ClienteResponse(String id, String nome) {
-        static ClienteResponse from(Cliente cliente) {
-            return new ClienteResponse(cliente.getId(), cliente.getNome());
-        }
-    }
-
-    record AlterarClienteRequest(String nome) {
     }
 }

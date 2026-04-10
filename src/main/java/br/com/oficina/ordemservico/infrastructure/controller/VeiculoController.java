@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import br.com.oficina.ordemservico.application.usecase.CadastrarVeiculoUseCase;
+import br.com.oficina.ordemservico.infrastructure.controller.dto.CadastrarVeiculoRequest;
 
 @RestController
 @RequestMapping("/veiculos")
@@ -21,8 +22,13 @@ public class VeiculoController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> cadastrar(@RequestBody CadastrarVeiculoUseCase.CadastrarVeiculoRequest request) {
-        cadastrarVeiculoUseCase.cadastrarVeiculo(request);
+    public ResponseEntity<Void> cadastrar(@RequestBody CadastrarVeiculoRequest request) {
+        cadastrarVeiculoUseCase.cadastrarVeiculo(
+                new CadastrarVeiculoUseCase.CadastrarVeiculoRequest(
+                        request.placa(),
+                        request.marca(),
+                        request.modelo(),
+                        request.clienteId()));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{placa}")
                 .buildAndExpand(request.placa())

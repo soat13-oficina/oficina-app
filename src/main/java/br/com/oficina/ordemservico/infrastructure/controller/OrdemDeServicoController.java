@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import br.com.oficina.ordemservico.application.usecase.ConcluirDiagnosticoUseCase;
 import br.com.oficina.ordemservico.application.usecase.CriarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.IniciarDiagnosticoUseCase;
+import br.com.oficina.ordemservico.infrastructure.controller.dto.CriarOrdemDeServicoRequest;
 
 @RestController
 @RequestMapping("/ordens-servico")
@@ -28,8 +29,12 @@ public class OrdemDeServicoController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> criar(@RequestBody CriarOrdemDeServicoUseCase.CriarOrdemDeServicoRequest request) {
-        criarOrdemDeServicoUseCase.criarOrdemDeServico(request);
+    public ResponseEntity<Void> criar(@RequestBody CriarOrdemDeServicoRequest request) {
+        criarOrdemDeServicoUseCase.criarOrdemDeServico(
+                new CriarOrdemDeServicoUseCase.CriarOrdemDeServicoRequest(
+                        request.clienteId(),
+                        request.funcionarioId(),
+                        request.placaVeiculo()));
         return ResponseEntity.accepted().build();
     }
 
