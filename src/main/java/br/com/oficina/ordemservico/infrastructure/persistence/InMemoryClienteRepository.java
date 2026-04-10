@@ -19,6 +19,11 @@ public class InMemoryClienteRepository implements ClienteRepository {
     }
 
     @Override
+    public void atualizar(Cliente cliente) {
+        clientes.put(cliente.getId(), cliente);
+    }
+
+    @Override
     public void excluirPorId(String clienteId) {
         clientes.remove(clienteId);
     }
