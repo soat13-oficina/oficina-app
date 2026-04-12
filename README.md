@@ -28,16 +28,6 @@ Para autenticar no Swagger:
 
 ---
 
-## 🗄️ Banco de Dados (Flyway)
-
-O schema é versionado com **Flyway**. As migrations ficam em `src/main/resources/db/migration/`.
-
-| Migration | Descrição |
-|-----------|-----------|
-| `V1__Create_usuarios_table.sql` | Cria a tabela `usuarios` |
-
----
-
 ## 🚀 Executando Localmente
 
 ### Pré-requisitos
@@ -50,7 +40,7 @@ O schema é versionado com **Flyway**. As migrations ficam em `src/main/resource
 # Sobe apenas o banco PostgreSQL
 docker-compose up -d db
 
-# Roda a aplicação (Flyway executa as migrations automaticamente)
+# Roda a aplicação (O Hibernate gera o schema automaticamente)
 ./mvnw spring-boot:run
 ```
 
