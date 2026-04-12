@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: oficina
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/oficina_db}
+    username: ${DB_USER:oficina_user}
+    password: ${DB_PASS:oficina_123}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    defer-datasource-initialization: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+jwt:
+  secret: ${JWT_SECRET:SUA_CHAVE_SECRETA_MUITO_SEGURA_E_LONGA_PARA_O_JWT_DA_OFICINA_2026}
+  expiration: 86400000 # 1 dia em milissegundos
