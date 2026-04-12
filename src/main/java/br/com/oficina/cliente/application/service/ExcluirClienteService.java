@@ -17,6 +17,8 @@ public class ExcluirClienteService implements ExcluirClienteUseCase {
 
     @Override
     public void excluirCliente(ExcluirClienteCommand command) {
+        clienteRepository.buscarPorId(command.clienteId())
+                .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
         clienteRepository.excluirPorId(command.clienteId());
     }
 }
