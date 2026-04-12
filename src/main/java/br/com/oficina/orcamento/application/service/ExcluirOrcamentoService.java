@@ -16,6 +16,8 @@ public class ExcluirOrcamentoService implements ExcluirOrcamentoUseCase {
 
     @Override
     public void excluirOrcamento(ExcluirOrcamentoCommand command) {
+        orcamentoRepository.buscarPorId(command.orcamentoId())
+                .orElseThrow(() -> new IllegalArgumentException("Orcamento nao encontrado"));
         orcamentoRepository.excluirPorId(command.orcamentoId());
     }
 }
