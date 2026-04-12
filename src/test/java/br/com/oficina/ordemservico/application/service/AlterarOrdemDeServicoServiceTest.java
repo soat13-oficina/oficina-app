@@ -6,22 +6,22 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
-import br.com.oficina.cliente.infrastructure.persistence.InMemoryClienteRepository;
 import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
-import br.com.oficina.ordemservico.infrastructure.persistence.InMemoryOrdemDeServicoRepository;
+import br.com.oficina.support.persistence.TestClienteRepository;
+import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
+import br.com.oficina.support.persistence.TestVeiculoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
-import br.com.oficina.veiculo.infrastructure.persistence.InMemoryVeiculoRepository;
 
 class AlterarOrdemDeServicoServiceTest {
 
     @Test
     void deveAlterarOrdemDeServicoExistente() {
-        InMemoryClienteRepository clienteRepository = new InMemoryClienteRepository();
-        InMemoryVeiculoRepository veiculoRepository = new InMemoryVeiculoRepository();
-        InMemoryOrdemDeServicoRepository ordemDeServicoRepository = new InMemoryOrdemDeServicoRepository();
+        TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
+        TestOrdemDeServicoRepository ordemDeServicoRepository = new TestOrdemDeServicoRepository();
         clienteRepository.salvar(new Cliente("cliente-1", "Maria", "111"));
         clienteRepository.salvar(new Cliente("cliente-2", "Bianca", "222"));
         veiculoRepository.salvar(novoVeiculo("ABC1D23", "Toyota"));
@@ -48,9 +48,9 @@ class AlterarOrdemDeServicoServiceTest {
     @Test
     void deveFalharQuandoOrdemNaoExistir() {
         AlterarOrdemDeServicoService service = new AlterarOrdemDeServicoService(
-                new InMemoryClienteRepository(),
-                new InMemoryVeiculoRepository(),
-                new InMemoryOrdemDeServicoRepository());
+                new TestClienteRepository(),
+                new TestVeiculoRepository(),
+                new TestOrdemDeServicoRepository());
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,

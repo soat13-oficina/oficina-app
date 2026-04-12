@@ -10,13 +10,13 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.orcamento.application.query.ListarOrcamentosQuery;
 import br.com.oficina.orcamento.domain.model.Orcamento;
-import br.com.oficina.orcamento.infrastructure.persistence.InMemoryOrcamentoRepository;
+import br.com.oficina.support.persistence.TestOrcamentoRepository;
 
 class ListarOrcamentosServiceTest {
 
     @Test
     void deveListarTodosOsOrcamentos() {
-        InMemoryOrcamentoRepository repository = new InMemoryOrcamentoRepository();
+        TestOrcamentoRepository repository = new TestOrcamentoRepository();
         repository.salvar(novoOrcamento("orc-1"));
         repository.salvar(novoOrcamento("orc-2"));
         ListarOrcamentosService service = new ListarOrcamentosService(repository);

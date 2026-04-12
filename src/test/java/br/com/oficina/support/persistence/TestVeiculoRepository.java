@@ -1,17 +1,14 @@
-package br.com.oficina.veiculo.infrastructure.persistence;
+package br.com.oficina.support.persistence;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.stereotype.Repository;
-
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 
-@Repository
-public class InMemoryVeiculoRepository implements VeiculoRepository {
+public class TestVeiculoRepository implements VeiculoRepository {
     private final Map<String, Veiculo> veiculos = new ConcurrentHashMap<>();
 
     @Override

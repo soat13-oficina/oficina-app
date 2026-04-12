@@ -9,13 +9,13 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
-import br.com.oficina.orcamento.infrastructure.persistence.InMemoryOrcamentoRepository;
+import br.com.oficina.support.persistence.TestOrcamentoRepository;
 
 class CadastrarNovoOrcamentoServiceTest {
 
     @Test
     void deveCadastrarNovoOrcamento() {
-        InMemoryOrcamentoRepository repository = new InMemoryOrcamentoRepository();
+        TestOrcamentoRepository repository = new TestOrcamentoRepository();
         CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(repository);
 
         service.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(

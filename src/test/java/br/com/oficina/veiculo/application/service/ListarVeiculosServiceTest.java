@@ -10,15 +10,15 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.veiculo.application.query.ListarVeiculosQuery;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
-import br.com.oficina.veiculo.infrastructure.persistence.InMemoryVeiculoRepository;
+import br.com.oficina.support.persistence.TestVeiculoRepository;
 
 class ListarVeiculosServiceTest {
-    private InMemoryVeiculoRepository repository;
+    private TestVeiculoRepository repository;
     private ListarVeiculosService service;
 
     @BeforeEach
     void setUp() {
-        repository = new InMemoryVeiculoRepository();
+        repository = new TestVeiculoRepository();
         service = new ListarVeiculosService(repository);
         repository.salvar(new Veiculo(
                 "ABC1D23",

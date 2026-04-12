@@ -11,13 +11,13 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
 import br.com.oficina.orcamento.domain.model.Orcamento;
-import br.com.oficina.orcamento.infrastructure.persistence.InMemoryOrcamentoRepository;
+import br.com.oficina.support.persistence.TestOrcamentoRepository;
 
 class AlterarOrcamentoServiceTest {
 
     @Test
     void deveAlterarOrcamentoPreservandoCriadoEmEEnvio() {
-        InMemoryOrcamentoRepository repository = new InMemoryOrcamentoRepository();
+        TestOrcamentoRepository repository = new TestOrcamentoRepository();
         Orcamento orcamento = novoOrcamento();
         orcamento.enviarParaAprovacao(LocalDateTime.of(2030, 1, 2, 9, 0));
         repository.salvar(orcamento);
@@ -49,7 +49,7 @@ class AlterarOrcamentoServiceTest {
 
     @Test
     void deveFalharAoAlterarOrcamentoInexistente() {
-        AlterarOrcamentoService service = new AlterarOrcamentoService(new InMemoryOrcamentoRepository());
+        AlterarOrcamentoService service = new AlterarOrcamentoService(new TestOrcamentoRepository());
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,

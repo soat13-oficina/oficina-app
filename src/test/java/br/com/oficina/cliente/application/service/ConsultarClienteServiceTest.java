@@ -7,13 +7,13 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.application.query.ConsultarClienteQuery;
 import br.com.oficina.cliente.domain.model.Cliente;
-import br.com.oficina.cliente.infrastructure.persistence.InMemoryClienteRepository;
+import br.com.oficina.support.persistence.TestClienteRepository;
 
 class ConsultarClienteServiceTest {
 
     @Test
     void deveConsultarClientePorId() {
-        InMemoryClienteRepository repository = new InMemoryClienteRepository();
+        TestClienteRepository repository = new TestClienteRepository();
         repository.salvar(new Cliente("cliente-1", "Maria", "12345678901"));
         ConsultarClienteService service = new ConsultarClienteService(repository);
 
@@ -24,7 +24,7 @@ class ConsultarClienteServiceTest {
 
     @Test
     void deveRetornarVazioQuandoClienteNaoExistir() {
-        ConsultarClienteService service = new ConsultarClienteService(new InMemoryClienteRepository());
+        ConsultarClienteService service = new ConsultarClienteService(new TestClienteRepository());
 
         assertTrue(service.consultarCliente(new ConsultarClienteQuery("cliente-404")).isEmpty());
     }

@@ -1,17 +1,14 @@
-package br.com.oficina.orcamento.infrastructure.persistence;
+package br.com.oficina.support.persistence;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.stereotype.Repository;
-
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
 
-@Repository
-public class InMemoryOrcamentoRepository implements OrcamentoRepository {
+public class TestOrcamentoRepository implements OrcamentoRepository {
     private final Map<String, Orcamento> orcamentos = new ConcurrentHashMap<>();
 
     @Override

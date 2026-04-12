@@ -21,13 +21,16 @@ import org.springframework.web.context.WebApplicationContext;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
+import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
+import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataOrdemDeServicoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
+import br.com.oficina.veiculo.infrastructure.persistence.SpringDataVeiculoRepository;
 
 @SpringBootTest
 class OrdemDeServicoControllerTest {
@@ -44,10 +47,22 @@ class OrdemDeServicoControllerTest {
     @Autowired
     private OrdemDeServicoRepository ordemDeServicoRepository;
 
+    @Autowired
+    private SpringDataOrdemDeServicoRepository springDataOrdemDeServicoRepository;
+
+    @Autowired
+    private SpringDataVeiculoRepository springDataVeiculoRepository;
+
+    @Autowired
+    private SpringDataClienteRepository springDataClienteRepository;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        springDataOrdemDeServicoRepository.deleteAll();
+        springDataVeiculoRepository.deleteAll();
+        springDataClienteRepository.deleteAll();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();

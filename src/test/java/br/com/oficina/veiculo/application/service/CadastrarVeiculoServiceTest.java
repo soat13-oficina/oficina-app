@@ -6,13 +6,13 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.veiculo.application.command.CadastrarVeiculoCommand;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
-import br.com.oficina.veiculo.infrastructure.persistence.InMemoryVeiculoRepository;
+import br.com.oficina.support.persistence.TestVeiculoRepository;
 
 class CadastrarVeiculoServiceTest {
 
     @Test
     void deveCadastrarVeiculoNoRepositorio() {
-        InMemoryVeiculoRepository repository = new InMemoryVeiculoRepository();
+        TestVeiculoRepository repository = new TestVeiculoRepository();
         CadastrarVeiculoService service = new CadastrarVeiculoService(repository);
 
         service.cadastrarVeiculo(new CadastrarVeiculoCommand(

@@ -8,13 +8,13 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.application.command.ExcluirClienteCommand;
 import br.com.oficina.cliente.domain.model.Cliente;
-import br.com.oficina.cliente.infrastructure.persistence.InMemoryClienteRepository;
+import br.com.oficina.support.persistence.TestClienteRepository;
 
 class ExcluirClienteServiceTest {
 
     @Test
     void deveExcluirClienteExistente() {
-        InMemoryClienteRepository repository = new InMemoryClienteRepository();
+        TestClienteRepository repository = new TestClienteRepository();
         repository.salvar(new Cliente("cliente-1", "Maria", "12345678901"));
         ExcluirClienteService service = new ExcluirClienteService(repository);
 
@@ -25,7 +25,7 @@ class ExcluirClienteServiceTest {
 
     @Test
     void deveFalharAoExcluirClienteInexistente() {
-        ExcluirClienteService service = new ExcluirClienteService(new InMemoryClienteRepository());
+        ExcluirClienteService service = new ExcluirClienteService(new TestClienteRepository());
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,

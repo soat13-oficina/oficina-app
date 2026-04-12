@@ -10,7 +10,7 @@ import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.ordemservico.application.query.ConsultarOrdensDeServicoQuery;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
-import br.com.oficina.ordemservico.infrastructure.persistence.InMemoryOrdemDeServicoRepository;
+import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 
@@ -18,7 +18,7 @@ class ConsultarOrdensDeServicoServiceTest {
 
     @Test
     void deveConsultarOrdensDeServicoComFiltros() {
-        InMemoryOrdemDeServicoRepository repository = new InMemoryOrdemDeServicoRepository();
+        TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
         repository.salvar(novaOrdem("OS-001", "Marina", "123", "AAA1A11"));
         repository.salvar(novaOrdem("OS-002", "Bianca", "999", "BBB2B22"));
         ConsultarOrdensDeServicoService service = new ConsultarOrdensDeServicoService(repository);
@@ -32,7 +32,7 @@ class ConsultarOrdensDeServicoServiceTest {
 
     @Test
     void deveRetornarTodasAsOrdensQuandoNaoHouverFiltros() {
-        InMemoryOrdemDeServicoRepository repository = new InMemoryOrdemDeServicoRepository();
+        TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
         repository.salvar(novaOrdem("OS-001", "Marina", "123", "AAA1A11"));
         repository.salvar(novaOrdem("OS-002", "Bianca", "999", "BBB2B22"));
         ConsultarOrdensDeServicoService service = new ConsultarOrdensDeServicoService(repository);

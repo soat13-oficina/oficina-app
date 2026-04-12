@@ -8,13 +8,13 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.veiculo.application.command.AlterarVeiculoCommand;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
-import br.com.oficina.veiculo.infrastructure.persistence.InMemoryVeiculoRepository;
+import br.com.oficina.support.persistence.TestVeiculoRepository;
 
 class AlterarVeiculoServiceTest {
 
     @Test
     void deveAlterarVeiculoExistente() {
-        InMemoryVeiculoRepository repository = new InMemoryVeiculoRepository();
+        TestVeiculoRepository repository = new TestVeiculoRepository();
         repository.salvar(new Veiculo(
                 "ABC1D23",
                 "Volkswagen",
@@ -44,7 +44,7 @@ class AlterarVeiculoServiceTest {
 
     @Test
     void deveFalharAoAlterarVeiculoInexistente() {
-        InMemoryVeiculoRepository repository = new InMemoryVeiculoRepository();
+        TestVeiculoRepository repository = new TestVeiculoRepository();
         AlterarVeiculoService service = new AlterarVeiculoService(repository);
 
         IllegalArgumentException exception = assertThrows(

@@ -11,13 +11,13 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.orcamento.application.query.ConsultarOrcamentoQuery;
 import br.com.oficina.orcamento.domain.model.Orcamento;
-import br.com.oficina.orcamento.infrastructure.persistence.InMemoryOrcamentoRepository;
+import br.com.oficina.support.persistence.TestOrcamentoRepository;
 
 class ConsultarOrcamentoServiceTest {
 
     @Test
     void deveConsultarOrcamentoPorId() {
-        InMemoryOrcamentoRepository repository = new InMemoryOrcamentoRepository();
+        TestOrcamentoRepository repository = new TestOrcamentoRepository();
         repository.salvar(novoOrcamento());
         ConsultarOrcamentoService service = new ConsultarOrcamentoService(repository);
 
@@ -28,7 +28,7 @@ class ConsultarOrcamentoServiceTest {
 
     @Test
     void deveRetornarVazioQuandoOrcamentoNaoExistir() {
-        ConsultarOrcamentoService service = new ConsultarOrcamentoService(new InMemoryOrcamentoRepository());
+        ConsultarOrcamentoService service = new ConsultarOrcamentoService(new TestOrcamentoRepository());
 
         assertTrue(service.consultarOrcamento(new ConsultarOrcamentoQuery("orc-404")).isEmpty());
     }
