@@ -1,5 +1,6 @@
 package br.com.oficina.veiculo.infrastructure.persistence;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,5 +22,15 @@ public class InMemoryVeiculoRepository implements VeiculoRepository {
     @Override
     public Optional<Veiculo> buscarPorPlaca(String placa) {
         return Optional.ofNullable(veiculos.get(placa));
+    }
+
+    @Override
+    public List<Veiculo> buscarTodos() {
+        return List.copyOf(veiculos.values());
+    }
+
+    @Override
+    public void excluirPorPlaca(String placa) {
+        veiculos.remove(placa);
     }
 }

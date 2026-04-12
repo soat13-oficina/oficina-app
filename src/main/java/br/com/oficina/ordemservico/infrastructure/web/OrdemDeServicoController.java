@@ -9,9 +9,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
+import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.usecase.ConcluirDiagnosticoUseCase;
 import br.com.oficina.ordemservico.application.usecase.CriarOrdemDeServicoUseCase;
+import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.IniciarDiagnosticoUseCase;
 import br.com.oficina.ordemservico.infrastructure.web.request.CriarOrdemDeServicoRequest;
 
@@ -21,14 +23,17 @@ public class OrdemDeServicoController {
     private final CriarOrdemDeServicoUseCase criarOrdemDeServicoUseCase;
     private final IniciarDiagnosticoUseCase iniciarDiagnosticoUseCase;
     private final ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase;
+    private final FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase;
 
     public OrdemDeServicoController(
             CriarOrdemDeServicoUseCase criarOrdemDeServicoUseCase,
             IniciarDiagnosticoUseCase iniciarDiagnosticoUseCase,
-            ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase) {
+            ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase,
+            FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase) {
         this.criarOrdemDeServicoUseCase = criarOrdemDeServicoUseCase;
         this.iniciarDiagnosticoUseCase = iniciarDiagnosticoUseCase;
         this.concluirDiagnosticoUseCase = concluirDiagnosticoUseCase;
+        this.finalizarOrdemDeServicoUseCase = finalizarOrdemDeServicoUseCase;
     }
 
     @PostMapping
@@ -47,6 +52,12 @@ public class OrdemDeServicoController {
     @PostMapping("/{ordemDeServicoId}/diagnostico/concluir")
     public ResponseEntity<Void> concluirDiagnostico(@PathVariable String ordemDeServicoId) {
         concluirDiagnosticoUseCase.concluirDiagnostico(new ConcluirDiagnosticoCommand(ordemDeServicoId));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{ordemDeServicoId}/finalizacao")
+    public ResponseEntity<Void> finalizar(@PathVariable String ordemDeServicoId) {
+        finalizarOrdemDeServicoUseCase.finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand(ordemDeServicoId));
         return ResponseEntity.noContent().build();
     }
 }

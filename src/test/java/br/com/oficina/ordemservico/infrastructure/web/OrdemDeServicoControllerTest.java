@@ -19,7 +19,9 @@ import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
+import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 
@@ -50,7 +52,8 @@ class OrdemDeServicoControllerTest {
     @Test
     void deveCriarOrdemDeServico() throws Exception {
         clienteRepository.salvar(new Cliente("cliente-os-1", "Maria"));
-        veiculoRepository.salvar(new Veiculo("ABC1D23", "Toyota", "Corolla"));
+        veiculoRepository.salvar(new Veiculo(
+                "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
 
         String requestBody = """
                 {
@@ -74,7 +77,7 @@ class OrdemDeServicoControllerTest {
                 "os-iniciar-1",
                 new Funcionario("func-2", "Joao", null),
                 new Cliente("cliente-os-2", "Ana"),
-                new Veiculo("DEF2G34", "Honda", "Civic"));
+                new Veiculo("DEF2G34", "Honda", "Civic", "Honda Motor Co.", 2023, 155, "AUTOMATICO", TipoCombustivel.FLEX));
         ordemDeServicoRepository.salvar(ordemDeServico);
 
         mockMvc.perform(post("/ordens-servico/os-iniciar-1/diagnostico/iniciar")
@@ -89,7 +92,7 @@ class OrdemDeServicoControllerTest {
                 "os-concluir-1",
                 new Funcionario("func-3", "Carlos", null),
                 new Cliente("cliente-os-3", "Paula"),
-                new Veiculo("GHI3J45", "Fiat", "Argo"));
+                new Veiculo("GHI3J45", "Fiat", "Argo", "Stellantis", 2022, 107, "MANUAL", TipoCombustivel.FLEX));
         ordemDeServico.iniciarDiagnostico();
         ordemDeServicoRepository.salvar(ordemDeServico);
 
@@ -97,5 +100,26 @@ class OrdemDeServicoControllerTest {
                         .with(user("tester"))
                         .with(csrf()))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deveFinalizarOrdemDeServico() throws Exception {
+        OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
+                "os-finalizar-1",
+                new Funcionario("func-4", "Marcos", null),
+                new Cliente("cliente-os-4", "Bianca"),
+                new Veiculo("JKL4M56", "Jeep", "Renegade", "Stellantis", 2024, 185, "AUTOMATICO", TipoCombustivel.DIESEL));
+        ordemDeServico.iniciarDiagnostico();
+        ordemDeServico.concluirDiagnostico();
+        ordemDeServicoRepository.salvar(ordemDeServico);
+
+        mockMvc.perform(post("/ordens-servico/os-finalizar-1/finalizacao")
+                        .with(user("tester"))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorId("os-finalizar-1")
+                .orElseThrow();
+        assert ordemAtualizada.getStatus() == StatusOrdemDeServico.FINALIZADA;
     }
 }

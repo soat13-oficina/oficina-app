@@ -36,7 +36,18 @@ public class OrdemDeServico {
         status = StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO;
     }
 
+    public void finalizar() {
+        if (status != StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
+            throw new RegraDeNegocioException("Ordem de servico so pode ser finalizada com diagnostico concluido");
+        }
+        status = StatusOrdemDeServico.FINALIZADA;
+    }
+
     public String getId() {
         return id;
+    }
+
+    public StatusOrdemDeServico getStatus() {
+        return status;
     }
 }

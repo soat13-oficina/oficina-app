@@ -2,14 +2,12 @@ package br.com.oficina.veiculo.infrastructure.web.request;
 
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 
-public record CadastrarVeiculoRequest(
-        String placa,
+public record AlterarVeiculoRequest(
         String marca,
         String modelo,
         String fabricante,
         int ano,
         int potencia,
         String cambio,
-        TipoCombustivel tipo,
-        String clienteId) {
+        TipoCombustivel tipo) {
 }
