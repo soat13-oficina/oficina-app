@@ -17,7 +17,7 @@ public class FinalizarOrdemDeServicoService implements FinalizarOrdemDeServicoUs
 
     @Override
     public void finalizarOrdemDeServico(FinalizarOrdemDeServicoCommand command) {
-        OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorId(command.ordemDeServicoId())
+        OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new IllegalArgumentException("Ordem de servico nao encontrada"));
         ordemDeServico.finalizar();
         ordemDeServicoRepository.salvar(ordemDeServico);

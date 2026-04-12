@@ -1,4 +1,4 @@
 package br.com.oficina.cliente.infrastructure.web.request;
 
-public record AlterarClienteRequest(String nome) {
+public record AlterarClienteRequest(String nome, String cpf) {
 }

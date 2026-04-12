@@ -46,7 +46,7 @@ public class ClienteController {
 
     @PostMapping
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarClienteRequest request) {
-        cadastrarClienteUseCase.cadastrarCliente(new CadastrarClienteCommand(request.id(), request.nome()));
+        cadastrarClienteUseCase.cadastrarCliente(new CadastrarClienteCommand(request.id(), request.nome(), request.cpf()));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(request.id())
@@ -64,7 +64,7 @@ public class ClienteController {
 
     @PutMapping("/{clienteId}")
     public ResponseEntity<Void> alterar(@PathVariable String clienteId, @RequestBody AlterarClienteRequest request) {
-        alterarClienteUseCase.alterarCliente(new AlterarClienteCommand(clienteId, request.nome()));
+        alterarClienteUseCase.alterarCliente(new AlterarClienteCommand(clienteId, request.nome(), request.cpf()));
         return ResponseEntity.noContent().build();
     }
 

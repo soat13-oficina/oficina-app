@@ -3,7 +3,9 @@ package br.com.oficina.ordemservico.infrastructure.web;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -51,7 +53,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveCriarOrdemDeServico() throws Exception {
-        clienteRepository.salvar(new Cliente("cliente-os-1", "Maria"));
+        clienteRepository.salvar(new Cliente("cliente-os-1", "Maria", "11111111111"));
         veiculoRepository.salvar(new Veiculo(
                 "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
 
@@ -72,8 +74,52 @@ class OrdemDeServicoControllerTest {
     }
 
     @Test
+    void deveConsultarOrdemDeServicoPorFiltros() throws Exception {
+        OrdemDeServico primeiraOrdem = OrdemDeServico.abrir(
+                "id-os-consulta-1",
+                "OS-0001",
+                new Funcionario("func-10", "Joao", null),
+                new Cliente("cliente-os-10", "Marina", "12345678901"),
+                new Veiculo("ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        OrdemDeServico segundaOrdem = OrdemDeServico.abrir(
+                "id-os-consulta-2",
+                "OS-0002",
+                new Funcionario("func-11", "Paulo", null),
+                new Cliente("cliente-os-11", "Roberto", "99999999999"),
+                new Veiculo("ZZZ9Z99", "Honda", "City", "Honda Motor Co.", 2023, 126, "AUTOMATICO", TipoCombustivel.FLEX));
+        ordemDeServicoRepository.salvar(primeiraOrdem);
+        ordemDeServicoRepository.salvar(segundaOrdem);
+
+        mockMvc.perform(get("/ordens-servico")
+                        .with(user("tester"))
+                        .param("numeroOrdemServico", "OS-0001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].numeroOrdemServico").value("OS-0001"))
+                .andExpect(jsonPath("$[0].nomeCliente").value("Marina"));
+
+        mockMvc.perform(get("/ordens-servico")
+                        .with(user("tester"))
+                        .param("nomeCliente", "Marina"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].cpfCliente").value("12345678901"));
+
+        mockMvc.perform(get("/ordens-servico")
+                        .with(user("tester"))
+                        .param("placaVeiculo", "ABC1D23"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("id-os-consulta-1"));
+
+        mockMvc.perform(get("/ordens-servico")
+                        .with(user("tester"))
+                        .param("cpfCliente", "12345678901"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].placaVeiculo").value("ABC1D23"));
+    }
+
+    @Test
     void deveIniciarDiagnostico() throws Exception {
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
+                "id-os-iniciar-1",
                 "os-iniciar-1",
                 new Funcionario("func-2", "Joao", null),
                 new Cliente("cliente-os-2", "Ana"),
@@ -89,6 +135,7 @@ class OrdemDeServicoControllerTest {
     @Test
     void deveConcluirDiagnostico() throws Exception {
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
+                "id-os-concluir-1",
                 "os-concluir-1",
                 new Funcionario("func-3", "Carlos", null),
                 new Cliente("cliente-os-3", "Paula"),
@@ -105,6 +152,7 @@ class OrdemDeServicoControllerTest {
     @Test
     void deveFinalizarOrdemDeServico() throws Exception {
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
+                "id-os-finalizar-1",
                 "os-finalizar-1",
                 new Funcionario("func-4", "Marcos", null),
                 new Cliente("cliente-os-4", "Bianca"),
@@ -118,7 +166,7 @@ class OrdemDeServicoControllerTest {
                         .with(csrf()))
                 .andExpect(status().isNoContent());
 
-        OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorId("os-finalizar-1")
+        OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorNumero("os-finalizar-1")
                 .orElseThrow();
         assert ordemAtualizada.getStatus() == StatusOrdemDeServico.FINALIZADA;
     }

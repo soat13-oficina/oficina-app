@@ -36,9 +36,11 @@ public class CriarOrdemDeServicoService implements CriarOrdemDeServicoUseCase {
         Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placaVeiculo())
                 .orElseThrow(() -> new IllegalArgumentException("Veiculo nao encontrado"));
 
+        String id = UUID.randomUUID().toString();
         Funcionario funcionario = new Funcionario(command.funcionarioId(), "Funcionario responsavel", null);
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                UUID.randomUUID().toString(),
+                id,
+                "OS-" + id.substring(0, 8).toUpperCase(),
                 funcionario,
                 cliente,
                 veiculo);

@@ -6,20 +6,32 @@ import br.com.oficina.veiculo.domain.model.Veiculo;
 
 public class OrdemDeServico {
     private final String id;
+    private final String numeroOrdemServico;
     private final Funcionario funcionario;
     private final Cliente cliente;
     private final Veiculo veiculo;
     private StatusOrdemDeServico status = StatusOrdemDeServico.ABERTA;
 
-    private OrdemDeServico(String id, Funcionario funcionario, Cliente cliente, Veiculo veiculo) {
+    private OrdemDeServico(
+            String id,
+            String numeroOrdemServico,
+            Funcionario funcionario,
+            Cliente cliente,
+            Veiculo veiculo) {
         this.id = id;
+        this.numeroOrdemServico = numeroOrdemServico;
         this.funcionario = funcionario;
         this.cliente = cliente;
         this.veiculo = veiculo;
     }
 
-    public static OrdemDeServico abrir(String id, Funcionario funcionario, Cliente cliente, Veiculo veiculo) {
-        return new OrdemDeServico(id, funcionario, cliente, veiculo);
+    public static OrdemDeServico abrir(
+            String id,
+            String numeroOrdemServico,
+            Funcionario funcionario,
+            Cliente cliente,
+            Veiculo veiculo) {
+        return new OrdemDeServico(id, numeroOrdemServico, funcionario, cliente, veiculo);
     }
 
     public void iniciarDiagnostico() {
@@ -43,8 +55,24 @@ public class OrdemDeServico {
         status = StatusOrdemDeServico.FINALIZADA;
     }
 
+    public String getNumeroOrdemServico() {
+        return numeroOrdemServico;
+    }
+
     public String getId() {
         return id;
+    }
+
+    public Funcionario getFuncionario() {
+        return funcionario;
+    }
+
+    public Cliente getCliente() {
+        return cliente;
+    }
+
+    public Veiculo getVeiculo() {
+        return veiculo;
     }
 
     public StatusOrdemDeServico getStatus() {
