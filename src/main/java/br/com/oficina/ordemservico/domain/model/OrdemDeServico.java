@@ -7,9 +7,9 @@ import br.com.oficina.veiculo.domain.model.Veiculo;
 public class OrdemDeServico {
     private final String id;
     private final String numeroOrdemServico;
-    private final Funcionario funcionario;
-    private final Cliente cliente;
-    private final Veiculo veiculo;
+    private Funcionario funcionario;
+    private Cliente cliente;
+    private Veiculo veiculo;
     private StatusOrdemDeServico status = StatusOrdemDeServico.ABERTA;
 
     private OrdemDeServico(
@@ -39,6 +39,15 @@ public class OrdemDeServico {
             throw new RegraDeNegocioException("Diagnostico so pode ser iniciado para ordem aberta");
         }
         status = StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO;
+    }
+
+    public void alterar(Funcionario funcionario, Cliente cliente, Veiculo veiculo) {
+        if (status != StatusOrdemDeServico.ABERTA) {
+            throw new RegraDeNegocioException("Ordem de servico so pode ser alterada enquanto estiver aberta");
+        }
+        this.funcionario = funcionario;
+        this.cliente = cliente;
+        this.veiculo = veiculo;
     }
 
     public void concluirDiagnostico() {

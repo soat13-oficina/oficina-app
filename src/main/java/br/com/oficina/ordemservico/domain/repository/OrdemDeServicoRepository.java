@@ -11,4 +11,6 @@ public interface OrdemDeServicoRepository {
     Optional<OrdemDeServico> buscarPorNumero(String numeroOrdemServico);
 
     List<OrdemDeServico> buscarTodas();
+
+    void excluirPorNumero(String numeroOrdemServico);
 }

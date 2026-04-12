@@ -10,4 +10,16 @@ public class Funcionario {
         this.nome = nome;
         this.cpf = cpf;
     }
+
+    public String getId() {
+        return id;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public String getCpf() {
+        return cpf;
+    }
 }

@@ -28,4 +28,9 @@ public class InMemoryOrdemDeServicoRepository implements OrdemDeServicoRepositor
     public List<OrdemDeServico> buscarTodas() {
         return ordens.values().stream().toList();
     }
+
+    @Override
+    public void excluirPorNumero(String numeroOrdemServico) {
+        ordens.remove(numeroOrdemServico);
+    }
 }
