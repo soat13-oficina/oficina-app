@@ -17,7 +17,7 @@ public class IniciarDiagnosticoService implements IniciarDiagnosticoUseCase {
 
     @Override
     public void iniciarDiagnostico(IniciarDiagnosticoCommand command) {
-        OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorId(command.ordemDeServicoId())
+        OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new IllegalArgumentException("Ordem de servico nao encontrada"));
         ordemDeServico.iniciarDiagnostico();
         ordemDeServicoRepository.salvar(ordemDeServico);

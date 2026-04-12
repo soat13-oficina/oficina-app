@@ -17,7 +17,7 @@ public class ConcluirDiagnosticoService implements ConcluirDiagnosticoUseCase {
 
     @Override
     public void concluirDiagnostico(ConcluirDiagnosticoCommand command) {
-        OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorId(command.ordemDeServicoId())
+        OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new IllegalArgumentException("Ordem de servico nao encontrada"));
         ordemDeServico.concluirDiagnostico();
         ordemDeServicoRepository.salvar(ordemDeServico);

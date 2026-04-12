@@ -65,9 +65,9 @@ class VeiculoControllerTest {
         String corolla = """
                 {
                   "placa": "ABC1D23",
-                  "marca": "Toyota",
+                  "marca": "MarcaListaUnica",
                   "modelo": "Corolla",
-                  "fabricante": "Toyota Motor Corporation",
+                  "fabricante": "Fabricante Lista Unica",
                   "ano": 2024,
                   "potencia": 177,
                   "cambio": "AUTOMATICO",
@@ -104,13 +104,13 @@ class VeiculoControllerTest {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/veiculos")
-                        .param("marca", "Toyota")
+                        .param("marca", "MarcaListaUnica")
                         .param("tipo", "FLEX")
                         .with(user("tester")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].placa").value("ABC1D23"))
-                .andExpect(jsonPath("$[0].fabricante").value("Toyota Motor Corporation"))
+                .andExpect(jsonPath("$[0].fabricante").value("Fabricante Lista Unica"))
                 .andExpect(jsonPath("$[0].ano").value(2024))
                 .andExpect(jsonPath("$[0].potencia").value(177))
                 .andExpect(jsonPath("$[0].cambio").value("AUTOMATICO"))

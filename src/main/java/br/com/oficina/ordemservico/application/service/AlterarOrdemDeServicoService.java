@@ -1,13 +1,11 @@
 package br.com.oficina.ordemservico.application.service;
 
-import java.util.UUID;
-
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
-import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
-import br.com.oficina.ordemservico.application.usecase.CriarOrdemDeServicoUseCase;
+import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
+import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
@@ -15,12 +13,12 @@ import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 
 @Service
-public class CriarOrdemDeServicoService implements CriarOrdemDeServicoUseCase {
+public class AlterarOrdemDeServicoService implements AlterarOrdemDeServicoUseCase {
     private final ClienteRepository clienteRepository;
     private final VeiculoRepository veiculoRepository;
     private final OrdemDeServicoRepository ordemDeServicoRepository;
 
-    public CriarOrdemDeServicoService(
+    public AlterarOrdemDeServicoService(
             ClienteRepository clienteRepository,
             VeiculoRepository veiculoRepository,
             OrdemDeServicoRepository ordemDeServicoRepository) {
@@ -30,19 +28,16 @@ public class CriarOrdemDeServicoService implements CriarOrdemDeServicoUseCase {
     }
 
     @Override
-    public void criarOrdemDeServico(CriarOrdemDeServicoCommand command) {
+    public void alterarOrdemDeServico(AlterarOrdemDeServicoCommand command) {
+        OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
+                .orElseThrow(() -> new IllegalArgumentException("Ordem de servico nao encontrada"));
         Cliente cliente = clienteRepository.buscarPorId(command.clienteId())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
         Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placaVeiculo())
                 .orElseThrow(() -> new IllegalArgumentException("Veiculo nao encontrado"));
-
         Funcionario funcionario = new Funcionario(command.funcionarioId(), "Funcionario responsavel", null);
-        OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                UUID.randomUUID().toString(),
-                funcionario,
-                cliente,
-                veiculo);
 
+        ordemDeServico.alterar(funcionario, cliente, veiculo);
         ordemDeServicoRepository.salvar(ordemDeServico);
     }
 }

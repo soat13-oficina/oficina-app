@@ -1,5 +1,6 @@
 package br.com.oficina.ordemservico.infrastructure.persistence;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,11 +16,21 @@ public class InMemoryOrdemDeServicoRepository implements OrdemDeServicoRepositor
 
     @Override
     public void salvar(OrdemDeServico ordemDeServico) {
-        ordens.put(ordemDeServico.getId(), ordemDeServico);
+        ordens.put(ordemDeServico.getNumeroOrdemServico(), ordemDeServico);
     }
 
     @Override
-    public Optional<OrdemDeServico> buscarPorId(String ordemDeServicoId) {
-        return Optional.ofNullable(ordens.get(ordemDeServicoId));
+    public Optional<OrdemDeServico> buscarPorNumero(String numeroOrdemServico) {
+        return Optional.ofNullable(ordens.get(numeroOrdemServico));
+    }
+
+    @Override
+    public List<OrdemDeServico> buscarTodas() {
+        return ordens.values().stream().toList();
+    }
+
+    @Override
+    public void excluirPorNumero(String numeroOrdemServico) {
+        ordens.remove(numeroOrdemServico);
     }
 }

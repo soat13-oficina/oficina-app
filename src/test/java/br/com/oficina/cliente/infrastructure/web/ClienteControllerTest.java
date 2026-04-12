@@ -38,7 +38,8 @@ class ClienteControllerTest {
         String requestBody = """
                 {
                   "id": "cliente-1",
-                  "nome": "Maria"
+                  "nome": "Maria",
+                  "cpf": "12345678901"
                 }
                 """;
 
@@ -54,7 +55,8 @@ class ClienteControllerTest {
                         .with(user("tester")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("cliente-1"))
-                .andExpect(jsonPath("$.nome").value("Maria"));
+                .andExpect(jsonPath("$.nome").value("Maria"))
+                .andExpect(jsonPath("$.cpf").value("12345678901"));
     }
 
     @Test
