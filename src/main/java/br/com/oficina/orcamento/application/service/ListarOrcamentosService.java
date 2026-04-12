@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import br.com.oficina.orcamento.application.query.ListarOrcamentosQuery;
 import br.com.oficina.orcamento.application.usecase.ListarOrcamentosUseCase;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
@@ -17,7 +18,7 @@ public class ListarOrcamentosService implements ListarOrcamentosUseCase {
     }
 
     @Override
-    public List<Orcamento> listarOrcamentos() {
+    public List<Orcamento> listarOrcamentos(ListarOrcamentosQuery query) {
         return orcamentoRepository.buscarTodos();
     }
 }
