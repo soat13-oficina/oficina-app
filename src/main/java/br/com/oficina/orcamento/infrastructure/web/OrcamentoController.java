@@ -18,6 +18,7 @@ import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.ExcluirOrcamentoCommand;
 import br.com.oficina.orcamento.application.query.ConsultarOrcamentoQuery;
+import br.com.oficina.orcamento.application.query.ListarOrcamentosQuery;
 import br.com.oficina.orcamento.application.usecase.AlterarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ConsultarOrcamentoUseCase;
@@ -82,7 +83,7 @@ public class OrcamentoController {
 
     @GetMapping
     public ResponseEntity<List<OrcamentoResponse>> listar() {
-        List<OrcamentoResponse> orcamentos = listarOrcamentosUseCase.listarOrcamentos()
+        List<OrcamentoResponse> orcamentos = listarOrcamentosUseCase.listarOrcamentos(new ListarOrcamentosQuery())
                 .stream()
                 .map(OrcamentoResponse::from)
                 .toList();
