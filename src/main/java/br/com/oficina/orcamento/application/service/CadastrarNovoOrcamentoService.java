@@ -4,21 +4,21 @@ import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
 
-import br.com.oficina.orcamento.application.command.CadastrarOrcamentoCommand;
-import br.com.oficina.orcamento.application.usecase.CadastrarOrcamentoUseCase;
+import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
+import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
 
 @Service
-public class CadastrarOrcamentoService implements CadastrarOrcamentoUseCase {
+public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseCase {
     private final OrcamentoRepository orcamentoRepository;
 
-    public CadastrarOrcamentoService(OrcamentoRepository orcamentoRepository) {
+    public CadastrarNovoOrcamentoService(OrcamentoRepository orcamentoRepository) {
         this.orcamentoRepository = orcamentoRepository;
     }
 
     @Override
-    public void cadastrarOrcamento(CadastrarOrcamentoCommand command) {
+    public void cadastrarNovoOrcamento(CadastrarNovoOrcamentoCommand command) {
         Orcamento orcamento = new Orcamento(
                 command.id(),
                 command.ordemDeServicoId(),

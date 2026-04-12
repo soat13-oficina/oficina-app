@@ -15,11 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
-import br.com.oficina.orcamento.application.command.CadastrarOrcamentoCommand;
+import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.ExcluirOrcamentoCommand;
 import br.com.oficina.orcamento.application.query.ConsultarOrcamentoQuery;
 import br.com.oficina.orcamento.application.usecase.AlterarOrcamentoUseCase;
-import br.com.oficina.orcamento.application.usecase.CadastrarOrcamentoUseCase;
+import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ConsultarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ExcluirOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ListarOrcamentosUseCase;
@@ -30,19 +30,19 @@ import br.com.oficina.orcamento.infrastructure.web.response.OrcamentoResponse;
 @RestController
 @RequestMapping("/orcamentos")
 public class OrcamentoController {
-    private final CadastrarOrcamentoUseCase cadastrarOrcamentoUseCase;
+    private final CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase;
     private final ConsultarOrcamentoUseCase consultarOrcamentoUseCase;
     private final AlterarOrcamentoUseCase alterarOrcamentoUseCase;
     private final ExcluirOrcamentoUseCase excluirOrcamentoUseCase;
     private final ListarOrcamentosUseCase listarOrcamentosUseCase;
 
     public OrcamentoController(
-            CadastrarOrcamentoUseCase cadastrarOrcamentoUseCase,
+            CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase,
             ConsultarOrcamentoUseCase consultarOrcamentoUseCase,
             AlterarOrcamentoUseCase alterarOrcamentoUseCase,
             ExcluirOrcamentoUseCase excluirOrcamentoUseCase,
             ListarOrcamentosUseCase listarOrcamentosUseCase) {
-        this.cadastrarOrcamentoUseCase = cadastrarOrcamentoUseCase;
+        this.cadastrarNovoOrcamentoUseCase = cadastrarNovoOrcamentoUseCase;
         this.consultarOrcamentoUseCase = consultarOrcamentoUseCase;
         this.alterarOrcamentoUseCase = alterarOrcamentoUseCase;
         this.excluirOrcamentoUseCase = excluirOrcamentoUseCase;
@@ -51,7 +51,7 @@ public class OrcamentoController {
 
     @PostMapping
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarOrcamentoRequest request) {
-        cadastrarOrcamentoUseCase.cadastrarOrcamento(new CadastrarOrcamentoCommand(
+        cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
                 request.id(),
                 request.ordemDeServicoId(),
                 request.funcionarioId(),
