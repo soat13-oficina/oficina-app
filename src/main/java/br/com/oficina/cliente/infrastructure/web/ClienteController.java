@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.UUID;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -66,10 +68,12 @@ public class ClienteController {
     }
 
     @PostMapping
-    @Operation(summary = "Cadastrar cliente", description = "Cria um novo cliente pessoa física ou pessoa jurídica.")
+    @Operation(
+            summary = "Cadastrar cliente",
+            description = "Cria um novo cliente pessoa física ou pessoa jurídica. O CPF/CNPJ deve ser único e não pode estar associado a outro cliente já cadastrado.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Cliente cadastrado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro", content = @Content)
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro ou CPF/CNPJ já cadastrado", content = @Content)
     })
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarClienteRequest request) {
         log.info("Recebida requisicao de cadastro de cliente. tipoCliente={}, documentoInformado={}",
@@ -85,12 +89,17 @@ public class ClienteController {
     }
 
     @GetMapping
-    @Operation(summary = "Pesquisar clientes", description = "Pesquisa clientes por CPF, nome completo, primeiro nome ou sobrenome.")
+    @Operation(
+            summary = "Pesquisar clientes",
+            description = "Pesquisa clientes por CPF/CNPJ, nome completo, primeiro nome ou sobrenome. Quando o termo não é informado, retorna todos os clientes.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Clientes retornados com sucesso",
-                    content = @Content(schema = @Schema(implementation = ClienteResponse.class)))
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ClienteResponse.class))))
     })
-    public ResponseEntity<List<ClienteResponse>> pesquisar(@RequestParam(required = false) String termo) {
+    public ResponseEntity<List<ClienteResponse>> pesquisar(
+            @Parameter(
+                    description = "Termo opcional para pesquisa por CPF/CNPJ, nome completo, primeiro nome ou sobrenome. Ex.: `12345678901`, `Maria Silva`, `Maria`, `Silva`.")
+            @RequestParam(required = false) String termo) {
         log.info("Recebida requisicao de pesquisa de clientes. termoInformado={}", termo != null && !termo.isBlank());
         List<ClienteResponse> clientes = pesquisarClientesUseCase.pesquisarClientes(new PesquisarClientesQuery(termo))
                 .stream()
@@ -116,10 +125,12 @@ public class ClienteController {
     }
 
     @PutMapping("/{clienteId}")
-    @Operation(summary = "Alterar cliente", description = "Atualiza os dados de um cliente existente.")
+    @Operation(
+            summary = "Alterar cliente",
+            description = "Atualiza os dados de um cliente existente. O CPF/CNPJ informado deve continuar único e não pode pertencer a outro cliente.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Cliente alterado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos para alteração", content = @Content),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para alteração ou CPF/CNPJ já cadastrado para outro cliente", content = @Content),
             @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
     })
     public ResponseEntity<Void> alterar(@PathVariable String clienteId, @RequestBody AlterarClienteRequest request) {
