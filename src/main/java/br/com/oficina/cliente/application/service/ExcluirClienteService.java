@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.application.command.ExcluirClienteCommand;
 import br.com.oficina.cliente.application.usecase.ExcluirClienteUseCase;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
 
 @Service
@@ -16,7 +17,7 @@ public class ExcluirClienteService implements ExcluirClienteUseCase {
     @Override
     public void excluirCliente(ExcluirClienteCommand command) {
         clienteRepository.buscarPorId(command.clienteId())
-                .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado."));
         clienteRepository.excluirPorId(command.clienteId());
     }
 }

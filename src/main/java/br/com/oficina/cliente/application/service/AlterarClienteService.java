@@ -6,6 +6,7 @@ import br.com.oficina.cliente.application.command.AlterarClienteCommand;
 import br.com.oficina.cliente.application.usecase.AlterarClienteUseCase;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 
 @Service
 public class AlterarClienteService implements AlterarClienteUseCase {
@@ -18,7 +19,7 @@ public class AlterarClienteService implements AlterarClienteUseCase {
     @Override
     public void alterarCliente(AlterarClienteCommand command) {
         Cliente cliente = clienteRepository.buscarPorId(command.clienteId())
-                .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado."));
 
         cliente.alterar(command.nome(), command.cpfOuCnpj(), command.tipoCliente());
         clienteRepository.atualizar(cliente);

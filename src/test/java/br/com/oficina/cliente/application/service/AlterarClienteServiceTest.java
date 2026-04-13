@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.cliente.application.command.AlterarClienteCommand;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.support.persistence.TestClienteRepository;
 
@@ -34,11 +35,11 @@ class AlterarClienteServiceTest {
     void deveFalharAoAlterarClienteInexistente() {
         AlterarClienteService service = new AlterarClienteService(new TestClienteRepository());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        RecursoNaoEncontradoException exception = assertThrows(
+                RecursoNaoEncontradoException.class,
                 () -> service.alterarCliente(new AlterarClienteCommand(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"), "Bianca", "99999999999", TipoCliente.PF)));
 
-        assertEquals("Cliente nao encontrado", exception.getMessage());
+        assertEquals("Cliente nao encontrado para o identificador informado.", exception.getMessage());
     }
 
     @Test

@@ -71,6 +71,34 @@ class ClienteControllerTest {
     void deveRetornarNotFoundQuandoClienteNaoExiste() throws Exception {
         mockMvc.perform(get("/clientes/" + UUID.fromString("99999999-9999-9999-9999-999999999999"))
                         .with(user("tester")))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Cliente nao encontrado para o identificador informado."));
+    }
+
+    @Test
+    void deveRetornarBadRequestQuandoIdentificadorForInvalido() throws Exception {
+        mockMvc.perform(get("/clientes/cliente-invalido")
+                        .with(user("tester")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Identificador do cliente invalido."));
+    }
+
+    @Test
+    void deveRetornarBadRequestQuandoPayloadForInvalido() throws Exception {
+        String requestBody = """
+                {
+                  "nome": "Maria",
+                  "cpfOuCnpj": "12345678901",
+                  "tipoCliente": "TIPO_INVALIDO"
+                }
+                """;
+
+        mockMvc.perform(post("/clientes")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Os dados enviados sao invalidos. Revise o corpo da requisicao."));
     }
 }

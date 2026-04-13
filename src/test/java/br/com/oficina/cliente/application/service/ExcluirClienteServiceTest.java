@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.cliente.application.command.ExcluirClienteCommand;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.support.persistence.TestClienteRepository;
 
 class ExcluirClienteServiceTest {
@@ -31,10 +32,10 @@ class ExcluirClienteServiceTest {
     void deveFalharAoExcluirClienteInexistente() {
         ExcluirClienteService service = new ExcluirClienteService(new TestClienteRepository());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        RecursoNaoEncontradoException exception = assertThrows(
+                RecursoNaoEncontradoException.class,
                 () -> service.excluirCliente(new ExcluirClienteCommand(UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd"))));
 
-        assertEquals("Cliente nao encontrado", exception.getMessage());
+        assertEquals("Cliente nao encontrado para o identificador informado.", exception.getMessage());
     }
 }

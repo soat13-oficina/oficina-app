@@ -22,6 +22,8 @@ import br.com.oficina.cliente.application.usecase.AlterarClienteUseCase;
 import br.com.oficina.cliente.application.usecase.CadastrarClienteUseCase;
 import br.com.oficina.cliente.application.usecase.ConsultarClienteUseCase;
 import br.com.oficina.cliente.application.usecase.ExcluirClienteUseCase;
+import br.com.oficina.common.domain.exception.RegraDeNegocioException;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.cliente.infrastructure.web.request.AlterarClienteRequest;
 import br.com.oficina.cliente.infrastructure.web.request.CadastrarClienteRequest;
 import br.com.oficina.cliente.infrastructure.web.response.ClienteResponse;
@@ -57,10 +59,9 @@ public class ClienteController {
 
     @GetMapping("/{clienteId}")
     public ResponseEntity<ClienteResponse> consultar(@PathVariable String clienteId) {
-        return consultarClienteUseCase.consultarCliente(new ConsultarClienteQuery(paraUuid(clienteId)))
+        return ResponseEntity.ok(consultarClienteUseCase.consultarCliente(new ConsultarClienteQuery(paraUuid(clienteId)))
                 .map(ClienteResponse::from)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado.")));
     }
 
     @PutMapping("/{clienteId}")
@@ -76,6 +77,10 @@ public class ClienteController {
     }
 
     private UUID paraUuid(String clienteId) {
-        return UUID.fromString(clienteId);
+        try {
+            return UUID.fromString(clienteId);
+        } catch (IllegalArgumentException exception) {
+            throw new RegraDeNegocioException("Identificador do cliente invalido.");
+        }
     }
 }
