@@ -3,6 +3,16 @@ package br.com.oficina.cliente.infrastructure.web;
 import java.net.URI;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,7 +40,11 @@ import br.com.oficina.cliente.infrastructure.web.response.ClienteResponse;
 
 @RestController
 @RequestMapping("/clientes")
+@Tag(name = "Clientes", description = "Operações de cadastro, consulta, alteração e exclusão de clientes")
+@SecurityRequirement(name = "bearerAuth")
 public class ClienteController {
+    private static final Logger log = LoggerFactory.getLogger(ClienteController.class);
+
     private final AlterarClienteUseCase alterarClienteUseCase;
     private final CadastrarClienteUseCase cadastrarClienteUseCase;
     private final ConsultarClienteUseCase consultarClienteUseCase;
@@ -48,31 +62,67 @@ public class ClienteController {
     }
 
     @PostMapping
+    @Operation(summary = "Cadastrar cliente", description = "Cria um novo cliente pessoa física ou pessoa jurídica.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Cliente cadastrado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro", content = @Content)
+    })
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarClienteRequest request) {
+        log.info("Recebida requisicao de cadastro de cliente. tipoCliente={}, documentoInformado={}",
+                request.tipoCliente(),
+                request.cpfOuCnpj() != null && !request.cpfOuCnpj().isBlank());
         UUID clienteId = cadastrarClienteUseCase.cadastrarCliente(request.toCommand());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(clienteId)
                 .toUri();
+        log.info("Requisicao de cadastro concluida. clienteId={}", clienteId);
         return ResponseEntity.created(location).build();
     }
 
     @GetMapping("/{clienteId}")
+    @Operation(summary = "Consultar cliente", description = "Consulta um cliente pelo identificador UUID.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Cliente encontrado",
+                    content = @Content(schema = @Schema(implementation = ClienteResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Identificador inválido", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
+    })
     public ResponseEntity<ClienteResponse> consultar(@PathVariable String clienteId) {
+        log.info("Recebida requisicao de consulta de cliente. clienteId={}", clienteId);
         return ResponseEntity.ok(consultarClienteUseCase.consultarCliente(new ConsultarClienteQuery(paraUuid(clienteId)))
                 .map(ClienteResponse::from)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado.")));
     }
 
     @PutMapping("/{clienteId}")
+    @Operation(summary = "Alterar cliente", description = "Atualiza os dados de um cliente existente.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Cliente alterado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para alteração", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
+    })
     public ResponseEntity<Void> alterar(@PathVariable String clienteId, @RequestBody AlterarClienteRequest request) {
+        log.info("Recebida requisicao de alteracao de cliente. clienteId={}, tipoCliente={}, documentoInformado={}",
+                clienteId,
+                request.tipoCliente(),
+                request.cpfOuCnpj() != null && !request.cpfOuCnpj().isBlank());
         alterarClienteUseCase.alterarCliente(request.toCommand(paraUuid(clienteId)));
+        log.info("Requisicao de alteracao concluida. clienteId={}", clienteId);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{clienteId}")
+    @Operation(summary = "Excluir cliente", description = "Remove um cliente pelo identificador UUID.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Cliente excluído com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Identificador inválido", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
+    })
     public ResponseEntity<Void> excluir(@PathVariable String clienteId) {
+        log.info("Recebida requisicao de exclusao de cliente. clienteId={}", clienteId);
         excluirClienteUseCase.excluirCliente(new ExcluirClienteCommand(paraUuid(clienteId)));
+        log.info("Requisicao de exclusao concluida. clienteId={}", clienteId);
         return ResponseEntity.noContent().build();
     }
 
