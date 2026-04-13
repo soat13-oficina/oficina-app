@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
+import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
@@ -19,7 +20,7 @@ class OrdemDeServicoResponseTest {
                 "id-1",
                 "OS-001",
                 new Funcionario("func-1", "Joao", null),
-                new Cliente("cliente-1", "Maria", "111"),
+                new Cliente("cliente-1", "Maria", "11111111111", TipoCliente.PF),
                 new Veiculo(
                         "ABC1D23",
                         "Toyota",
@@ -36,7 +37,8 @@ class OrdemDeServicoResponseTest {
         assertEquals("OS-001", response.numeroOrdemServico());
         assertEquals("cliente-1", response.clienteId());
         assertEquals("Maria", response.nomeCliente());
-        assertEquals("111", response.cpfCliente());
+        assertEquals("11111111111", response.documentoCliente());
+        assertEquals(TipoCliente.PF, response.tipoCliente());
         assertEquals("ABC1D23", response.placaVeiculo());
         assertEquals(StatusOrdemDeServico.ABERTA, response.status());
     }

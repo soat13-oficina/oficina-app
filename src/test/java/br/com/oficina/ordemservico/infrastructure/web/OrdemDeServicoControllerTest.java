@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import br.com.oficina.cliente.domain.model.Cliente;
+import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
 import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
@@ -70,7 +71,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveCriarOrdemDeServico() throws Exception {
-        clienteRepository.salvar(new Cliente("cliente-os-1", "Maria", "11111111111"));
+        clienteRepository.salvar(new Cliente("cliente-os-1", "Maria", "11111111111", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
                 "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
 
@@ -92,8 +93,8 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveAlterarOrdemDeServico() throws Exception {
-        clienteRepository.salvar(new Cliente("cliente-os-alt-1", "Marina", "12345678901"));
-        clienteRepository.salvar(new Cliente("cliente-os-alt-2", "Roberta", "99999999999"));
+        clienteRepository.salvar(new Cliente("cliente-os-alt-1", "Marina", "12345678901", TipoCliente.PF));
+        clienteRepository.salvar(new Cliente("cliente-os-alt-2", "Roberta", "99999999999", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
                 "ALT1A11", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         veiculoRepository.salvar(new Veiculo(
@@ -103,7 +104,7 @@ class OrdemDeServicoControllerTest {
                 "id-os-alterar-1",
                 "OS-ALTERAR-1",
                 new Funcionario("func-20", "Joao", null),
-                new Cliente("cliente-os-alt-1", "Marina", "12345678901"),
+                new Cliente("cliente-os-alt-1", "Marina", "12345678901", TipoCliente.PF),
                 new Veiculo("ALT1A11", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         ordemDeServicoRepository.salvar(ordemDeServico);
 
@@ -135,7 +136,7 @@ class OrdemDeServicoControllerTest {
                 "id-os-excluir-1",
                 "OS-EXCLUIR-1",
                 new Funcionario("func-30", "Joao", null),
-                new Cliente("cliente-os-excluir-1", "Marina", "12345678901"),
+                new Cliente("cliente-os-excluir-1", "Marina", "12345678901", TipoCliente.PF),
                 new Veiculo("DEL1O23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         ordemDeServicoRepository.salvar(ordemDeServico);
 
@@ -153,13 +154,13 @@ class OrdemDeServicoControllerTest {
                 "id-os-consulta-1",
                 "OS-0001",
                 new Funcionario("func-10", "Joao", null),
-                new Cliente("cliente-os-10", "Marina", "12345678901"),
+                new Cliente("cliente-os-10", "Marina", "12345678901", TipoCliente.PF),
                 new Veiculo("QRY1A23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         OrdemDeServico segundaOrdem = OrdemDeServico.abrir(
                 "id-os-consulta-2",
                 "OS-0002",
                 new Funcionario("func-11", "Paulo", null),
-                new Cliente("cliente-os-11", "Roberto", "99999999999"),
+                new Cliente("cliente-os-11", "Roberto", "99999999999", TipoCliente.PF),
                 new Veiculo("ZZZ9Z99", "Honda", "City", "Honda Motor Co.", 2023, 126, "AUTOMATICO", TipoCombustivel.FLEX));
         ordemDeServicoRepository.salvar(primeiraOrdem);
         ordemDeServicoRepository.salvar(segundaOrdem);
@@ -175,7 +176,7 @@ class OrdemDeServicoControllerTest {
                         .with(user("tester"))
                         .param("nomeCliente", "Marina"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].cpfCliente").value("12345678901"));
+                .andExpect(jsonPath("$[0].documentoCliente").value("12345678901"));
 
         mockMvc.perform(get("/ordens-servico")
                         .with(user("tester"))
@@ -185,7 +186,7 @@ class OrdemDeServicoControllerTest {
 
         mockMvc.perform(get("/ordens-servico")
                         .with(user("tester"))
-                        .param("cpfCliente", "12345678901"))
+                        .param("documentoCliente", "12345678901"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].placaVeiculo").value("QRY1A23"));
     }

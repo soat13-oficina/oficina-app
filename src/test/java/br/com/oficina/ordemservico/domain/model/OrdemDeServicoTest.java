@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
+import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
@@ -16,7 +17,7 @@ class OrdemDeServicoTest {
     void deveAbrirAlterarEExporDadosDaOrdemDeServico() {
         OrdemDeServico ordemDeServico = novaOrdem("OS-001");
         Funcionario novoFuncionario = new Funcionario("func-2", "Paula", "123");
-        Cliente novoCliente = new Cliente("cliente-2", "Bianca", "999");
+        Cliente novoCliente = new Cliente("cliente-2", "Bianca", "99999999999", TipoCliente.PF);
         Veiculo novoVeiculo = new Veiculo(
                 "XYZ9Z99",
                 "Honda",
@@ -93,7 +94,7 @@ class OrdemDeServicoTest {
                 RegraDeNegocioException.class,
                 () -> ordemDeServico.alterar(
                         new Funcionario("func-3", "Carlos", null),
-                        new Cliente("cliente-3", "Marcos", "222"),
+                        new Cliente("cliente-3", "Marcos", "22222222222", TipoCliente.PF),
                         new Veiculo(
                                 "TTT1T11",
                                 "Jeep",
@@ -112,7 +113,7 @@ class OrdemDeServicoTest {
                 "id-" + numeroOrdemServico,
                 numeroOrdemServico,
                 new Funcionario("func-1", "Joao", null),
-                new Cliente("cliente-1", "Maria", "111"),
+                new Cliente("cliente-1", "Maria", "11111111111", TipoCliente.PF),
                 new Veiculo(
                         "ABC1D23",
                         "Toyota",

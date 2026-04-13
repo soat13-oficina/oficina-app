@@ -16,7 +16,11 @@ public class CadastrarClienteService implements CadastrarClienteUseCase {
     }
 
     @Override
-    public void cadastrarCliente(CadastrarClienteCommand command) {
-        clienteRepository.salvar(new Cliente(command.id(), command.nome(), command.cpf()));
+    public String cadastrarCliente(CadastrarClienteCommand command) {
+        Cliente clienteSalvo = clienteRepository.salvar(new Cliente(
+                command.nome(),
+                command.cpfOuCnpj(),
+                command.tipoCliente()));
+        return clienteSalvo.getId();
     }
 }

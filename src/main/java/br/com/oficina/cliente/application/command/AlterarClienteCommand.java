@@ -1,4 +1,6 @@
 package br.com.oficina.cliente.application.command;
 
-public record AlterarClienteCommand(String clienteId, String nome, String cpf) {
+import br.com.oficina.cliente.domain.model.TipoCliente;
+
+public record AlterarClienteCommand(String clienteId, String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
 }

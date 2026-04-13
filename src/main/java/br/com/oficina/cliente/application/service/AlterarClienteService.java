@@ -20,7 +20,11 @@ public class AlterarClienteService implements AlterarClienteUseCase {
         clienteRepository.buscarPorId(command.clienteId())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
 
-        Cliente clienteAtualizado = new Cliente(command.clienteId(), command.nome(), command.cpf());
+        Cliente clienteAtualizado = new Cliente(
+                command.clienteId(),
+                command.nome(),
+                command.cpfOuCnpj(),
+                command.tipoCliente());
         clienteRepository.atualizar(clienteAtualizado);
     }
 }

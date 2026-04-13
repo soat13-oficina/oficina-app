@@ -19,14 +19,14 @@ public class JpaClienteRepository implements ClienteRepository {
 
     @Override
     @Transactional
-    public void salvar(Cliente cliente) {
-        repository.save(ClienteJpaEntity.fromDomain(cliente));
+    public Cliente salvar(Cliente cliente) {
+        return repository.save(cliente);
     }
 
     @Override
     @Transactional
     public void atualizar(Cliente cliente) {
-        repository.save(ClienteJpaEntity.fromDomain(cliente));
+        repository.save(cliente);
     }
 
     @Override
@@ -37,6 +37,6 @@ public class JpaClienteRepository implements ClienteRepository {
 
     @Override
     public Optional<Cliente> buscarPorId(String clienteId) {
-        return repository.findById(clienteId).map(ClienteJpaEntity::toDomain);
+        return repository.findById(clienteId);
     }
 }

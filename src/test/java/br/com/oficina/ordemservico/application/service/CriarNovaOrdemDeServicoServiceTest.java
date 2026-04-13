@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
+import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
 import br.com.oficina.support.persistence.TestClienteRepository;
 import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
@@ -20,7 +21,7 @@ class CriarNovaOrdemDeServicoServiceTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
         TestOrdemDeServicoRepository ordemDeServicoRepository = new TestOrdemDeServicoRepository();
-        clienteRepository.salvar(new Cliente("cliente-1", "Maria", "111"));
+        clienteRepository.salvar(new Cliente("cliente-1", "Maria", "11111111111", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
                 "ABC1D23",
                 "Toyota",

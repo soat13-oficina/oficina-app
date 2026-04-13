@@ -2,6 +2,7 @@ package br.com.oficina.support.persistence;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -11,8 +12,12 @@ public class TestClienteRepository implements ClienteRepository {
     private final Map<String, Cliente> clientes = new ConcurrentHashMap<>();
 
     @Override
-    public void salvar(Cliente cliente) {
-        clientes.put(cliente.getId(), cliente);
+    public Cliente salvar(Cliente cliente) {
+        Cliente clientePersistido = cliente.getId() == null
+                ? new Cliente(UUID.randomUUID().toString(), cliente.getNome(), cliente.getCpfOuCnpj(), cliente.getTipoCliente())
+                : cliente;
+        clientes.put(clientePersistido.getId(), clientePersistido);
+        return clientePersistido;
     }
 
     @Override

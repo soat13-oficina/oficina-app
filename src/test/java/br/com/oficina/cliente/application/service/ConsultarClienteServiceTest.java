@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.application.query.ConsultarClienteQuery;
 import br.com.oficina.cliente.domain.model.Cliente;
+import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.support.persistence.TestClienteRepository;
 
 class ConsultarClienteServiceTest {
@@ -14,12 +15,13 @@ class ConsultarClienteServiceTest {
     @Test
     void deveConsultarClientePorId() {
         TestClienteRepository repository = new TestClienteRepository();
-        repository.salvar(new Cliente("cliente-1", "Maria", "12345678901"));
+        repository.salvar(new Cliente("cliente-1", "Maria", "12345678901", TipoCliente.PF));
         ConsultarClienteService service = new ConsultarClienteService(repository);
 
         Cliente cliente = service.consultarCliente(new ConsultarClienteQuery("cliente-1")).orElseThrow();
 
         assertEquals("Maria", cliente.getNome());
+        assertEquals("12345678901", cliente.getCpfOuCnpj());
     }
 
     @Test

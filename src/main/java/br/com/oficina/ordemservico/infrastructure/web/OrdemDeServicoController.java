@@ -89,13 +89,13 @@ public class OrdemDeServicoController {
             @RequestParam(required = false) String numeroOrdemServico,
             @RequestParam(required = false) String nomeCliente,
             @RequestParam(required = false) String placaVeiculo,
-            @RequestParam(required = false) String cpfCliente) {
+            @RequestParam(required = false) String documentoCliente) {
         List<OrdemDeServicoResponse> response = consultarOrdensDeServicoUseCase.consultarOrdensDeServico(
                         new ConsultarOrdensDeServicoQuery(
                                 numeroOrdemServico,
                                 nomeCliente,
                                 placaVeiculo,
-                                cpfCliente))
+                                documentoCliente))
                 .stream()
                 .map(OrdemDeServicoResponse::from)
                 .toList();

@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -37,26 +38,31 @@ class ClienteControllerTest {
     void deveCadastrarEConsultarCliente() throws Exception {
         String requestBody = """
                 {
-                  "id": "cliente-1",
                   "nome": "Maria",
-                  "cpf": "12345678901"
+                  "cpfOuCnpj": "12345678901",
+                  "tipoCliente": "PF"
                 }
                 """;
 
-        mockMvc.perform(post("/clientes")
+        MvcResult cadastro = mockMvc.perform(post("/clientes")
                         .with(user("tester"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "http://localhost/clientes/cliente-1"));
+                .andExpect(header().string("Location", org.hamcrest.Matchers.matchesPattern("http://localhost/clientes/.+")))
+                .andReturn();
 
-        mockMvc.perform(get("/clientes/cliente-1")
+        String location = cadastro.getResponse().getHeader("Location");
+        String clienteId = location.substring(location.lastIndexOf('/') + 1);
+
+        mockMvc.perform(get("/clientes/" + clienteId)
                         .with(user("tester")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value("cliente-1"))
+                .andExpect(jsonPath("$.id").value(clienteId))
                 .andExpect(jsonPath("$.nome").value("Maria"))
-                .andExpect(jsonPath("$.cpf").value("12345678901"));
+                .andExpect(jsonPath("$.cpfOuCnpj").value("12345678901"))
+                .andExpect(jsonPath("$.tipoCliente").value("PF"));
     }
 
     @Test

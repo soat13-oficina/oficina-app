@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
+import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
@@ -22,15 +23,15 @@ class AlterarOrdemDeServicoServiceTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
         TestOrdemDeServicoRepository ordemDeServicoRepository = new TestOrdemDeServicoRepository();
-        clienteRepository.salvar(new Cliente("cliente-1", "Maria", "111"));
-        clienteRepository.salvar(new Cliente("cliente-2", "Bianca", "222"));
+        clienteRepository.salvar(new Cliente("cliente-1", "Maria", "11111111111", TipoCliente.PF));
+        clienteRepository.salvar(new Cliente("cliente-2", "Bianca", "22222222222", TipoCliente.PF));
         veiculoRepository.salvar(novoVeiculo("ABC1D23", "Toyota"));
         veiculoRepository.salvar(novoVeiculo("XYZ9Z99", "Honda"));
         ordemDeServicoRepository.salvar(OrdemDeServico.abrir(
                 "id-1",
                 "OS-001",
                 new Funcionario("func-1", "Joao", null),
-                new Cliente("cliente-1", "Maria", "111"),
+                new Cliente("cliente-1", "Maria", "11111111111", TipoCliente.PF),
                 novoVeiculo("ABC1D23", "Toyota")));
         AlterarOrdemDeServicoService service = new AlterarOrdemDeServicoService(
                 clienteRepository,

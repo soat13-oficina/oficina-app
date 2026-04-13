@@ -1,4 +1,6 @@
 package br.com.oficina.cliente.infrastructure.web.request;
 
-public record AlterarClienteRequest(String nome, String cpf) {
+import br.com.oficina.cliente.domain.model.TipoCliente;
+
+public record AlterarClienteRequest(String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
 }
