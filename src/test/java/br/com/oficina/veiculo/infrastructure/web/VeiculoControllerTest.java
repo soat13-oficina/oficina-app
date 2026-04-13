@@ -61,7 +61,7 @@ class VeiculoControllerTest {
     }
 
     @Test
-    void deveListarVeiculosFiltrandoPorMarcaETipo() throws Exception {
+    void deveConsultarVeiculosFiltrandoPorMarcaETipo() throws Exception {
         String corolla = """
                 {
                   "placa": "ABC1D23",
@@ -115,6 +115,51 @@ class VeiculoControllerTest {
                 .andExpect(jsonPath("$[0].potencia").value(177))
                 .andExpect(jsonPath("$[0].cambio").value("AUTOMATICO"))
                 .andExpect(jsonPath("$[0].tipo").value("FLEX"));
+    }
+
+    @Test
+    void deveConsultarVeiculoPorPlacaMarcaOuFabricante() throws Exception {
+        String consulta = """
+                {
+                  "placa": "QWE1A23",
+                  "marca": "MarcaConsultaUnica",
+                  "modelo": "Pulse",
+                  "fabricante": "Fabricante Consulta Unica",
+                  "ano": 2024,
+                  "potencia": 130,
+                  "cambio": "AUTOMATICO",
+                  "tipo": "FLEX",
+                  "clienteId": "cliente-consulta"
+                }
+                """;
+
+        mockMvc.perform(post("/veiculos")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(consulta))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/veiculos")
+                        .param("placa", "QWE1A23")
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].placa").value("QWE1A23"));
+
+        mockMvc.perform(get("/veiculos")
+                        .param("marca", "MarcaConsultaUnica")
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].placa").value("QWE1A23"));
+
+        mockMvc.perform(get("/veiculos")
+                        .param("fabricante", "Fabricante Consulta Unica")
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].placa").value("QWE1A23"));
     }
 
     @Test

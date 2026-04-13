@@ -4,22 +4,23 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import br.com.oficina.veiculo.application.query.ListarVeiculosQuery;
-import br.com.oficina.veiculo.application.usecase.ListarVeiculosUseCase;
+import br.com.oficina.veiculo.application.query.ConsultarVeiculosQuery;
+import br.com.oficina.veiculo.application.usecase.ConsultarVeiculosUseCase;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 
 @Service
-public class ListarVeiculosService implements ListarVeiculosUseCase {
+public class ConsultarVeiculosService implements ConsultarVeiculosUseCase {
     private final VeiculoRepository veiculoRepository;
 
-    public ListarVeiculosService(VeiculoRepository veiculoRepository) {
+    public ConsultarVeiculosService(VeiculoRepository veiculoRepository) {
         this.veiculoRepository = veiculoRepository;
     }
 
     @Override
-    public List<Veiculo> listarVeiculos(ListarVeiculosQuery query) {
+    public List<Veiculo> consultarVeiculos(ConsultarVeiculosQuery query) {
         return veiculoRepository.buscarTodos().stream()
+                .filter(veiculo -> query.placa() == null || veiculo.getPlaca().equalsIgnoreCase(query.placa()))
                 .filter(veiculo -> query.ano() == null || veiculo.getAno() == query.ano())
                 .filter(veiculo -> query.marca() == null || veiculo.getMarca().equalsIgnoreCase(query.marca()))
                 .filter(veiculo -> query.fabricante() == null

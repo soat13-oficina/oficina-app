@@ -18,11 +18,11 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import br.com.oficina.veiculo.application.command.AlterarVeiculoCommand;
 import br.com.oficina.veiculo.application.command.CadastrarVeiculoCommand;
 import br.com.oficina.veiculo.application.command.ExcluirVeiculoCommand;
-import br.com.oficina.veiculo.application.query.ListarVeiculosQuery;
 import br.com.oficina.veiculo.application.usecase.AlterarVeiculoUseCase;
 import br.com.oficina.veiculo.application.usecase.CadastrarVeiculoUseCase;
+import br.com.oficina.veiculo.application.query.ConsultarVeiculosQuery;
+import br.com.oficina.veiculo.application.usecase.ConsultarVeiculosUseCase;
 import br.com.oficina.veiculo.application.usecase.ExcluirVeiculoUseCase;
-import br.com.oficina.veiculo.application.usecase.ListarVeiculosUseCase;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.infrastructure.web.request.AlterarVeiculoRequest;
 import br.com.oficina.veiculo.infrastructure.web.request.CadastrarVeiculoRequest;
@@ -33,18 +33,18 @@ import br.com.oficina.veiculo.infrastructure.web.response.VeiculoResponse;
 public class VeiculoController {
     private final AlterarVeiculoUseCase alterarVeiculoUseCase;
     private final CadastrarVeiculoUseCase cadastrarVeiculoUseCase;
+    private final ConsultarVeiculosUseCase consultarVeiculosUseCase;
     private final ExcluirVeiculoUseCase excluirVeiculoUseCase;
-    private final ListarVeiculosUseCase listarVeiculosUseCase;
 
     public VeiculoController(
             AlterarVeiculoUseCase alterarVeiculoUseCase,
             CadastrarVeiculoUseCase cadastrarVeiculoUseCase,
             ExcluirVeiculoUseCase excluirVeiculoUseCase,
-            ListarVeiculosUseCase listarVeiculosUseCase) {
+            ConsultarVeiculosUseCase consultarVeiculosUseCase) {
         this.alterarVeiculoUseCase = alterarVeiculoUseCase;
         this.cadastrarVeiculoUseCase = cadastrarVeiculoUseCase;
         this.excluirVeiculoUseCase = excluirVeiculoUseCase;
-        this.listarVeiculosUseCase = listarVeiculosUseCase;
+        this.consultarVeiculosUseCase = consultarVeiculosUseCase;
     }
 
     @PostMapping
@@ -81,15 +81,16 @@ public class VeiculoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<VeiculoResponse>> listar(
+    public ResponseEntity<List<VeiculoResponse>> consultar(
+            @RequestParam(required = false) String placa,
             @RequestParam(required = false) Integer ano,
             @RequestParam(required = false) String marca,
             @RequestParam(required = false) String fabricante,
             @RequestParam(required = false) Integer potencia,
             @RequestParam(required = false) String cambio,
             @RequestParam(required = false) TipoCombustivel tipo) {
-        List<VeiculoResponse> veiculos = listarVeiculosUseCase
-                .listarVeiculos(new ListarVeiculosQuery(ano, marca, fabricante, potencia, cambio, tipo))
+        List<VeiculoResponse> veiculos = consultarVeiculosUseCase
+                .consultarVeiculos(new ConsultarVeiculosQuery(placa, ano, marca, fabricante, potencia, cambio, tipo))
                 .stream()
                 .map(VeiculoResponse::from)
                 .toList();
