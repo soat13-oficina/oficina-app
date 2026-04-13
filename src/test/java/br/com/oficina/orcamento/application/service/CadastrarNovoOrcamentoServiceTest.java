@@ -32,8 +32,6 @@ class CadastrarNovoOrcamentoServiceTest {
                 clienteId.toString(),
                 "os-1",
                 "func-1",
-                null,
-                null,
                 "ABC1D23",
                 "Toyota",
                 "Corolla",

@@ -2,6 +2,7 @@ package br.com.oficina.orcamento.application.service;
 
 import java.util.UUID;
 
+import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -53,10 +54,10 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
         if (orcamentoAtual.getEnviadoParaAprovacaoEm() != null) {
             orcamentoAtualizado.enviarParaAprovacao(orcamentoAtual.getEnviadoParaAprovacaoEm());
         }
-        if (orcamentoAtual.getStatus() == br.com.oficina.orcamento.domain.model.StatusOrcamento.APROVADO) {
+        if (orcamentoAtual.getStatus() == StatusOrcamento.APROVADO) {
             orcamentoAtualizado.aprovar();
         }
-        if (orcamentoAtual.getStatus() == br.com.oficina.orcamento.domain.model.StatusOrcamento.REJEITADO) {
+        if (orcamentoAtual.getStatus() == StatusOrcamento.REJEITADO) {
             orcamentoAtualizado.rejeitar();
         }
 

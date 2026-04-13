@@ -9,8 +9,6 @@ public record AlterarOrcamentoCommand(
         String clienteId,
         String ordemDeServicoId,
         String funcionarioId,
-        String clienteNome,
-        String clienteCpf,
         String placaVeiculo,
         String marcaVeiculo,
         String modeloVeiculo,
