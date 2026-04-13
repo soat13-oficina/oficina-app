@@ -55,4 +55,21 @@ class AlterarClienteServiceTest {
 
         assertEquals("CNPJ deve possuir 14 digitos", exception.getMessage());
     }
+
+    @Test
+    void deveFalharAoAlterarClienteParaMesmoDocumentoDeOutroClienteMesmoComNomeDiferente() {
+        TestClienteRepository repository = new TestClienteRepository();
+        UUID clienteId = UUID.fromString("13131313-1313-1313-1313-131313131313");
+        UUID outroClienteId = UUID.fromString("14141414-1414-1414-1414-141414141414");
+        repository.salvar(Cliente.reconstituir(clienteId, "Maria Oliveira", "12345678901", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(outroClienteId, "Joao Silva", "99999999999", TipoCliente.PF));
+        AlterarClienteService service = new AlterarClienteService(repository);
+
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
+                () -> service.alterarCliente(new AlterarClienteCommand(
+                        outroClienteId, "Cliente Outro Nome", "123.456.789-01", TipoCliente.PF)));
+
+        assertEquals("Ja existe cliente cadastrado com o mesmo CPF ou CNPJ.", exception.getMessage());
+    }
 }

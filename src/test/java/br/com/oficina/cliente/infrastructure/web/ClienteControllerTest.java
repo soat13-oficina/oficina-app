@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.hasItem;
 
 import java.util.UUID;
 
@@ -65,6 +66,52 @@ class ClienteControllerTest {
                 .andExpect(jsonPath("$.nome").value("Maria"))
                 .andExpect(jsonPath("$.cpfOuCnpj").value("12345678901"))
                 .andExpect(jsonPath("$.tipoCliente").value("PF"));
+    }
+
+    @Test
+    void devePesquisarClientesPorCpfENome() throws Exception {
+        String nomeMaria = "Maria Silva " + UUID.randomUUID();
+        String nomeJoao = "Joao Pereira " + UUID.randomUUID();
+
+        mockMvc.perform(post("/clientes")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "nome": "%s",
+                                  "cpfOuCnpj": "12345678901",
+                                  "tipoCliente": "PF"
+                                }
+                                """.formatted(nomeMaria)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/clientes")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "nome": "%s",
+                                  "cpfOuCnpj": "99999999999",
+                                  "tipoCliente": "PF"
+                                }
+                                """.formatted(nomeJoao)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/clientes")
+                        .with(user("tester"))
+                        .param("termo", "123.456.789-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].nome", hasItem(nomeMaria)))
+                .andExpect(jsonPath("$[*].cpfOuCnpj", hasItem("12345678901")));
+
+        mockMvc.perform(get("/clientes")
+                        .with(user("tester"))
+                        .param("termo", "Pereira"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].nome", hasItem(nomeJoao)))
+                .andExpect(jsonPath("$[*].cpfOuCnpj", hasItem("99999999999")));
     }
 
     @Test

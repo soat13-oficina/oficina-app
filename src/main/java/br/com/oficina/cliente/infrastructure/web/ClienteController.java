@@ -1,10 +1,10 @@
 package br.com.oficina.cliente.infrastructure.web;
 
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,19 +19,20 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import br.com.oficina.cliente.application.command.AlterarClienteCommand;
-import br.com.oficina.cliente.application.command.CadastrarClienteCommand;
 import br.com.oficina.cliente.application.command.ExcluirClienteCommand;
 import br.com.oficina.cliente.application.query.ConsultarClienteQuery;
+import br.com.oficina.cliente.application.query.PesquisarClientesQuery;
 import br.com.oficina.cliente.application.usecase.AlterarClienteUseCase;
 import br.com.oficina.cliente.application.usecase.CadastrarClienteUseCase;
 import br.com.oficina.cliente.application.usecase.ConsultarClienteUseCase;
 import br.com.oficina.cliente.application.usecase.ExcluirClienteUseCase;
+import br.com.oficina.cliente.application.usecase.PesquisarClientesUseCase;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.cliente.infrastructure.web.request.AlterarClienteRequest;
@@ -49,16 +50,19 @@ public class ClienteController {
     private final CadastrarClienteUseCase cadastrarClienteUseCase;
     private final ConsultarClienteUseCase consultarClienteUseCase;
     private final ExcluirClienteUseCase excluirClienteUseCase;
+    private final PesquisarClientesUseCase pesquisarClientesUseCase;
 
     public ClienteController(
             AlterarClienteUseCase alterarClienteUseCase,
             CadastrarClienteUseCase cadastrarClienteUseCase,
             ConsultarClienteUseCase consultarClienteUseCase,
-            ExcluirClienteUseCase excluirClienteUseCase) {
+            ExcluirClienteUseCase excluirClienteUseCase,
+            PesquisarClientesUseCase pesquisarClientesUseCase) {
         this.alterarClienteUseCase = alterarClienteUseCase;
         this.cadastrarClienteUseCase = cadastrarClienteUseCase;
         this.consultarClienteUseCase = consultarClienteUseCase;
         this.excluirClienteUseCase = excluirClienteUseCase;
+        this.pesquisarClientesUseCase = pesquisarClientesUseCase;
     }
 
     @PostMapping
@@ -78,6 +82,22 @@ public class ClienteController {
                 .toUri();
         log.info("Requisicao de cadastro concluida. clienteId={}", clienteId);
         return ResponseEntity.created(location).build();
+    }
+
+    @GetMapping
+    @Operation(summary = "Pesquisar clientes", description = "Pesquisa clientes por CPF, nome completo, primeiro nome ou sobrenome.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Clientes retornados com sucesso",
+                    content = @Content(schema = @Schema(implementation = ClienteResponse.class)))
+    })
+    public ResponseEntity<List<ClienteResponse>> pesquisar(@RequestParam(required = false) String termo) {
+        log.info("Recebida requisicao de pesquisa de clientes. termoInformado={}", termo != null && !termo.isBlank());
+        List<ClienteResponse> clientes = pesquisarClientesUseCase.pesquisarClientes(new PesquisarClientesQuery(termo))
+                .stream()
+                .map(ClienteResponse::from)
+                .toList();
+        log.info("Requisicao de pesquisa concluida. quantidadeClientes={}", clientes.size());
+        return ResponseEntity.ok(clientes);
     }
 
     @GetMapping("/{clienteId}")
