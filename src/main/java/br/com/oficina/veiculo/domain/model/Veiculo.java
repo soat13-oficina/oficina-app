@@ -1,14 +1,57 @@
 package br.com.oficina.veiculo.domain.model;
 
+import java.util.Locale;
+import java.util.UUID;
+
+import br.com.oficina.common.domain.exception.RegraDeNegocioException;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "veiculos")
 public class Veiculo {
-    private final String placa;
-    private final String marca;
-    private final String modelo;
-    private final String fabricante;
-    private final int ano;
-    private final int potencia;
-    private final String cambio;
-    private final TipoCombustivel tipo;
+    private static final String MENSAGEM_PLACA_OBRIGATORIA = "Placa do veiculo e obrigatoria";
+    private static final String MENSAGEM_PLACA_INVALIDA = "Placa do veiculo invalida";
+    private static final String FORMATO_ANTIGO = "^[A-Z]{3}\\d{4}$";
+    private static final String FORMATO_MERCOSUL = "^[A-Z]{3}\\d[A-Z]\\d{2}$";
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @Column(nullable = false, unique = true)
+    private String placa;
+
+    @Column(nullable = false)
+    private String marca;
+
+    @Column(nullable = false)
+    private String modelo;
+
+    @Column(nullable = false)
+    private String fabricante;
+
+    @Column(nullable = false)
+    private int ano;
+
+    @Column(nullable = false)
+    private int potencia;
+
+    @Column(nullable = false)
+    private String cambio;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TipoCombustivel tipo;
+
+    protected Veiculo() {
+    }
 
     public Veiculo(
             String placa,
@@ -19,7 +62,7 @@ public class Veiculo {
             int potencia,
             String cambio,
             TipoCombustivel tipo) {
-        this.placa = placa;
+        this.placa = normalizarPlaca(placa);
         this.marca = marca;
         this.modelo = modelo;
         this.fabricante = fabricante;
@@ -27,6 +70,59 @@ public class Veiculo {
         this.potencia = potencia;
         this.cambio = cambio;
         this.tipo = tipo;
+    }
+
+    public static Veiculo reconstituir(
+            UUID id,
+            String placa,
+            String marca,
+            String modelo,
+            String fabricante,
+            int ano,
+            int potencia,
+            String cambio,
+            TipoCombustivel tipo) {
+        Veiculo veiculo = new Veiculo(placa, marca, modelo, fabricante, ano, potencia, cambio, tipo);
+        veiculo.id = id;
+        return veiculo;
+    }
+
+    public void alterar(
+            String marca,
+            String modelo,
+            String fabricante,
+            int ano,
+            int potencia,
+            String cambio,
+            TipoCombustivel tipo) {
+        this.marca = marca;
+        this.modelo = modelo;
+        this.fabricante = fabricante;
+        this.ano = ano;
+        this.potencia = potencia;
+        this.cambio = cambio;
+        this.tipo = tipo;
+    }
+
+    public static String normalizarPlaca(String placa) {
+        if (placa == null || placa.isBlank()) {
+            throw new RegraDeNegocioException(MENSAGEM_PLACA_OBRIGATORIA);
+        }
+
+        String placaNormalizada = placa.replace("-", "")
+                .replace(" ", "")
+                .toUpperCase(Locale.ROOT)
+                .trim();
+
+        if (!placaNormalizada.matches(FORMATO_ANTIGO) && !placaNormalizada.matches(FORMATO_MERCOSUL)) {
+            throw new RegraDeNegocioException(MENSAGEM_PLACA_INVALIDA);
+        }
+
+        return placaNormalizada;
+    }
+
+    public UUID getId() {
+        return id;
     }
 
     public String getPlaca() {

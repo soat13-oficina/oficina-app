@@ -39,7 +39,7 @@ class VeiculoControllerTest {
     void deveCadastrarVeiculo() throws Exception {
         String requestBody = """
                 {
-                  "placa": "ABC1D23",
+                  "placa": "abc-1d23",
                   "marca": "Toyota",
                   "modelo": "Corolla",
                   "fabricante": "Toyota Motor Corporation",
@@ -141,7 +141,7 @@ class VeiculoControllerTest {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/veiculos")
-                        .param("placa", "QWE1A23")
+                        .param("placa", " qwe-1a23 ")
                         .with(user("tester")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))

@@ -13,12 +13,24 @@ public class TestVeiculoRepository implements VeiculoRepository {
 
     @Override
     public void salvar(Veiculo veiculo) {
-        veiculos.put(veiculo.getPlaca(), veiculo);
+        Veiculo veiculoPersistido = veiculo.getId() == null
+                ? Veiculo.reconstituir(
+                        java.util.UUID.randomUUID(),
+                        veiculo.getPlaca(),
+                        veiculo.getMarca(),
+                        veiculo.getModelo(),
+                        veiculo.getFabricante(),
+                        veiculo.getAno(),
+                        veiculo.getPotencia(),
+                        veiculo.getCambio(),
+                        veiculo.getTipo())
+                : veiculo;
+        veiculos.put(veiculoPersistido.getPlaca(), veiculoPersistido);
     }
 
     @Override
     public Optional<Veiculo> buscarPorPlaca(String placa) {
-        return Optional.ofNullable(veiculos.get(placa));
+        return Optional.ofNullable(veiculos.get(Veiculo.normalizarPlaca(placa)));
     }
 
     @Override
@@ -28,6 +40,6 @@ public class TestVeiculoRepository implements VeiculoRepository {
 
     @Override
     public void excluirPorPlaca(String placa) {
-        veiculos.remove(placa);
+        veiculos.remove(Veiculo.normalizarPlaca(placa));
     }
 }

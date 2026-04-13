@@ -17,17 +17,17 @@ public class AlterarVeiculoService implements AlterarVeiculoUseCase {
 
     @Override
     public void alterarVeiculo(AlterarVeiculoCommand command) {
-        veiculoRepository.buscarPorPlaca(command.placa())
+        Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placa())
                 .orElseThrow(() -> new IllegalArgumentException("Veiculo nao encontrado"));
 
-        veiculoRepository.salvar(new Veiculo(
-                command.placa(),
+        veiculo.alterar(
                 command.marca(),
                 command.modelo(),
                 command.fabricante(),
                 command.ano(),
                 command.potencia(),
                 command.cambio(),
-                command.tipo()));
+                command.tipo());
+        veiculoRepository.salvar(veiculo);
     }
 }

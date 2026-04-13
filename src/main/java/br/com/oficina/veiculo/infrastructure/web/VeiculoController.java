@@ -24,6 +24,7 @@ import br.com.oficina.veiculo.application.query.ConsultarVeiculosQuery;
 import br.com.oficina.veiculo.application.usecase.ConsultarVeiculosUseCase;
 import br.com.oficina.veiculo.application.usecase.ExcluirVeiculoUseCase;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
+import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.infrastructure.web.request.AlterarVeiculoRequest;
 import br.com.oficina.veiculo.infrastructure.web.request.CadastrarVeiculoRequest;
 import br.com.oficina.veiculo.infrastructure.web.response.VeiculoResponse;
@@ -61,7 +62,7 @@ public class VeiculoController {
                 request.clienteId()));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{placa}")
-                .buildAndExpand(request.placa())
+                .buildAndExpand(Veiculo.normalizarPlaca(request.placa()))
                 .toUri();
         return ResponseEntity.created(location).build();
     }

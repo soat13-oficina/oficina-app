@@ -6,6 +6,7 @@ import br.com.oficina.veiculo.application.command.CadastrarVeiculoCommand;
 import br.com.oficina.veiculo.application.usecase.CadastrarVeiculoUseCase;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
+import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 
 @Service
 public class CadastrarVeiculoService implements CadastrarVeiculoUseCase {
@@ -17,6 +18,10 @@ public class CadastrarVeiculoService implements CadastrarVeiculoUseCase {
 
     @Override
     public void cadastrarVeiculo(CadastrarVeiculoCommand command) {
+        if (veiculoRepository.buscarPorPlaca(command.placa()).isPresent()) {
+            throw new RegraDeNegocioException("Ja existe veiculo cadastrado com a mesma placa.");
+        }
+
         veiculoRepository.salvar(new Veiculo(
                 command.placa(),
                 command.marca(),

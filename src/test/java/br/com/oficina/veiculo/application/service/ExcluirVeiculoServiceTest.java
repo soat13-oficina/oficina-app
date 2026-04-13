@@ -25,7 +25,7 @@ class ExcluirVeiculoServiceTest {
                 TipoCombustivel.DIESEL));
         ExcluirVeiculoService service = new ExcluirVeiculoService(repository);
 
-        service.excluirVeiculo(new ExcluirVeiculoCommand("ABC1D23"));
+        service.excluirVeiculo(new ExcluirVeiculoCommand("abc-1d23"));
 
         assertTrue(repository.buscarPorPlaca("ABC1D23").isEmpty());
     }

@@ -43,6 +43,34 @@ class AlterarVeiculoServiceTest {
     }
 
     @Test
+    void deveAlterarVeiculoMesmoQuandoPlacaForInformadaComHifenOuEspacos() {
+        TestVeiculoRepository repository = new TestVeiculoRepository();
+        repository.salvar(new Veiculo(
+                "ABC1D23",
+                "Volkswagen",
+                "T-Cross",
+                "Volkswagen AG",
+                2023,
+                128,
+                "AUTOMATICO",
+                TipoCombustivel.FLEX));
+        AlterarVeiculoService service = new AlterarVeiculoService(repository);
+
+        service.alterarVeiculo(new AlterarVeiculoCommand(
+                " abc-1d23 ",
+                "Volkswagen",
+                "Nivus",
+                "Volkswagen AG",
+                2024,
+                128,
+                "AUTOMATICO",
+                TipoCombustivel.FLEX));
+
+        Veiculo alterado = repository.buscarPorPlaca("ABC1D23").orElseThrow();
+        assertEquals("Nivus", alterado.getModelo());
+    }
+
+    @Test
     void deveFalharAoAlterarVeiculoInexistente() {
         TestVeiculoRepository repository = new TestVeiculoRepository();
         AlterarVeiculoService service = new AlterarVeiculoService(repository);
