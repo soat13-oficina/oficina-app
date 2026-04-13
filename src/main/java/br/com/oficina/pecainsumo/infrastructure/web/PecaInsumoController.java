@@ -4,7 +4,17 @@ import java.net.URI;
 import java.util.List;
 
 import br.com.oficina.pecainsumo.application.usecase.*;
+import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,6 +45,8 @@ import br.com.oficina.pecainsumo.infrastructure.web.response.PecaInsumoResponse;
 
 @RestController
 @RequestMapping("/pecas-insumos")
+@Tag(name = "Peças e Insumos", description = "Operações de cadastro, consulta, alteração, exclusão e gestão de estoque de peças e insumos")
+@SecurityRequirement(name = "bearerAuth")
 public class PecaInsumoController {
     private final AlterarPecaInsumoUseCase alterarPecaInsumoUseCase;
     private final CadastrarPecaInsumoUseCase cadastrarPecaInsumoUseCase;
@@ -68,7 +80,12 @@ public class PecaInsumoController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> cadastrar(@RequestBody CadastrarPecaInsumoRequest request) {
+    @Operation(summary = "Cadastrar peça/insumo", description = "Cria uma nova peça ou insumo no sistema.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Peça/insumo cadastrada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro", content = @Content)
+    })
+    public ResponseEntity<Void> cadastrar(@Valid @RequestBody CadastrarPecaInsumoRequest request) {
         CadastrarPecaInsumoCommand command = new CadastrarPecaInsumoCommand(
                 request.descricao(),
                 request.marca(),
@@ -85,7 +102,16 @@ public class PecaInsumoController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Void> alterar(@PathVariable String id, @RequestBody AlterarPecaInsumoRequest request) {
+    @Operation(summary = "Alterar peça/insumo", description = "Atualiza os dados de uma peça ou insumo existente.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Peça/insumo alterada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para alteração", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Peça/insumo não encontrada", content = @Content)
+    })
+    public ResponseEntity<Void> alterar(
+            @Parameter(description = "Identificador da peça/insumo", example = "8e221ff7-71b9-4c22-8a8d-f94b6fd897cd")
+            @PathVariable String id,
+            @Valid @RequestBody AlterarPecaInsumoRequest request) {
         alterarPecaInsumoUseCase.alterarPecaInsumo(new AlterarPecaInsumoCommand(
                 id,
                 request.descricao(),
@@ -99,7 +125,15 @@ public class PecaInsumoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PecaInsumoResponse> buscarPorId(@PathVariable String id) {
+    @Operation(summary = "Buscar peça/insumo por ID", description = "Consulta uma peça ou insumo pelo identificador.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Peça/insumo encontrada",
+                    content = @Content(schema = @Schema(implementation = PecaInsumoResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Peça/insumo não encontrada", content = @Content)
+    })
+    public ResponseEntity<PecaInsumoResponse> buscarPorId(
+            @Parameter(description = "Identificador da peça/insumo", example = "8e221ff7-71b9-4c22-8a8d-f94b6fd897cd")
+            @PathVariable String id) {
         PecaInsumoResponse response = buscarPecaInsumoPorIdUseCase
                 .buscar(id)
                 .map(PecaInsumoResponse::from)
@@ -109,9 +143,16 @@ public class PecaInsumoController {
     }
 
     @GetMapping
+    @Operation(summary = "Listar peças/insumos", description = "Lista todas as peças e insumos, com filtros opcionais por marca, categoria e reserva.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Lista de peças/insumos retornada com sucesso")
+    })
     public ResponseEntity<List<PecaInsumoResponse>> listar(
+            @Parameter(description = "Filtrar por marca", example = "Bosch")
             @RequestParam(required = false) String marca,
-            @RequestParam(required = false) String categoria,
+            @Parameter(description = "Filtrar por categoria", example = "FILTROS")
+            @RequestParam(required = false) CategoriaPeca categoria,
+            @Parameter(description = "Filtrar por peças que possuem reserva (true/false)")
             @RequestParam(required = false) Boolean possuiReserva) {
         List<PecaInsumoResponse> pecasInsumos = listarPecasInsumosUseCase
                 .listarPecasInsumos(new ListarPecasInsumosQuery(marca, categoria, possuiReserva))
@@ -122,31 +163,74 @@ public class PecaInsumoController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> excluir(@PathVariable String id) {
+    @Operation(summary = "Excluir peça/insumo", description = "Remove uma peça ou insumo pelo identificador.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Peça/insumo excluída com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Peça/insumo não encontrada", content = @Content)
+    })
+    public ResponseEntity<Void> excluir(
+            @Parameter(description = "Identificador da peça/insumo", example = "8e221ff7-71b9-4c22-8a8d-f94b6fd897cd")
+            @PathVariable String id) {
         excluirPecaInsumoUseCase.excluirPecaInsumo(new ExcluirPecaInsumoCommand(id));
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/adicionar-estoque")
-    public ResponseEntity<Void> adicionarEstoque(@PathVariable String id, @RequestBody AdicionarEstoquePecaRequest request) {
+    @Operation(summary = "Adicionar estoque", description = "Adiciona uma quantidade ao estoque de uma peça/insumo.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Estoque adicionado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Quantidade inválida", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Peça/insumo não encontrada", content = @Content)
+    })
+    public ResponseEntity<Void> adicionarEstoque(
+            @Parameter(description = "Identificador da peça/insumo", example = "8e221ff7-71b9-4c22-8a8d-f94b6fd897cd")
+            @PathVariable String id,
+            @Valid @RequestBody AdicionarEstoquePecaRequest request) {
         adicionarEstoquePecaUseCase.adicionarEstoque(new AdicionarEstoquePecaCommand(id, request.quantidade()));
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/remover-estoque")
-    public ResponseEntity<Void> removerEstoque(@PathVariable String id, @RequestBody RemoverEstoquePecaRequest request) {
+    @Operation(summary = "Remover estoque", description = "Remove uma quantidade do estoque de uma peça/insumo.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Estoque removido com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Quantidade inválida ou estoque insuficiente", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Peça/insumo não encontrada", content = @Content)
+    })
+    public ResponseEntity<Void> removerEstoque(
+            @Parameter(description = "Identificador da peça/insumo", example = "8e221ff7-71b9-4c22-8a8d-f94b6fd897cd")
+            @PathVariable String id,
+            @Valid @RequestBody RemoverEstoquePecaRequest request) {
         removerEstoquePecaUseCase.removerEstoque(new RemoverEstoquePecaCommand(id, request.quantidade()));
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/reservar")
-    public ResponseEntity<Void> reservar(@PathVariable String id, @RequestBody ReservarPecaRequest request) {
+    @Operation(summary = "Reservar peça", description = "Reserva uma quantidade de uma peça/insumo do estoque disponível.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Reserva realizada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Quantidade inválida ou estoque disponível insuficiente", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Peça/insumo não encontrada", content = @Content)
+    })
+    public ResponseEntity<Void> reservar(
+            @Parameter(description = "Identificador da peça/insumo", example = "8e221ff7-71b9-4c22-8a8d-f94b6fd897cd")
+            @PathVariable String id,
+            @Valid @RequestBody ReservarPecaRequest request) {
         reservarPecaUseCase.reservarPeca(new ReservarPecaCommand(id, request.quantidade()));
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/liberar-reserva")
-    public ResponseEntity<Void> liberarReserva(@PathVariable String id, @RequestBody LiberarReservaPecaRequest request) {
+    @Operation(summary = "Liberar reserva", description = "Libera uma quantidade reservada de uma peça/insumo.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Reserva liberada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Quantidade inválida ou reserva insuficiente", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Peça/insumo não encontrada", content = @Content)
+    })
+    public ResponseEntity<Void> liberarReserva(
+            @Parameter(description = "Identificador da peça/insumo", example = "8e221ff7-71b9-4c22-8a8d-f94b6fd897cd")
+            @PathVariable String id,
+            @Valid @RequestBody LiberarReservaPecaRequest request) {
         liberarReservaPecaUseCase.liberarReserva(new LiberarReservaPecaCommand(id, request.quantidade()));
         return ResponseEntity.noContent().build();
     }

@@ -2,9 +2,12 @@ package br.com.oficina.pecainsumo.infrastructure.persistence;
 
 import java.math.BigDecimal;
 
+import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
 import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -33,7 +36,8 @@ public class PecaInsumoJpaEntity {
     private String codigoReferencia;
 
     @Column(nullable = false)
-    private String categoria;
+    @Enumerated(EnumType.STRING)
+    private CategoriaPeca categoria;
 
     protected PecaInsumoJpaEntity() {
     }
@@ -46,7 +50,7 @@ public class PecaInsumoJpaEntity {
             int quantidadeEstoque,
             int quantidadeReservada,
             String codigoReferencia,
-            String categoria) {
+            CategoriaPeca categoria) {
         this.id = id;
         this.descricao = descricao;
         this.marca = marca;
