@@ -4,6 +4,15 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -34,6 +43,8 @@ import br.com.oficina.orcamento.infrastructure.web.response.OrcamentoResponse;
 
 @RestController
 @RequestMapping("/orcamentos")
+@Tag(name = "Orcamentos", description = "Operações de cadastro, consulta, alteração e exclusão de orçamentos")
+@SecurityRequirement(name = "bearerAuth")
 public class OrcamentoController {
     private static final Logger log = LoggerFactory.getLogger(OrcamentoController.class);
 
@@ -54,6 +65,14 @@ public class OrcamentoController {
     }
 
     @PostMapping
+    @Operation(
+            summary = "Cadastrar orçamento",
+            description = "Cria um novo orçamento vinculado a um cliente existente. O número do orçamento deve ser único.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Orçamento cadastrado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
+    })
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarOrcamentoRequest request) {
         log.info("Recebida requisicao de cadastro de orcamento. numeroOrcamento={}, clienteId={}, ordemDeServicoId={}",
                 request.numeroOrcamento(), request.clienteId(), request.ordemDeServicoId());
@@ -82,6 +101,12 @@ public class OrcamentoController {
     }
 
     @GetMapping("/{orcamentoId}")
+    @Operation(summary = "Consultar orçamento", description = "Consulta um orçamento pelo número do orçamento.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Orçamento encontrado",
+                    content = @Content(schema = @Schema(implementation = OrcamentoResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Orçamento não encontrado", content = @Content)
+    })
     public ResponseEntity<OrcamentoResponse> consultar(@PathVariable String orcamentoId) {
         log.info("Recebida requisicao de consulta de orcamento. numeroOrcamento={}", orcamentoId);
         OrcamentoResponse response = consultarOrcamentoUseCase
@@ -95,10 +120,17 @@ public class OrcamentoController {
     }
 
     @GetMapping
+    @Operation(
+            summary = "Consultar orçamentos",
+            description = "Consulta orçamentos por número do orçamento, CPF do cliente e/ou placa do veículo.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Orçamentos retornados com sucesso",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = OrcamentoResponse.class))))
+    })
     public ResponseEntity<List<OrcamentoResponse>> consultarPorFiltros(
-            @RequestParam(required = false) String numeroOrcamento,
-            @RequestParam(required = false) String cpfCliente,
-            @RequestParam(required = false) String placaVeiculo) {
+            @Parameter(description = "Número do orçamento para filtro exato.") @RequestParam(required = false) String numeroOrcamento,
+            @Parameter(description = "CPF do cliente vinculado ao orçamento.") @RequestParam(required = false) String cpfCliente,
+            @Parameter(description = "Placa do veículo vinculada ao orçamento.") @RequestParam(required = false) String placaVeiculo) {
         log.info("Recebida requisicao de consulta de orcamentos. numeroInformado={}, cpfInformado={}, placaInformada={}",
                 numeroOrcamento != null && !numeroOrcamento.isBlank(),
                 cpfCliente != null && !cpfCliente.isBlank(),
@@ -113,6 +145,14 @@ public class OrcamentoController {
     }
 
     @PutMapping("/{orcamentoId}")
+    @Operation(
+            summary = "Alterar orçamento",
+            description = "Atualiza os dados de um orçamento existente a partir do número do orçamento.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Orçamento alterado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para alteração", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Orçamento ou cliente não encontrado", content = @Content)
+    })
     public ResponseEntity<Void> alterar(
             @PathVariable String orcamentoId,
             @RequestBody AlterarOrcamentoRequest request) {
@@ -138,6 +178,11 @@ public class OrcamentoController {
     }
 
     @DeleteMapping("/{orcamentoId}")
+    @Operation(summary = "Excluir orçamento", description = "Remove um orçamento pelo número do orçamento.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Orçamento excluído com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Orçamento não encontrado", content = @Content)
+    })
     public ResponseEntity<Void> excluir(@PathVariable String orcamentoId) {
         log.info("Recebida requisicao de exclusao de orcamento. numeroOrcamento={}", orcamentoId);
         excluirOrcamentoUseCase.excluirOrcamento(new ExcluirOrcamentoCommand(orcamentoId));

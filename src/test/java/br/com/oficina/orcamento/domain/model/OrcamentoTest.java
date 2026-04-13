@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -54,5 +55,39 @@ class OrcamentoTest {
         assertEquals("Prioridade alta", orcamento.getObservacoes());
         assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, orcamento.getStatus());
         assertEquals(LocalDateTime.of(2030, 1, 2, 9, 0), orcamento.getEnviadoParaAprovacaoEm());
+    }
+
+    @Test
+    void deveReconstituirComClienteIdEAprovarOuRejeitar() {
+        UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID clienteId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        Orcamento orcamento = Orcamento.reconstituir(
+                id,
+                "orc-2",
+                clienteId,
+                "os-2",
+                "func-2",
+                "Maria Souza",
+                "99999999999",
+                "XYZ9Z99",
+                "Honda",
+                "City",
+                "Revisao",
+                List.of("Revisao"),
+                List.of("Fluido"),
+                new BigDecimal("200.00"),
+                new BigDecimal("50.00"),
+                LocalDateTime.of(2030, 2, 1, 10, 0),
+                LocalDateTime.of(2030, 2, 10, 10, 0),
+                "Sem observacoes",
+                StatusOrcamento.AGUARDANDO_APROVACAO);
+
+        orcamento.aprovar();
+        assertEquals(StatusOrcamento.APROVADO, orcamento.getStatus());
+        assertEquals(clienteId, orcamento.getClienteId());
+        assertEquals(id, orcamento.getId());
+
+        orcamento.rejeitar();
+        assertEquals(StatusOrcamento.REJEITADO, orcamento.getStatus());
     }
 }

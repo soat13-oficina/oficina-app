@@ -95,6 +95,66 @@ class AlterarOrcamentoServiceTest {
         assertEquals("Orcamento nao encontrado para o numero informado.", exception.getMessage());
     }
 
+    @Test
+    void devePreservarStatusAprovadoAoAlterarOrcamento() {
+        TestOrcamentoRepository repository = new TestOrcamentoRepository();
+        TestClienteRepository clienteRepository = new TestClienteRepository();
+        UUID clienteId = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        Orcamento orcamento = novoOrcamento();
+        orcamento.aprovar();
+        repository.salvar(orcamento);
+        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository);
+
+        service.alterarOrcamento(new AlterarOrcamentoCommand(
+                "orc-1",
+                clienteId.toString(),
+                "os-1",
+                "func-1",
+                "ABC1D23",
+                "Toyota",
+                "Corolla",
+                "Diagnostico aprovado",
+                List.of("Servico"),
+                List.of("Peca"),
+                new BigDecimal("100.00"),
+                new BigDecimal("50.00"),
+                LocalDateTime.of(2030, 1, 10, 10, 0),
+                "Observacao"));
+
+        assertEquals(StatusOrcamento.APROVADO, repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getStatus());
+    }
+
+    @Test
+    void devePreservarStatusRejeitadoAoAlterarOrcamento() {
+        TestOrcamentoRepository repository = new TestOrcamentoRepository();
+        TestClienteRepository clienteRepository = new TestClienteRepository();
+        UUID clienteId = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        Orcamento orcamento = novoOrcamento();
+        orcamento.rejeitar();
+        repository.salvar(orcamento);
+        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository);
+
+        service.alterarOrcamento(new AlterarOrcamentoCommand(
+                "orc-1",
+                clienteId.toString(),
+                "os-1",
+                "func-1",
+                "ABC1D23",
+                "Toyota",
+                "Corolla",
+                "Diagnostico rejeitado",
+                List.of("Servico"),
+                List.of("Peca"),
+                new BigDecimal("100.00"),
+                new BigDecimal("50.00"),
+                LocalDateTime.of(2030, 1, 10, 10, 0),
+                "Observacao"));
+
+        assertEquals(StatusOrcamento.REJEITADO, repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getStatus());
+    }
+
     private Orcamento novoOrcamento() {
         return new Orcamento(
                 "orc-1",
