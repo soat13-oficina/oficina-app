@@ -3,6 +3,8 @@ package br.com.oficina.orcamento.application.service;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -17,6 +19,8 @@ import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
 
 @Service
 public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseCase {
+    private static final Logger log = LoggerFactory.getLogger(CadastrarNovoOrcamentoService.class);
+
     private final OrcamentoRepository orcamentoRepository;
     private final ClienteRepository clienteRepository;
 
@@ -27,6 +31,8 @@ public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseC
 
     @Override
     public void cadastrarNovoOrcamento(CadastrarNovoOrcamentoCommand command) {
+        log.info("Iniciando cadastro de orcamento. numeroOrcamento={}, clienteId={}, ordemDeServicoId={}",
+                command.numeroOrcamento(), command.clienteId(), command.ordemDeServicoId());
         if (orcamentoRepository.buscarPorNumeroOrcamento(command.numeroOrcamento()).isPresent()) {
             throw new RegraDeNegocioException("Ja existe orcamento cadastrado com o mesmo numero.");
         }
@@ -53,5 +59,6 @@ public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseC
                 StatusOrcamento.AGUARDANDO_APROVACAO);
 
         orcamentoRepository.salvar(orcamento);
+        log.info("Orcamento cadastrado com sucesso. numeroOrcamento={}", command.numeroOrcamento());
     }
 }

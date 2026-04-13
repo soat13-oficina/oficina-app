@@ -2,6 +2,8 @@ package br.com.oficina.orcamento.application.service;
 
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +17,8 @@ import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
 
 @Service
 public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
+    private static final Logger log = LoggerFactory.getLogger(AlterarOrcamentoService.class);
+
     private final OrcamentoRepository orcamentoRepository;
     private final ClienteRepository clienteRepository;
 
@@ -25,6 +29,8 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
 
     @Override
     public void alterarOrcamento(AlterarOrcamentoCommand command) {
+        log.info("Iniciando alteracao de orcamento. numeroOrcamento={}, clienteId={}, ordemDeServicoId={}",
+                command.numeroOrcamento(), command.clienteId(), command.ordemDeServicoId());
         Orcamento orcamentoAtual = orcamentoRepository.buscarPorNumeroOrcamento(command.numeroOrcamento())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Orcamento nao encontrado para o numero informado."));
         Cliente cliente = clienteRepository.buscarPorId(UUID.fromString(command.clienteId()))
@@ -62,5 +68,6 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
         }
 
         orcamentoRepository.atualizar(orcamentoAtualizado);
+        log.info("Orcamento alterado com sucesso. numeroOrcamento={}", command.numeroOrcamento());
     }
 }
