@@ -1,6 +1,6 @@
 # Oficina API - Tech Challenge
 
-Backend monolítico para gestão de Oficina Mecânica, desenvolvido com **Java 17 + Spring Boot 4 + PostgreSQL**.
+Backend monolítico para gestão de Oficina Mecânica, desenvolvido com **Java 21 + Spring Boot 4 + PostgreSQL**.
 
 ---
 
