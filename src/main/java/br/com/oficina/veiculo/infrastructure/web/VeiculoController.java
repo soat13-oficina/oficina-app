@@ -3,6 +3,8 @@ package br.com.oficina.veiculo.infrastructure.web;
 import java.net.URI;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +34,8 @@ import br.com.oficina.veiculo.infrastructure.web.response.VeiculoResponse;
 @RestController
 @RequestMapping("/veiculos")
 public class VeiculoController {
+    private static final Logger log = LoggerFactory.getLogger(VeiculoController.class);
+
     private final AlterarVeiculoUseCase alterarVeiculoUseCase;
     private final CadastrarVeiculoUseCase cadastrarVeiculoUseCase;
     private final ConsultarVeiculosUseCase consultarVeiculosUseCase;
@@ -50,6 +54,10 @@ public class VeiculoController {
 
     @PostMapping
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarVeiculoRequest request) {
+        log.info("Recebida requisicao de cadastro de veiculo. placaInformada={}, marca={}, fabricante={}",
+                request.placa(),
+                request.marca(),
+                request.fabricante());
         cadastrarVeiculoUseCase.cadastrarVeiculo(new CadastrarVeiculoCommand(
                 request.placa(),
                 request.marca(),
@@ -64,11 +72,16 @@ public class VeiculoController {
                 .path("/{placa}")
                 .buildAndExpand(Veiculo.normalizarPlaca(request.placa()))
                 .toUri();
+        log.info("Requisicao de cadastro de veiculo concluida. location={}", location);
         return ResponseEntity.created(location).build();
     }
 
     @PutMapping("/{placa}")
     public ResponseEntity<Void> alterar(@PathVariable String placa, @RequestBody AlterarVeiculoRequest request) {
+        log.info("Recebida requisicao de alteracao de veiculo. placaInformada={}, marca={}, fabricante={}",
+                placa,
+                request.marca(),
+                request.fabricante());
         alterarVeiculoUseCase.alterarVeiculo(new AlterarVeiculoCommand(
                 placa,
                 request.marca(),
@@ -78,6 +91,7 @@ public class VeiculoController {
                 request.potencia(),
                 request.cambio(),
                 request.tipo()));
+        log.info("Requisicao de alteracao de veiculo concluida. placaInformada={}", placa);
         return ResponseEntity.noContent().build();
     }
 
@@ -90,17 +104,26 @@ public class VeiculoController {
             @RequestParam(required = false) Integer potencia,
             @RequestParam(required = false) String cambio,
             @RequestParam(required = false) TipoCombustivel tipo) {
+        log.info("Recebida requisicao de consulta de veiculos. placaInformada={}, marca={}, fabricante={}, ano={}, tipo={}",
+                placa,
+                marca,
+                fabricante,
+                ano,
+                tipo);
         List<VeiculoResponse> veiculos = consultarVeiculosUseCase
                 .consultarVeiculos(new ConsultarVeiculosQuery(placa, ano, marca, fabricante, potencia, cambio, tipo))
                 .stream()
                 .map(VeiculoResponse::from)
                 .toList();
+        log.info("Requisicao de consulta de veiculos concluida. quantidadeVeiculos={}", veiculos.size());
         return ResponseEntity.ok(veiculos);
     }
 
     @DeleteMapping("/{placa}")
     public ResponseEntity<Void> excluir(@PathVariable String placa) {
+        log.info("Recebida requisicao de exclusao de veiculo. placaInformada={}", placa);
         excluirVeiculoUseCase.excluirVeiculo(new ExcluirVeiculoCommand(placa));
+        log.info("Requisicao de exclusao de veiculo concluida. placaInformada={}", placa);
         return ResponseEntity.noContent().build();
     }
 }
