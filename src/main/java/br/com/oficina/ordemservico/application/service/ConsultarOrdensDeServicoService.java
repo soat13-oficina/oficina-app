@@ -26,9 +26,9 @@ public class ConsultarOrdensDeServicoService implements ConsultarOrdensDeServico
                         || ordem.getCliente().getNome().equalsIgnoreCase(query.nomeCliente()))
                 .filter(ordem -> query.placaVeiculo() == null
                         || ordem.getVeiculo().getPlaca().equalsIgnoreCase(query.placaVeiculo()))
-                .filter(ordem -> query.cpfCliente() == null
-                        || (ordem.getCliente().getCpf() != null
-                                && ordem.getCliente().getCpf().equals(query.cpfCliente())))
+                .filter(ordem -> query.documentoCliente() == null
+                        || (ordem.getCliente().getCpfOuCnpj() != null
+                                && ordem.getCliente().getCpfOuCnpj().equals(query.documentoCliente())))
                 .toList();
     }
 }

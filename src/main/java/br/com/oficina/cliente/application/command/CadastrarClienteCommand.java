@@ -1,4 +1,6 @@
 package br.com.oficina.cliente.application.command;
 
-public record CadastrarClienteCommand(String id, String nome, String cpf) {
+import br.com.oficina.cliente.domain.model.TipoCliente;
+
+public record CadastrarClienteCommand(String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
 }

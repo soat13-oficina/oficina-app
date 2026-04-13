@@ -4,5 +4,5 @@ public record ConsultarOrdensDeServicoQuery(
         String numeroOrdemServico,
         String nomeCliente,
         String placaVeiculo,
-        String cpfCliente) {
+        String documentoCliente) {
 }

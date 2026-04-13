@@ -2,11 +2,14 @@ package br.com.oficina.ordemservico.application.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
+import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.ordemservico.application.query.ConsultarOrdensDeServicoQuery;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
@@ -19,12 +22,12 @@ class ConsultarOrdensDeServicoServiceTest {
     @Test
     void deveConsultarOrdensDeServicoComFiltros() {
         TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
-        repository.salvar(novaOrdem("OS-001", "Marina", "123", "AAA1A11"));
-        repository.salvar(novaOrdem("OS-002", "Bianca", "999", "BBB2B22"));
+        repository.salvar(novaOrdem("OS-001", "Marina", "12345678901", "AAA1A11"));
+        repository.salvar(novaOrdem("OS-002", "Bianca", "99999999999", "BBB2B22"));
         ConsultarOrdensDeServicoService service = new ConsultarOrdensDeServicoService(repository);
 
         List<OrdemDeServico> resultado = service.consultarOrdensDeServico(
-                new ConsultarOrdensDeServicoQuery("OS-001", "Marina", "AAA1A11", "123"));
+                new ConsultarOrdensDeServicoQuery("OS-001", "Marina", "AAA1A11", "12345678901"));
 
         assertEquals(1, resultado.size());
         assertEquals("OS-001", resultado.get(0).getNumeroOrdemServico());
@@ -33,8 +36,8 @@ class ConsultarOrdensDeServicoServiceTest {
     @Test
     void deveRetornarTodasAsOrdensQuandoNaoHouverFiltros() {
         TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
-        repository.salvar(novaOrdem("OS-001", "Marina", "123", "AAA1A11"));
-        repository.salvar(novaOrdem("OS-002", "Bianca", "999", "BBB2B22"));
+        repository.salvar(novaOrdem("OS-001", "Marina", "12345678901", "AAA1A11"));
+        repository.salvar(novaOrdem("OS-002", "Bianca", "99999999999", "BBB2B22"));
         ConsultarOrdensDeServicoService service = new ConsultarOrdensDeServicoService(repository);
 
         List<OrdemDeServico> resultado = service.consultarOrdensDeServico(
@@ -43,12 +46,12 @@ class ConsultarOrdensDeServicoServiceTest {
         assertEquals(2, resultado.size());
     }
 
-    private OrdemDeServico novaOrdem(String numero, String nomeCliente, String cpf, String placa) {
+    private OrdemDeServico novaOrdem(String numero, String nomeCliente, String documento, String placa) {
         return OrdemDeServico.abrir(
                 "id-" + numero,
                 numero,
                 new Funcionario("func-1", "Joao", null),
-                new Cliente("cliente-" + numero, nomeCliente, cpf),
+                Cliente.reconstituir(UUID.nameUUIDFromBytes(("cliente-" + numero).getBytes(StandardCharsets.UTF_8)), nomeCliente, documento, TipoCliente.PF),
                 new Veiculo(
                         placa,
                         "Toyota",

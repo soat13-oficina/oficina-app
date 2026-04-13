@@ -1,6 +1,9 @@
 package br.com.oficina.ordemservico.infrastructure.persistence;
 
+import java.util.UUID;
+
 import br.com.oficina.cliente.domain.model.Cliente;
+import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
@@ -36,7 +39,10 @@ public class OrdemDeServicoJpaEntity {
     @Column(nullable = false)
     private String clienteNome;
 
-    private String clienteCpf;
+    private String clienteDocumento;
+
+    @Enumerated(EnumType.STRING)
+    private TipoCliente clienteTipo;
 
     @Column(nullable = false)
     private String veiculoPlaca;
@@ -78,7 +84,8 @@ public class OrdemDeServicoJpaEntity {
             String funcionarioCpf,
             String clienteId,
             String clienteNome,
-            String clienteCpf,
+            String clienteDocumento,
+            TipoCliente clienteTipo,
             String veiculoPlaca,
             String veiculoMarca,
             String veiculoModelo,
@@ -95,7 +102,8 @@ public class OrdemDeServicoJpaEntity {
         this.funcionarioCpf = funcionarioCpf;
         this.clienteId = clienteId;
         this.clienteNome = clienteNome;
-        this.clienteCpf = clienteCpf;
+        this.clienteDocumento = clienteDocumento;
+        this.clienteTipo = clienteTipo;
         this.veiculoPlaca = veiculoPlaca;
         this.veiculoMarca = veiculoMarca;
         this.veiculoModelo = veiculoModelo;
@@ -114,9 +122,10 @@ public class OrdemDeServicoJpaEntity {
                 ordemDeServico.getFuncionario().getId(),
                 ordemDeServico.getFuncionario().getNome(),
                 ordemDeServico.getFuncionario().getCpf(),
-                ordemDeServico.getCliente().getId(),
+                ordemDeServico.getCliente().getId().toString(),
                 ordemDeServico.getCliente().getNome(),
-                ordemDeServico.getCliente().getCpf(),
+                ordemDeServico.getCliente().getCpfOuCnpj(),
+                ordemDeServico.getCliente().getTipoCliente(),
                 ordemDeServico.getVeiculo().getPlaca(),
                 ordemDeServico.getVeiculo().getMarca(),
                 ordemDeServico.getVeiculo().getModelo(),
@@ -130,7 +139,7 @@ public class OrdemDeServicoJpaEntity {
 
     public OrdemDeServico toDomain() {
         Funcionario funcionario = new Funcionario(funcionarioId, funcionarioNome, funcionarioCpf);
-        Cliente cliente = new Cliente(clienteId, clienteNome, clienteCpf);
+        Cliente cliente = Cliente.reconstituir(UUID.fromString(clienteId), clienteNome, clienteDocumento, clienteTipo);
         Veiculo veiculo = new Veiculo(
                 veiculoPlaca,
                 veiculoMarca,

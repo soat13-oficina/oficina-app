@@ -2,17 +2,22 @@ package br.com.oficina.support.persistence;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
 
 public class TestClienteRepository implements ClienteRepository {
-    private final Map<String, Cliente> clientes = new ConcurrentHashMap<>();
+    private final Map<UUID, Cliente> clientes = new ConcurrentHashMap<>();
 
     @Override
-    public void salvar(Cliente cliente) {
-        clientes.put(cliente.getId(), cliente);
+    public Cliente salvar(Cliente cliente) {
+        Cliente clientePersistido = cliente.getId() == null
+                ? Cliente.reconstituir(UUID.randomUUID(), cliente.getNome(), cliente.getCpfOuCnpj(), cliente.getTipoCliente())
+                : cliente;
+        clientes.put(clientePersistido.getId(), clientePersistido);
+        return clientePersistido;
     }
 
     @Override
@@ -21,12 +26,12 @@ public class TestClienteRepository implements ClienteRepository {
     }
 
     @Override
-    public void excluirPorId(String clienteId) {
+    public void excluirPorId(UUID clienteId) {
         clientes.remove(clienteId);
     }
 
     @Override
-    public Optional<Cliente> buscarPorId(String clienteId) {
+    public Optional<Cliente> buscarPorId(UUID clienteId) {
         return Optional.ofNullable(clientes.get(clienteId));
     }
 }

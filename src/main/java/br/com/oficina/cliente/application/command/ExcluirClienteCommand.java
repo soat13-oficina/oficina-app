@@ -1,4 +1,6 @@
 package br.com.oficina.cliente.application.command;
 
-public record ExcluirClienteCommand(String clienteId) {
+import java.util.UUID;
+
+public record ExcluirClienteCommand(UUID clienteId) {
 }

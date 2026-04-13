@@ -31,7 +31,7 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
 
     @Override
     public void criarNovaOrdemDeServico(CriarOrdemDeServicoCommand command) {
-        Cliente cliente = clienteRepository.buscarPorId(command.clienteId())
+        Cliente cliente = clienteRepository.buscarPorId(UUID.fromString(command.clienteId()))
                 .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
         Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placaVeiculo())
                 .orElseThrow(() -> new IllegalArgumentException("Veiculo nao encontrado"));

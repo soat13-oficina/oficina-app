@@ -1,5 +1,6 @@
 package br.com.oficina.cliente.infrastructure.persistence;
 
+import java.util.UUID;
 import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
@@ -19,24 +20,24 @@ public class JpaClienteRepository implements ClienteRepository {
 
     @Override
     @Transactional
-    public void salvar(Cliente cliente) {
-        repository.save(ClienteJpaEntity.fromDomain(cliente));
+    public Cliente salvar(Cliente cliente) {
+        return repository.save(cliente);
     }
 
     @Override
     @Transactional
     public void atualizar(Cliente cliente) {
-        repository.save(ClienteJpaEntity.fromDomain(cliente));
+        repository.save(cliente);
     }
 
     @Override
     @Transactional
-    public void excluirPorId(String clienteId) {
+    public void excluirPorId(UUID clienteId) {
         repository.deleteById(clienteId);
     }
 
     @Override
-    public Optional<Cliente> buscarPorId(String clienteId) {
-        return repository.findById(clienteId).map(ClienteJpaEntity::toDomain);
+    public Optional<Cliente> buscarPorId(UUID clienteId) {
+        return repository.findById(clienteId);
     }
 }
