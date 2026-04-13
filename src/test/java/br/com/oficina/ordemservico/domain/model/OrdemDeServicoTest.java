@@ -32,7 +32,7 @@ class OrdemDeServicoTest {
 
         ordemDeServico.alterar(novoFuncionario, novoCliente, novoVeiculo);
 
-        assertEquals("id-OS-001", ordemDeServico.getId());
+        assertEquals(UUID.nameUUIDFromBytes("ordem-OS-001".getBytes()), ordemDeServico.getId());
         assertEquals("OS-001", ordemDeServico.getNumeroOrdemServico());
         assertEquals("func-2", ordemDeServico.getFuncionario().getId());
         assertEquals("Bianca", ordemDeServico.getCliente().getNome());
@@ -112,7 +112,7 @@ class OrdemDeServicoTest {
 
     private OrdemDeServico novaOrdem(String numeroOrdemServico) {
         return OrdemDeServico.abrir(
-                "id-" + numeroOrdemServico,
+                UUID.nameUUIDFromBytes(("ordem-" + numeroOrdemServico).getBytes()),
                 numeroOrdemServico,
                 new Funcionario("func-1", "Joao", null),
                 Cliente.reconstituir(UUID.fromString("51111111-1111-1111-1111-111111111112"), "Maria", "11111111111", TipoCliente.PF),

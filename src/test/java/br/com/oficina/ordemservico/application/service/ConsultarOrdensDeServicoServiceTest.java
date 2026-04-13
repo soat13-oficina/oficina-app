@@ -48,7 +48,7 @@ class ConsultarOrdensDeServicoServiceTest {
 
     private OrdemDeServico novaOrdem(String numero, String nomeCliente, String documento, String placa) {
         return OrdemDeServico.abrir(
-                "id-" + numero,
+                UUID.nameUUIDFromBytes(("ordem-" + numero).getBytes(StandardCharsets.UTF_8)),
                 numero,
                 new Funcionario("func-1", "Joao", null),
                 Cliente.reconstituir(UUID.nameUUIDFromBytes(("cliente-" + numero).getBytes(StandardCharsets.UTF_8)), nomeCliente, documento, TipoCliente.PF),

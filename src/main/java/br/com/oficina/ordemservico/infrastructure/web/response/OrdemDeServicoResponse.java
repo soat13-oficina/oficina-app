@@ -1,11 +1,13 @@
 package br.com.oficina.ordemservico.infrastructure.web.response;
 
+import java.util.UUID;
+
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 
 public record OrdemDeServicoResponse(
-        String id,
+        UUID id,
         String numeroOrdemServico,
         String clienteId,
         String nomeCliente,

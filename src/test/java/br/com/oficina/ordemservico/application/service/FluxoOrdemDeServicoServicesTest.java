@@ -52,7 +52,7 @@ class FluxoOrdemDeServicoServicesTest {
 
     private OrdemDeServico novaOrdem(String numero) {
         return OrdemDeServico.abrir(
-                "id-" + numero,
+                UUID.nameUUIDFromBytes(("ordem-" + numero).getBytes()),
                 numero,
                 new Funcionario("func-1", "Joao", null),
                 Cliente.reconstituir(UUID.fromString("61111111-1111-1111-1111-111111111111"), "Maria", "11111111111", TipoCliente.PF),

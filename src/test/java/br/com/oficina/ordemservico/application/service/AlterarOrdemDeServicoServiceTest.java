@@ -32,7 +32,7 @@ class AlterarOrdemDeServicoServiceTest {
         veiculoRepository.salvar(novoVeiculo(clienteId1, "ABC1D23", "Toyota"));
         veiculoRepository.salvar(novoVeiculo(clienteId2, "XYZ9Z99", "Honda"));
         ordemDeServicoRepository.salvar(OrdemDeServico.abrir(
-                "id-1",
+                UUID.fromString("11111111-1111-1111-1111-111111111111"),
                 "OS-001",
                 new Funcionario("func-1", "Joao", null),
                 Cliente.reconstituir(clienteId1, "Maria", "11111111111", TipoCliente.PF),

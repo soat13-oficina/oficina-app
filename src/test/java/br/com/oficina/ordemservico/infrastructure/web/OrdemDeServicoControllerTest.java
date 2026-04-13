@@ -104,7 +104,7 @@ class OrdemDeServicoControllerTest {
                 "ALT2B22", "Honda", "City", "Honda Motor Co.", 2023, 126, "AUTOMATICO", TipoCombustivel.FLEX));
 
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                "id-os-alterar-1",
+                null,
                 "OS-ALTERAR-1",
                 new Funcionario("func-20", "Joao", null),
                 cliente1,
@@ -136,7 +136,7 @@ class OrdemDeServicoControllerTest {
     @Test
     void deveExcluirOrdemDeServico() throws Exception {
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                "id-os-excluir-1",
+                null,
                 "OS-EXCLUIR-1",
                 new Funcionario("func-30", "Joao", null),
                 clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF)),
@@ -156,19 +156,20 @@ class OrdemDeServicoControllerTest {
         Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
         Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberto", "99999999999", TipoCliente.PF));
         OrdemDeServico primeiraOrdem = OrdemDeServico.abrir(
-                "id-os-consulta-1",
+                null,
                 "OS-0001",
                 new Funcionario("func-10", "Joao", null),
                 cliente1,
                 new Veiculo("QRY1A23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         OrdemDeServico segundaOrdem = OrdemDeServico.abrir(
-                "id-os-consulta-2",
+                null,
                 "OS-0002",
                 new Funcionario("func-11", "Paulo", null),
                 cliente2,
                 new Veiculo("ZZZ9Z99", "Honda", "City", "Honda Motor Co.", 2023, 126, "AUTOMATICO", TipoCombustivel.FLEX));
         ordemDeServicoRepository.salvar(primeiraOrdem);
         ordemDeServicoRepository.salvar(segundaOrdem);
+        String primeiraOrdemId = ordemDeServicoRepository.buscarPorNumero("OS-0001").orElseThrow().getId().toString();
 
         mockMvc.perform(get("/ordens-servico")
                         .with(user("tester"))
@@ -187,7 +188,7 @@ class OrdemDeServicoControllerTest {
                         .with(user("tester"))
                         .param("placaVeiculo", "QRY1A23"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("id-os-consulta-1"));
+                .andExpect(jsonPath("$[0].id").value(primeiraOrdemId));
 
         mockMvc.perform(get("/ordens-servico")
                         .with(user("tester"))
@@ -199,7 +200,7 @@ class OrdemDeServicoControllerTest {
     @Test
     void deveIniciarDiagnostico() throws Exception {
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                "id-os-iniciar-1",
+                null,
                 "os-iniciar-1",
                 new Funcionario("func-2", "Joao", null),
                 clienteRepository.salvar(new Cliente("Ana")),
@@ -215,7 +216,7 @@ class OrdemDeServicoControllerTest {
     @Test
     void deveConcluirDiagnostico() throws Exception {
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                "id-os-concluir-1",
+                null,
                 "os-concluir-1",
                 new Funcionario("func-3", "Carlos", null),
                 clienteRepository.salvar(new Cliente("Paula")),
@@ -232,7 +233,7 @@ class OrdemDeServicoControllerTest {
     @Test
     void deveFinalizarOrdemDeServico() throws Exception {
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                "id-os-finalizar-1",
+                null,
                 "os-finalizar-1",
                 new Funcionario("func-4", "Marcos", null),
                 clienteRepository.salvar(new Cliente("Bianca")),

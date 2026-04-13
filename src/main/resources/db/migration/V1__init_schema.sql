@@ -61,12 +61,12 @@ CREATE TABLE IF NOT EXISTS orcamento_pecas_previstas (
 );
 
 CREATE TABLE IF NOT EXISTS ordens_de_servico (
-    id VARCHAR(255) PRIMARY KEY,
+    id UUID PRIMARY KEY,
     numero_ordem_servico VARCHAR(255) NOT NULL UNIQUE,
     funcionario_id VARCHAR(255) NOT NULL,
     funcionario_nome VARCHAR(255) NOT NULL,
     funcionario_cpf VARCHAR(255),
-    cliente_id VARCHAR(255) NOT NULL,
+    cliente_id UUID NOT NULL,
     cliente_nome VARCHAR(255) NOT NULL,
     cliente_documento VARCHAR(255),
     cliente_tipo VARCHAR(255),

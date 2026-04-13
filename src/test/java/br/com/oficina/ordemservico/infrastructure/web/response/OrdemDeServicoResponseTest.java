@@ -18,8 +18,9 @@ class OrdemDeServicoResponseTest {
 
     @Test
     void deveConverterOrdemDeServicoParaResponse() {
+        UUID id = UUID.fromString("41111111-1111-1111-1111-111111111112");
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                "id-1",
+                id,
                 "OS-001",
                 new Funcionario("func-1", "Joao", null),
                 Cliente.reconstituir(UUID.fromString("41111111-1111-1111-1111-111111111111"), "Maria", "11111111111", TipoCliente.PF),
@@ -35,7 +36,7 @@ class OrdemDeServicoResponseTest {
 
         OrdemDeServicoResponse response = OrdemDeServicoResponse.from(ordemDeServico);
 
-        assertEquals("id-1", response.id());
+        assertEquals(id, response.id());
         assertEquals("OS-001", response.numeroOrdemServico());
         assertEquals("41111111-1111-1111-1111-111111111111", response.clienteId());
         assertEquals("Maria", response.nomeCliente());
