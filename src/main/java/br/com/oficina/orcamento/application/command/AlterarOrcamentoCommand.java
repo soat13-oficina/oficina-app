@@ -6,6 +6,7 @@ import java.util.List;
 
 public record AlterarOrcamentoCommand(
         String numeroOrcamento,
+        String clienteId,
         String ordemDeServicoId,
         String funcionarioId,
         String clienteNome,

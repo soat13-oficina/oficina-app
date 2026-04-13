@@ -20,15 +20,30 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import br.com.oficina.cliente.domain.model.Cliente;
+import br.com.oficina.cliente.domain.model.TipoCliente;
+import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
+import br.com.oficina.orcamento.infrastructure.persistence.SpringDataOrcamentoRepository;
+
 @SpringBootTest
 class OrcamentoControllerTest {
     @Autowired
     private WebApplicationContext context;
 
+    @Autowired
+    private SpringDataClienteRepository clienteRepository;
+
+    @Autowired
+    private SpringDataOrcamentoRepository orcamentoRepository;
+
     private MockMvc mockMvc;
+    private String clienteId;
 
     @BeforeEach
     void setUp() {
+        orcamentoRepository.deleteAll();
+        clienteRepository.deleteAll();
+        clienteId = clienteRepository.save(new Cliente("Joao Silva", "12345678901", TipoCliente.PF)).getId().toString();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
@@ -39,10 +54,9 @@ class OrcamentoControllerTest {
         String cadastro = """
                 {
                   "numeroOrcamento": "orc-1",
+                  "clienteId": "%s",
                   "ordemDeServicoId": "os-1",
                   "funcionarioId": "func-1",
-                  "clienteNome": "Joao Silva",
-                  "clienteCpf": "12345678901",
                   "placaVeiculo": "ABC1D23",
                   "marcaVeiculo": "Toyota",
                   "modeloVeiculo": "Corolla",
@@ -54,7 +68,7 @@ class OrcamentoControllerTest {
                   "validade": "2030-12-31T10:00:00",
                   "observacoes": "Prioridade alta"
                 }
-                """;
+                """.formatted(clienteId);
 
         mockMvc.perform(post("/orcamentos")
                         .with(user("tester"))
@@ -78,10 +92,9 @@ class OrcamentoControllerTest {
 
         String alteracao = """
                 {
+                  "clienteId": "%s",
                   "ordemDeServicoId": "os-1",
                   "funcionarioId": "func-2",
-                  "clienteNome": "Joao Silva",
-                  "clienteCpf": "12345678901",
                   "placaVeiculo": "ABC1D23",
                   "marcaVeiculo": "Toyota",
                   "modeloVeiculo": "Corolla",
@@ -93,7 +106,7 @@ class OrcamentoControllerTest {
                   "validade": "2031-01-15T10:00:00",
                   "observacoes": "Aprovacao imediata"
                 }
-                """;
+                """.formatted(clienteId);
 
         mockMvc.perform(put("/orcamentos/orc-1")
                         .with(user("tester"))

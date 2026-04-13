@@ -1,8 +1,11 @@
 package br.com.oficina.veiculo.infrastructure.web.response;
 
+import java.util.UUID;
+
 import br.com.oficina.veiculo.domain.model.Veiculo;
 
 public record VeiculoResponse(
+        UUID clienteId,
         String placa,
         String marca,
         String modelo,
@@ -13,6 +16,7 @@ public record VeiculoResponse(
         String tipo) {
     public static VeiculoResponse from(Veiculo veiculo) {
         return new VeiculoResponse(
+                veiculo.getClienteId(),
                 veiculo.getPlaca(),
                 veiculo.getMarca(),
                 veiculo.getModelo(),

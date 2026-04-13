@@ -29,6 +29,9 @@ public class Orcamento {
     private String numeroOrcamento;
 
     @Column(nullable = false)
+    private UUID clienteId;
+
+    @Column(nullable = false)
     private String ordemDeServicoId;
 
     @Column(nullable = false)
@@ -107,8 +110,49 @@ public class Orcamento {
             LocalDateTime validade,
             String observacoes,
             StatusOrcamento status) {
+        this(
+                numeroOrcamento,
+                null,
+                ordemDeServicoId,
+                funcionarioId,
+                clienteNome,
+                clienteCpf,
+                placaVeiculo,
+                marcaVeiculo,
+                modeloVeiculo,
+                descricaoDiagnostico,
+                servicosPropostos,
+                pecasPrevistas,
+                valorMaoDeObra,
+                valorPecas,
+                criadoEm,
+                validade,
+                observacoes,
+                status);
+    }
+
+    public Orcamento(
+            String numeroOrcamento,
+            UUID clienteId,
+            String ordemDeServicoId,
+            String funcionarioId,
+            String clienteNome,
+            String clienteCpf,
+            String placaVeiculo,
+            String marcaVeiculo,
+            String modeloVeiculo,
+            String descricaoDiagnostico,
+            List<String> servicosPropostos,
+            List<String> pecasPrevistas,
+            BigDecimal valorMaoDeObra,
+            BigDecimal valorPecas,
+            LocalDateTime criadoEm,
+            LocalDateTime validade,
+            String observacoes,
+            StatusOrcamento status) {
         definirDados(
                 numeroOrcamento,
+                clienteId,
                 ordemDeServicoId,
                 funcionarioId,
                 clienteNome,
@@ -146,8 +190,51 @@ public class Orcamento {
             LocalDateTime validade,
             String observacoes,
             StatusOrcamento status) {
+        return reconstituir(
+                id,
+                numeroOrcamento,
+                null,
+                ordemDeServicoId,
+                funcionarioId,
+                clienteNome,
+                clienteCpf,
+                placaVeiculo,
+                marcaVeiculo,
+                modeloVeiculo,
+                descricaoDiagnostico,
+                servicosPropostos,
+                pecasPrevistas,
+                valorMaoDeObra,
+                valorPecas,
+                criadoEm,
+                validade,
+                observacoes,
+                status);
+    }
+
+    public static Orcamento reconstituir(
+            UUID id,
+            String numeroOrcamento,
+            UUID clienteId,
+            String ordemDeServicoId,
+            String funcionarioId,
+            String clienteNome,
+            String clienteCpf,
+            String placaVeiculo,
+            String marcaVeiculo,
+            String modeloVeiculo,
+            String descricaoDiagnostico,
+            List<String> servicosPropostos,
+            List<String> pecasPrevistas,
+            BigDecimal valorMaoDeObra,
+            BigDecimal valorPecas,
+            LocalDateTime criadoEm,
+            LocalDateTime validade,
+            String observacoes,
+            StatusOrcamento status) {
         Orcamento orcamento = new Orcamento(
                 numeroOrcamento,
+                clienteId,
                 ordemDeServicoId,
                 funcionarioId,
                 clienteNome,
@@ -187,6 +274,10 @@ public class Orcamento {
 
     public String getNumeroOrcamento() {
         return numeroOrcamento;
+    }
+
+    public UUID getClienteId() {
+        return clienteId;
     }
 
     public String getOrdemDeServicoId() {
@@ -263,6 +354,7 @@ public class Orcamento {
 
     private void definirDados(
             String numeroOrcamento,
+            UUID clienteId,
             String ordemDeServicoId,
             String funcionarioId,
             String clienteNome,
@@ -280,6 +372,7 @@ public class Orcamento {
             String observacoes,
             StatusOrcamento status) {
         this.numeroOrcamento = numeroOrcamento;
+        this.clienteId = clienteId;
         this.ordemDeServicoId = ordemDeServicoId;
         this.funcionarioId = funcionarioId;
         this.clienteNome = clienteNome;

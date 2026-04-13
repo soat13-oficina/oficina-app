@@ -31,6 +31,25 @@ BEGIN
         FROM information_schema.columns
         WHERE table_schema = 'public'
           AND table_name = 'orcamentos'
+          AND column_name = 'cliente_id'
+    ) THEN
+        EXECUTE 'ALTER TABLE public.orcamentos ADD COLUMN cliente_id UUID';
+    END IF;
+
+    EXECUTE $update_cliente_orcamento$
+        UPDATE public.orcamentos o
+           SET cliente_id = c.id
+          FROM public.clientes c
+         WHERE o.cliente_id IS NULL
+           AND regexp_replace(coalesce(o.cliente_cpf, ''), '\D', '', 'g') =
+               regexp_replace(coalesce(c.cpf_ou_cnpj, ''), '\D', '', 'g')
+    $update_cliente_orcamento$;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'orcamentos'
           AND column_name = 'numero_orcamento'
     ) THEN
         EXECUTE 'ALTER TABLE public.orcamentos RENAME COLUMN id TO numero_orcamento';
@@ -150,6 +169,7 @@ BEGIN
     END IF;
 
     EXECUTE 'ALTER TABLE public.orcamentos ALTER COLUMN id SET NOT NULL';
+    EXECUTE 'ALTER TABLE public.orcamentos ALTER COLUMN cliente_id SET NOT NULL';
 
     IF NOT EXISTS (
         SELECT 1

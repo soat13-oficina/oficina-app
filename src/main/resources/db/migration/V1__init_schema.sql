@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS clientes (
 
 CREATE TABLE IF NOT EXISTS veiculos (
     id UUID PRIMARY KEY,
+    cliente_id UUID NOT NULL,
     placa VARCHAR(255) NOT NULL UNIQUE,
     marca VARCHAR(255) NOT NULL,
     modelo VARCHAR(255) NOT NULL,
@@ -26,6 +27,7 @@ CREATE TABLE IF NOT EXISTS veiculos (
 CREATE TABLE IF NOT EXISTS orcamentos (
     id UUID PRIMARY KEY,
     numero_orcamento VARCHAR(255) NOT NULL UNIQUE,
+    cliente_id UUID NOT NULL,
     ordem_de_servico_id VARCHAR(255) NOT NULL,
     funcionario_id VARCHAR(255) NOT NULL,
     cliente_nome VARCHAR(255) NOT NULL,

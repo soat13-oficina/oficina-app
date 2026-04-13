@@ -16,6 +16,7 @@ public class TestVeiculoRepository implements VeiculoRepository {
         Veiculo veiculoPersistido = veiculo.getId() == null
                 ? Veiculo.reconstituir(
                         java.util.UUID.randomUUID(),
+                        veiculo.getClienteId(),
                         veiculo.getPlaca(),
                         veiculo.getMarca(),
                         veiculo.getModelo(),

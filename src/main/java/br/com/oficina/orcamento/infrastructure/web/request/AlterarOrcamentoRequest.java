@@ -5,10 +5,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record AlterarOrcamentoRequest(
+        String clienteId,
         String ordemDeServicoId,
         String funcionarioId,
-        String clienteNome,
-        String clienteCpf,
         String placaVeiculo,
         String marcaVeiculo,
         String modeloVeiculo,

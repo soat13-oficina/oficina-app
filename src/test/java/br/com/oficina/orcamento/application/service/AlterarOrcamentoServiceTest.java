@@ -7,13 +7,17 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import br.com.oficina.cliente.domain.model.Cliente;
+import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
+import br.com.oficina.support.persistence.TestClienteRepository;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
 
 class AlterarOrcamentoServiceTest {
@@ -21,17 +25,23 @@ class AlterarOrcamentoServiceTest {
     @Test
     void deveAlterarOrcamentoPreservandoCriadoEmEEnvio() {
         TestOrcamentoRepository repository = new TestOrcamentoRepository();
+        TestClienteRepository clienteRepository = new TestClienteRepository();
+        UUID clienteId = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        UUID clienteAtualizadoId = UUID.fromString("66666666-6666-6666-6666-666666666666");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteAtualizadoId, "Maria Souza", "99999999999", TipoCliente.PF));
         Orcamento orcamento = novoOrcamento();
         orcamento.enviarParaAprovacao(LocalDateTime.of(2030, 1, 2, 9, 0));
         repository.salvar(orcamento);
-        AlterarOrcamentoService service = new AlterarOrcamentoService(repository);
+        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository);
 
         service.alterarOrcamento(new AlterarOrcamentoCommand(
                 "orc-1",
+                clienteAtualizadoId.toString(),
                 "os-2",
                 "func-2",
-                "Maria Souza",
-                "99999999999",
+                null,
+                null,
                 "XYZ9Z99",
                 "Honda",
                 "City",
@@ -49,6 +59,7 @@ class AlterarOrcamentoServiceTest {
         assertEquals("func-2", atualizado.getFuncionarioId());
         assertEquals("Maria Souza", atualizado.getClienteNome());
         assertEquals("99999999999", atualizado.getClienteCpf());
+        assertEquals(clienteAtualizadoId, atualizado.getClienteId());
         assertEquals("XYZ9Z99", atualizado.getPlacaVeiculo());
         assertEquals("Honda", atualizado.getMarcaVeiculo());
         assertEquals("City", atualizado.getModeloVeiculo());
@@ -60,16 +71,20 @@ class AlterarOrcamentoServiceTest {
 
     @Test
     void deveFalharAoAlterarOrcamentoInexistente() {
-        AlterarOrcamentoService service = new AlterarOrcamentoService(new TestOrcamentoRepository());
+        TestClienteRepository clienteRepository = new TestClienteRepository();
+        UUID clienteId = UUID.fromString("77777777-7777-7777-7777-777777777777");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        AlterarOrcamentoService service = new AlterarOrcamentoService(new TestOrcamentoRepository(), clienteRepository);
 
         RecursoNaoEncontradoException exception = assertThrows(
                 RecursoNaoEncontradoException.class,
                 () -> service.alterarOrcamento(new AlterarOrcamentoCommand(
                         "orc-404",
+                        clienteId.toString(),
                         "os-1",
                         "func-1",
-                        "Joao Silva",
-                        "12345678901",
+                        null,
+                        null,
                         "ABC1D23",
                         "Toyota",
                         "Corolla",
@@ -87,6 +102,7 @@ class AlterarOrcamentoServiceTest {
     private Orcamento novoOrcamento() {
         return new Orcamento(
                 "orc-1",
+                UUID.fromString("55555555-5555-5555-5555-555555555555"),
                 "os-1",
                 "func-1",
                 "Joao Silva",

@@ -6,10 +6,9 @@ import java.util.List;
 
 public record CadastrarOrcamentoRequest(
         String numeroOrcamento,
+        String clienteId,
         String ordemDeServicoId,
         String funcionarioId,
-        String clienteNome,
-        String clienteCpf,
         String placaVeiculo,
         String marcaVeiculo,
         String modeloVeiculo,

@@ -6,11 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import br.com.oficina.cliente.domain.model.Cliente;
+import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
+import br.com.oficina.support.persistence.TestClienteRepository;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
 
 class CadastrarNovoOrcamentoServiceTest {
@@ -18,14 +22,18 @@ class CadastrarNovoOrcamentoServiceTest {
     @Test
     void deveCadastrarNovoOrcamento() {
         TestOrcamentoRepository repository = new TestOrcamentoRepository();
-        CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(repository);
+        TestClienteRepository clienteRepository = new TestClienteRepository();
+        UUID clienteId = UUID.fromString("44444444-4444-4444-4444-444444444444");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(repository, clienteRepository);
 
         service.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
                 "orc-1",
+                clienteId.toString(),
                 "os-1",
                 "func-1",
-                "Joao Silva",
-                "12345678901",
+                null,
+                null,
                 "ABC1D23",
                 "Toyota",
                 "Corolla",
@@ -41,5 +49,6 @@ class CadastrarNovoOrcamentoServiceTest {
         assertEquals(new BigDecimal("400.00"), repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getValorTotal());
         assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getStatus());
         assertNotNull(repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getId());
+        assertEquals(clienteId, repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getClienteId());
     }
 }

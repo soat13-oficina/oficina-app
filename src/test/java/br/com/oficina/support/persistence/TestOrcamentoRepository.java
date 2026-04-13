@@ -18,6 +18,7 @@ public class TestOrcamentoRepository implements OrcamentoRepository {
                 ? Orcamento.reconstituir(
                         UUID.randomUUID(),
                         orcamento.getNumeroOrcamento(),
+                        orcamento.getClienteId(),
                         orcamento.getOrdemDeServicoId(),
                         orcamento.getFuncionarioId(),
                         orcamento.getClienteNome(),

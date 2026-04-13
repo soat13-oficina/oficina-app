@@ -51,10 +51,11 @@ public class OrcamentoController {
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarOrcamentoRequest request) {
         cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
                 request.numeroOrcamento(),
+                request.clienteId(),
                 request.ordemDeServicoId(),
                 request.funcionarioId(),
-                request.clienteNome(),
-                request.clienteCpf(),
+                null,
+                null,
                 request.placaVeiculo(),
                 request.marcaVeiculo(),
                 request.modeloVeiculo(),
@@ -103,10 +104,11 @@ public class OrcamentoController {
             @RequestBody AlterarOrcamentoRequest request) {
         alterarOrcamentoUseCase.alterarOrcamento(new AlterarOrcamentoCommand(
                 orcamentoId,
+                request.clienteId(),
                 request.ordemDeServicoId(),
                 request.funcionarioId(),
-                request.clienteNome(),
-                request.clienteCpf(),
+                null,
+                null,
                 request.placaVeiculo(),
                 request.marcaVeiculo(),
                 request.modeloVeiculo(),

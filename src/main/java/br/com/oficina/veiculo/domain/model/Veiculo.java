@@ -25,6 +25,9 @@ public class Veiculo {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(nullable = false)
+    private UUID clienteId;
+
     @Column(nullable = false, unique = true)
     private String placa;
 
@@ -62,6 +65,20 @@ public class Veiculo {
             int potencia,
             String cambio,
             TipoCombustivel tipo) {
+        this(null, placa, marca, modelo, fabricante, ano, potencia, cambio, tipo);
+    }
+
+    public Veiculo(
+            UUID clienteId,
+            String placa,
+            String marca,
+            String modelo,
+            String fabricante,
+            int ano,
+            int potencia,
+            String cambio,
+            TipoCombustivel tipo) {
+        this.clienteId = clienteId;
         this.placa = normalizarPlaca(placa);
         this.marca = marca;
         this.modelo = modelo;
@@ -74,6 +91,7 @@ public class Veiculo {
 
     public static Veiculo reconstituir(
             UUID id,
+            UUID clienteId,
             String placa,
             String marca,
             String modelo,
@@ -82,9 +100,22 @@ public class Veiculo {
             int potencia,
             String cambio,
             TipoCombustivel tipo) {
-        Veiculo veiculo = new Veiculo(placa, marca, modelo, fabricante, ano, potencia, cambio, tipo);
+        Veiculo veiculo = new Veiculo(clienteId, placa, marca, modelo, fabricante, ano, potencia, cambio, tipo);
         veiculo.id = id;
         return veiculo;
+    }
+
+    public static Veiculo reconstituir(
+            UUID id,
+            String placa,
+            String marca,
+            String modelo,
+            String fabricante,
+            int ano,
+            int potencia,
+            String cambio,
+            TipoCombustivel tipo) {
+        return reconstituir(id, null, placa, marca, modelo, fabricante, ano, potencia, cambio, tipo);
     }
 
     public void alterar(
@@ -123,6 +154,10 @@ public class Veiculo {
 
     public UUID getId() {
         return id;
+    }
+
+    public UUID getClienteId() {
+        return clienteId;
     }
 
     public String getPlaca() {
