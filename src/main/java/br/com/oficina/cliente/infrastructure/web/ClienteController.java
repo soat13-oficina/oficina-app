@@ -47,10 +47,7 @@ public class ClienteController {
 
     @PostMapping
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarClienteRequest request) {
-        UUID clienteId = cadastrarClienteUseCase.cadastrarCliente(new CadastrarClienteCommand(
-                request.nome(),
-                request.cpfOuCnpj(),
-                request.tipoCliente()));
+        UUID clienteId = cadastrarClienteUseCase.cadastrarCliente(request.toCommand());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(clienteId)
@@ -60,7 +57,7 @@ public class ClienteController {
 
     @GetMapping("/{clienteId}")
     public ResponseEntity<ClienteResponse> consultar(@PathVariable String clienteId) {
-        return consultarClienteUseCase.consultarCliente(new ConsultarClienteQuery(UUID.fromString(clienteId)))
+        return consultarClienteUseCase.consultarCliente(new ConsultarClienteQuery(paraUuid(clienteId)))
                 .map(ClienteResponse::from)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -68,17 +65,17 @@ public class ClienteController {
 
     @PutMapping("/{clienteId}")
     public ResponseEntity<Void> alterar(@PathVariable String clienteId, @RequestBody AlterarClienteRequest request) {
-        alterarClienteUseCase.alterarCliente(new AlterarClienteCommand(
-                UUID.fromString(clienteId),
-                request.nome(),
-                request.cpfOuCnpj(),
-                request.tipoCliente()));
+        alterarClienteUseCase.alterarCliente(request.toCommand(paraUuid(clienteId)));
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{clienteId}")
     public ResponseEntity<Void> excluir(@PathVariable String clienteId) {
-        excluirClienteUseCase.excluirCliente(new ExcluirClienteCommand(UUID.fromString(clienteId)));
+        excluirClienteUseCase.excluirCliente(new ExcluirClienteCommand(paraUuid(clienteId)));
         return ResponseEntity.noContent().build();
+    }
+
+    private UUID paraUuid(String clienteId) {
+        return UUID.fromString(clienteId);
     }
 }

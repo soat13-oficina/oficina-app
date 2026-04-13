@@ -61,4 +61,16 @@ class CadastrarClienteServiceTest {
 
         assertEquals("Tipo do cliente e obrigatorio quando o documento for informado", exception.getMessage());
     }
+
+    @Test
+    void deveFalharAoCadastrarClienteSemNome() {
+        TestClienteRepository repository = new TestClienteRepository();
+        CadastrarClienteService service = new CadastrarClienteService(repository);
+
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
+                () -> service.cadastrarCliente(new CadastrarClienteCommand(" ", "12345678901", TipoCliente.PF)));
+
+        assertEquals("Nome do cliente e obrigatorio", exception.getMessage());
+    }
 }

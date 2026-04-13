@@ -77,4 +77,13 @@ class ClienteTest {
 
         assertEquals("Tipo do cliente e obrigatorio quando o documento for informado", exception.getMessage());
     }
+
+    @Test
+    void deveFalharQuandoNomeNaoForInformado() {
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
+                () -> new Cliente(" ", "12345678901", TipoCliente.PF));
+
+        assertEquals("Nome do cliente e obrigatorio", exception.getMessage());
+    }
 }
