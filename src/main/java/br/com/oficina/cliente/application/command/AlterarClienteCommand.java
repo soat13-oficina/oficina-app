@@ -1,6 +1,8 @@
 package br.com.oficina.cliente.application.command;
 
+import java.util.UUID;
+
 import br.com.oficina.cliente.domain.model.TipoCliente;
 
-public record AlterarClienteCommand(String clienteId, String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
+public record AlterarClienteCommand(UUID clienteId, String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
 }

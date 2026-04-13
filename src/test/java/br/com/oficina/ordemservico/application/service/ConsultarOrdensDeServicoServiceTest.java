@@ -2,7 +2,9 @@ package br.com.oficina.ordemservico.application.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -49,7 +51,7 @@ class ConsultarOrdensDeServicoServiceTest {
                 "id-" + numero,
                 numero,
                 new Funcionario("func-1", "Joao", null),
-                new Cliente("cliente-" + numero, nomeCliente, documento, TipoCliente.PF),
+                Cliente.reconstituir(UUID.nameUUIDFromBytes(("cliente-" + numero).getBytes(StandardCharsets.UTF_8)), nomeCliente, documento, TipoCliente.PF),
                 new Veiculo(
                         placa,
                         "Toyota",

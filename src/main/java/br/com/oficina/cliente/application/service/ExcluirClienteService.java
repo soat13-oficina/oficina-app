@@ -13,8 +13,6 @@ public class ExcluirClienteService implements ExcluirClienteUseCase {
     public ExcluirClienteService(ClienteRepository clienteRepository) {
         this.clienteRepository = clienteRepository;
     }
-
-
     @Override
     public void excluirCliente(ExcluirClienteCommand command) {
         clienteRepository.buscarPorId(command.clienteId())

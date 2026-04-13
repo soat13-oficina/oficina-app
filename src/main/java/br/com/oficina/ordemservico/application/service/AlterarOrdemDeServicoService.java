@@ -1,5 +1,7 @@
 package br.com.oficina.ordemservico.application.service;
 
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -31,7 +33,7 @@ public class AlterarOrdemDeServicoService implements AlterarOrdemDeServicoUseCas
     public void alterarOrdemDeServico(AlterarOrdemDeServicoCommand command) {
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new IllegalArgumentException("Ordem de servico nao encontrada"));
-        Cliente cliente = clienteRepository.buscarPorId(command.clienteId())
+        Cliente cliente = clienteRepository.buscarPorId(UUID.fromString(command.clienteId()))
                 .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
         Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placaVeiculo())
                 .orElseThrow(() -> new IllegalArgumentException("Veiculo nao encontrado"));

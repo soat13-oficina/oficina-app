@@ -11,8 +11,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
@@ -20,7 +21,8 @@ import jakarta.persistence.Transient;
 @Table(name = "clientes")
 public class Cliente {
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(nullable = false)
     private String nome;
@@ -41,23 +43,30 @@ public class Cliente {
     protected Cliente() {
     }
 
-    public Cliente(String id, String nome) {
-        this(id, nome, null, null);
+    public Cliente(String nome) {
+        this(nome, null, null);
     }
 
     public Cliente(String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
-        this(null, nome, cpfOuCnpj, tipoCliente);
-    }
-
-    public Cliente(String id, String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
         validarDocumento(cpfOuCnpj, tipoCliente);
-        this.id = id;
         this.nome = nome;
         this.cpfOuCnpj = cpfOuCnpj;
         this.tipoCliente = tipoCliente;
     }
 
-    public String getId() {
+    public static Cliente reconstituir(UUID id, String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
+        Cliente cliente = new Cliente(nome, cpfOuCnpj, tipoCliente);
+        cliente.id = id;
+        return cliente;
+    }
+
+    public static Cliente reconstituir(UUID id, String nome) {
+        Cliente cliente = new Cliente(nome);
+        cliente.id = id;
+        return cliente;
+    }
+
+    public UUID getId() {
         return id;
     }
 
@@ -73,16 +82,22 @@ public class Cliente {
         return tipoCliente;
     }
 
-    @PrePersist
-    void gerarIdSeNecessario() {
-        if (id == null || id.isBlank()) {
-            id = UUID.randomUUID().toString();
-        }
+    public void alterar(String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
+        validarDocumento(cpfOuCnpj, tipoCliente);
+        this.nome = nome;
+        this.cpfOuCnpj = cpfOuCnpj;
+        this.tipoCliente = tipoCliente;
     }
 
     private static void validarDocumento(String cpfOuCnpj, TipoCliente tipoCliente) {
-        if (cpfOuCnpj == null || tipoCliente == null) {
+        if (cpfOuCnpj == null && tipoCliente == null) {
             return;
+        }
+        if (tipoCliente != null && (cpfOuCnpj == null || cpfOuCnpj.isBlank())) {
+            throw new RegraDeNegocioException("Documento do cliente e obrigatorio quando o tipo for informado");
+        }
+        if ((cpfOuCnpj != null && !cpfOuCnpj.isBlank()) && tipoCliente == null) {
+            throw new RegraDeNegocioException("Tipo do cliente e obrigatorio quando o documento for informado");
         }
 
         int quantidadeDeDigitos = contarDigitos(cpfOuCnpj);

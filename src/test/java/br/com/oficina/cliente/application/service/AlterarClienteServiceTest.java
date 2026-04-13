@@ -3,6 +3,8 @@ package br.com.oficina.cliente.application.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.application.command.AlterarClienteCommand;
@@ -16,12 +18,13 @@ class AlterarClienteServiceTest {
     @Test
     void deveAlterarClienteExistente() {
         TestClienteRepository repository = new TestClienteRepository();
-        repository.salvar(new Cliente("cliente-1", "Maria", "12345678901", TipoCliente.PF));
+        UUID clienteId = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
+        repository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF));
         AlterarClienteService service = new AlterarClienteService(repository);
 
-        service.alterarCliente(new AlterarClienteCommand("cliente-1", "Bianca", "11222333000199", TipoCliente.PJ));
+        service.alterarCliente(new AlterarClienteCommand(clienteId, "Bianca", "11222333000199", TipoCliente.PJ));
 
-        Cliente clienteAtualizado = repository.buscarPorId("cliente-1").orElseThrow();
+        Cliente clienteAtualizado = repository.buscarPorId(clienteId).orElseThrow();
         assertEquals("Bianca", clienteAtualizado.getNome());
         assertEquals("11222333000199", clienteAtualizado.getCpfOuCnpj());
         assertEquals(TipoCliente.PJ, clienteAtualizado.getTipoCliente());
@@ -33,7 +36,7 @@ class AlterarClienteServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> service.alterarCliente(new AlterarClienteCommand("cliente-404", "Bianca", "99999999999", TipoCliente.PF)));
+                () -> service.alterarCliente(new AlterarClienteCommand(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"), "Bianca", "99999999999", TipoCliente.PF)));
 
         assertEquals("Cliente nao encontrado", exception.getMessage());
     }
@@ -41,12 +44,13 @@ class AlterarClienteServiceTest {
     @Test
     void deveFalharAoAlterarClienteParaCnpjInvalido() {
         TestClienteRepository repository = new TestClienteRepository();
-        repository.salvar(new Cliente("cliente-1", "Maria", "12345678901", TipoCliente.PF));
+        UUID clienteId = UUID.fromString("12121212-1212-1212-1212-121212121212");
+        repository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF));
         AlterarClienteService service = new AlterarClienteService(repository);
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                () -> service.alterarCliente(new AlterarClienteCommand("cliente-1", "Empresa", "1234567800019", TipoCliente.PJ)));
+                () -> service.alterarCliente(new AlterarClienteCommand(clienteId, "Empresa", "1234567800019", TipoCliente.PJ)));
 
         assertEquals("CNPJ deve possuir 14 digitos", exception.getMessage());
     }

@@ -3,6 +3,8 @@ package br.com.oficina.ordemservico.application.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -23,25 +25,27 @@ class AlterarOrdemDeServicoServiceTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
         TestOrdemDeServicoRepository ordemDeServicoRepository = new TestOrdemDeServicoRepository();
-        clienteRepository.salvar(new Cliente("cliente-1", "Maria", "11111111111", TipoCliente.PF));
-        clienteRepository.salvar(new Cliente("cliente-2", "Bianca", "22222222222", TipoCliente.PF));
+        UUID clienteId1 = UUID.fromString("21111111-1111-1111-1111-111111111111");
+        UUID clienteId2 = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId1, "Maria", "11111111111", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId2, "Bianca", "22222222222", TipoCliente.PF));
         veiculoRepository.salvar(novoVeiculo("ABC1D23", "Toyota"));
         veiculoRepository.salvar(novoVeiculo("XYZ9Z99", "Honda"));
         ordemDeServicoRepository.salvar(OrdemDeServico.abrir(
                 "id-1",
                 "OS-001",
                 new Funcionario("func-1", "Joao", null),
-                new Cliente("cliente-1", "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(clienteId1, "Maria", "11111111111", TipoCliente.PF),
                 novoVeiculo("ABC1D23", "Toyota")));
         AlterarOrdemDeServicoService service = new AlterarOrdemDeServicoService(
                 clienteRepository,
                 veiculoRepository,
                 ordemDeServicoRepository);
 
-        service.alterarOrdemDeServico(new AlterarOrdemDeServicoCommand("OS-001", "cliente-2", "func-2", "XYZ9Z99"));
+        service.alterarOrdemDeServico(new AlterarOrdemDeServicoCommand("OS-001", clienteId2.toString(), "func-2", "XYZ9Z99"));
 
         OrdemDeServico alterada = ordemDeServicoRepository.buscarPorNumero("OS-001").orElseThrow();
-        assertEquals("cliente-2", alterada.getCliente().getId());
+        assertEquals(clienteId2, alterada.getCliente().getId());
         assertEquals("XYZ9Z99", alterada.getVeiculo().getPlaca());
         assertEquals("func-2", alterada.getFuncionario().getId());
     }
@@ -55,7 +59,7 @@ class AlterarOrdemDeServicoServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> service.alterarOrdemDeServico(new AlterarOrdemDeServicoCommand("OS-404", "cliente-1", "func-1", "ABC1D23")));
+                () -> service.alterarOrdemDeServico(new AlterarOrdemDeServicoCommand("OS-404", UUID.fromString("23333333-3333-3333-3333-333333333333").toString(), "func-1", "ABC1D23")));
 
         assertEquals("Ordem de servico nao encontrada", exception.getMessage());
     }

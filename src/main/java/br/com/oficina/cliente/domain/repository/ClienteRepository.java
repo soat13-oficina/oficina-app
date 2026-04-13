@@ -1,5 +1,6 @@
 package br.com.oficina.cliente.domain.repository;
 
+import java.util.UUID;
 import java.util.Optional;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -9,7 +10,7 @@ public interface ClienteRepository {
 
     void atualizar(Cliente cliente);
 
-    void excluirPorId(String clienteId);
+    void excluirPorId(UUID clienteId);
 
-    Optional<Cliente> buscarPorId(String clienteId);
+    Optional<Cliente> buscarPorId(UUID clienteId);
 }

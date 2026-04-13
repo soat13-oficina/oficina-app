@@ -17,14 +17,10 @@ public class AlterarClienteService implements AlterarClienteUseCase {
 
     @Override
     public void alterarCliente(AlterarClienteCommand command) {
-        clienteRepository.buscarPorId(command.clienteId())
+        Cliente cliente = clienteRepository.buscarPorId(command.clienteId())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
 
-        Cliente clienteAtualizado = new Cliente(
-                command.clienteId(),
-                command.nome(),
-                command.cpfOuCnpj(),
-                command.tipoCliente());
-        clienteRepository.atualizar(clienteAtualizado);
+        cliente.alterar(command.nome(), command.cpfOuCnpj(), command.tipoCliente());
+        clienteRepository.atualizar(cliente);
     }
 }

@@ -17,7 +17,7 @@ public record OrdemDeServicoResponse(
         return new OrdemDeServicoResponse(
                 ordemDeServico.getId(),
                 ordemDeServico.getNumeroOrdemServico(),
-                ordemDeServico.getCliente().getId(),
+                ordemDeServico.getCliente().getId().toString(),
                 ordemDeServico.getCliente().getNome(),
                 ordemDeServico.getCliente().getCpfOuCnpj(),
                 ordemDeServico.getCliente().getTipoCliente(),

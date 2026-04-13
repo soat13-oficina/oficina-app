@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -53,7 +55,7 @@ class FluxoOrdemDeServicoServicesTest {
                 "id-" + numero,
                 numero,
                 new Funcionario("func-1", "Joao", null),
-                new Cliente("cliente-1", "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(UUID.fromString("61111111-1111-1111-1111-111111111111"), "Maria", "11111111111", TipoCliente.PF),
                 new Veiculo(
                         "ABC1D23",
                         "Toyota",

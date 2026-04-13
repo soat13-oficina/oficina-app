@@ -3,6 +3,8 @@ package br.com.oficina.ordemservico.domain.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -17,7 +19,7 @@ class OrdemDeServicoTest {
     void deveAbrirAlterarEExporDadosDaOrdemDeServico() {
         OrdemDeServico ordemDeServico = novaOrdem("OS-001");
         Funcionario novoFuncionario = new Funcionario("func-2", "Paula", "123");
-        Cliente novoCliente = new Cliente("cliente-2", "Bianca", "99999999999", TipoCliente.PF);
+        Cliente novoCliente = Cliente.reconstituir(UUID.fromString("51111111-1111-1111-1111-111111111111"), "Bianca", "99999999999", TipoCliente.PF);
         Veiculo novoVeiculo = new Veiculo(
                 "XYZ9Z99",
                 "Honda",
@@ -94,7 +96,7 @@ class OrdemDeServicoTest {
                 RegraDeNegocioException.class,
                 () -> ordemDeServico.alterar(
                         new Funcionario("func-3", "Carlos", null),
-                        new Cliente("cliente-3", "Marcos", "22222222222", TipoCliente.PF),
+                        Cliente.reconstituir(UUID.fromString("53333333-3333-3333-3333-333333333333"), "Marcos", "22222222222", TipoCliente.PF),
                         new Veiculo(
                                 "TTT1T11",
                                 "Jeep",
@@ -113,7 +115,7 @@ class OrdemDeServicoTest {
                 "id-" + numeroOrdemServico,
                 numeroOrdemServico,
                 new Funcionario("func-1", "Joao", null),
-                new Cliente("cliente-1", "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(UUID.fromString("51111111-1111-1111-1111-111111111112"), "Maria", "11111111111", TipoCliente.PF),
                 new Veiculo(
                         "ABC1D23",
                         "Toyota",

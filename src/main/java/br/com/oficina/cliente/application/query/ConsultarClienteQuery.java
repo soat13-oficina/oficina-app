@@ -1,4 +1,6 @@
 package br.com.oficina.cliente.application.query;
 
-public record ConsultarClienteQuery(String clienteId) {
+import java.util.UUID;
+
+public record ConsultarClienteQuery(UUID clienteId) {
 }

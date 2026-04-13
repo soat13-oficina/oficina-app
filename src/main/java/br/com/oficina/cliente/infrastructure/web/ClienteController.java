@@ -1,6 +1,7 @@
 package br.com.oficina.cliente.infrastructure.web;
 
 import java.net.URI;
+import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -46,7 +47,7 @@ public class ClienteController {
 
     @PostMapping
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarClienteRequest request) {
-        String clienteId = cadastrarClienteUseCase.cadastrarCliente(new CadastrarClienteCommand(
+        UUID clienteId = cadastrarClienteUseCase.cadastrarCliente(new CadastrarClienteCommand(
                 request.nome(),
                 request.cpfOuCnpj(),
                 request.tipoCliente()));
@@ -59,7 +60,7 @@ public class ClienteController {
 
     @GetMapping("/{clienteId}")
     public ResponseEntity<ClienteResponse> consultar(@PathVariable String clienteId) {
-        return consultarClienteUseCase.consultarCliente(new ConsultarClienteQuery(clienteId))
+        return consultarClienteUseCase.consultarCliente(new ConsultarClienteQuery(UUID.fromString(clienteId)))
                 .map(ClienteResponse::from)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -68,7 +69,7 @@ public class ClienteController {
     @PutMapping("/{clienteId}")
     public ResponseEntity<Void> alterar(@PathVariable String clienteId, @RequestBody AlterarClienteRequest request) {
         alterarClienteUseCase.alterarCliente(new AlterarClienteCommand(
-                clienteId,
+                UUID.fromString(clienteId),
                 request.nome(),
                 request.cpfOuCnpj(),
                 request.tipoCliente()));
@@ -77,7 +78,7 @@ public class ClienteController {
 
     @DeleteMapping("/{clienteId}")
     public ResponseEntity<Void> excluir(@PathVariable String clienteId) {
-        excluirClienteUseCase.excluirCliente(new ExcluirClienteCommand(clienteId));
+        excluirClienteUseCase.excluirCliente(new ExcluirClienteCommand(UUID.fromString(clienteId)));
         return ResponseEntity.noContent().build();
     }
 }

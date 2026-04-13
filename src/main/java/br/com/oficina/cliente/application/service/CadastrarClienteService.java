@@ -1,5 +1,7 @@
 package br.com.oficina.cliente.application.service;
 
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.application.command.CadastrarClienteCommand;
@@ -16,7 +18,7 @@ public class CadastrarClienteService implements CadastrarClienteUseCase {
     }
 
     @Override
-    public String cadastrarCliente(CadastrarClienteCommand command) {
+    public UUID cadastrarCliente(CadastrarClienteCommand command) {
         Cliente clienteSalvo = clienteRepository.salvar(new Cliente(
                 command.nome(),
                 command.cpfOuCnpj(),

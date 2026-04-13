@@ -71,17 +71,17 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveCriarOrdemDeServico() throws Exception {
-        clienteRepository.salvar(new Cliente("cliente-os-1", "Maria", "11111111111", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11111111111", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
                 "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
 
         String requestBody = """
                 {
-                  "clienteId": "cliente-os-1",
+                  "clienteId": "%s",
                   "funcionarioId": "func-1",
                   "placaVeiculo": "ABC1D23"
                 }
-                """;
+                """.formatted(cliente.getId());
 
         mockMvc.perform(post("/ordens-servico")
                         .with(user("tester"))
@@ -93,8 +93,8 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveAlterarOrdemDeServico() throws Exception {
-        clienteRepository.salvar(new Cliente("cliente-os-alt-1", "Marina", "12345678901", TipoCliente.PF));
-        clienteRepository.salvar(new Cliente("cliente-os-alt-2", "Roberta", "99999999999", TipoCliente.PF));
+        Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberta", "99999999999", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
                 "ALT1A11", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         veiculoRepository.salvar(new Veiculo(
@@ -104,17 +104,17 @@ class OrdemDeServicoControllerTest {
                 "id-os-alterar-1",
                 "OS-ALTERAR-1",
                 new Funcionario("func-20", "Joao", null),
-                new Cliente("cliente-os-alt-1", "Marina", "12345678901", TipoCliente.PF),
+                cliente1,
                 new Veiculo("ALT1A11", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         ordemDeServicoRepository.salvar(ordemDeServico);
 
         String requestBody = """
                 {
-                  "clienteId": "cliente-os-alt-2",
+                  "clienteId": "%s",
                   "funcionarioId": "func-21",
                   "placaVeiculo": "ALT2B22"
                 }
-                """;
+                """.formatted(cliente2.getId());
 
         mockMvc.perform(put("/ordens-servico/OS-ALTERAR-1")
                         .with(user("tester"))
@@ -125,7 +125,7 @@ class OrdemDeServicoControllerTest {
 
         OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorNumero("OS-ALTERAR-1")
                 .orElseThrow();
-        assert ordemAtualizada.getCliente().getId().equals("cliente-os-alt-2");
+        assert ordemAtualizada.getCliente().getId().equals(cliente2.getId());
         assert ordemAtualizada.getVeiculo().getPlaca().equals("ALT2B22");
         assert ordemAtualizada.getFuncionario().getId().equals("func-21");
     }
@@ -136,7 +136,7 @@ class OrdemDeServicoControllerTest {
                 "id-os-excluir-1",
                 "OS-EXCLUIR-1",
                 new Funcionario("func-30", "Joao", null),
-                new Cliente("cliente-os-excluir-1", "Marina", "12345678901", TipoCliente.PF),
+                clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF)),
                 new Veiculo("DEL1O23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         ordemDeServicoRepository.salvar(ordemDeServico);
 
@@ -150,17 +150,19 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveConsultarOrdemDeServicoPorFiltros() throws Exception {
+        Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberto", "99999999999", TipoCliente.PF));
         OrdemDeServico primeiraOrdem = OrdemDeServico.abrir(
                 "id-os-consulta-1",
                 "OS-0001",
                 new Funcionario("func-10", "Joao", null),
-                new Cliente("cliente-os-10", "Marina", "12345678901", TipoCliente.PF),
+                cliente1,
                 new Veiculo("QRY1A23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         OrdemDeServico segundaOrdem = OrdemDeServico.abrir(
                 "id-os-consulta-2",
                 "OS-0002",
                 new Funcionario("func-11", "Paulo", null),
-                new Cliente("cliente-os-11", "Roberto", "99999999999", TipoCliente.PF),
+                cliente2,
                 new Veiculo("ZZZ9Z99", "Honda", "City", "Honda Motor Co.", 2023, 126, "AUTOMATICO", TipoCombustivel.FLEX));
         ordemDeServicoRepository.salvar(primeiraOrdem);
         ordemDeServicoRepository.salvar(segundaOrdem);
@@ -197,7 +199,7 @@ class OrdemDeServicoControllerTest {
                 "id-os-iniciar-1",
                 "os-iniciar-1",
                 new Funcionario("func-2", "Joao", null),
-                new Cliente("cliente-os-2", "Ana"),
+                clienteRepository.salvar(new Cliente("Ana")),
                 new Veiculo("DEF2G34", "Honda", "Civic", "Honda Motor Co.", 2023, 155, "AUTOMATICO", TipoCombustivel.FLEX));
         ordemDeServicoRepository.salvar(ordemDeServico);
 
@@ -213,7 +215,7 @@ class OrdemDeServicoControllerTest {
                 "id-os-concluir-1",
                 "os-concluir-1",
                 new Funcionario("func-3", "Carlos", null),
-                new Cliente("cliente-os-3", "Paula"),
+                clienteRepository.salvar(new Cliente("Paula")),
                 new Veiculo("GHI3J45", "Fiat", "Argo", "Stellantis", 2022, 107, "MANUAL", TipoCombustivel.FLEX));
         ordemDeServico.iniciarDiagnostico();
         ordemDeServicoRepository.salvar(ordemDeServico);
@@ -230,7 +232,7 @@ class OrdemDeServicoControllerTest {
                 "id-os-finalizar-1",
                 "os-finalizar-1",
                 new Funcionario("func-4", "Marcos", null),
-                new Cliente("cliente-os-4", "Bianca"),
+                clienteRepository.salvar(new Cliente("Bianca")),
                 new Veiculo("JKL4M56", "Jeep", "Renegade", "Stellantis", 2024, 185, "AUTOMATICO", TipoCombustivel.DIESEL));
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();

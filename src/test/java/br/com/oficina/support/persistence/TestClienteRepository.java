@@ -9,12 +9,12 @@ import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
 
 public class TestClienteRepository implements ClienteRepository {
-    private final Map<String, Cliente> clientes = new ConcurrentHashMap<>();
+    private final Map<UUID, Cliente> clientes = new ConcurrentHashMap<>();
 
     @Override
     public Cliente salvar(Cliente cliente) {
         Cliente clientePersistido = cliente.getId() == null
-                ? new Cliente(UUID.randomUUID().toString(), cliente.getNome(), cliente.getCpfOuCnpj(), cliente.getTipoCliente())
+                ? Cliente.reconstituir(UUID.randomUUID(), cliente.getNome(), cliente.getCpfOuCnpj(), cliente.getTipoCliente())
                 : cliente;
         clientes.put(clientePersistido.getId(), clientePersistido);
         return clientePersistido;
@@ -26,12 +26,12 @@ public class TestClienteRepository implements ClienteRepository {
     }
 
     @Override
-    public void excluirPorId(String clienteId) {
+    public void excluirPorId(UUID clienteId) {
         clientes.remove(clienteId);
     }
 
     @Override
-    public Optional<Cliente> buscarPorId(String clienteId) {
+    public Optional<Cliente> buscarPorId(UUID clienteId) {
         return Optional.ofNullable(clientes.get(clienteId));
     }
 }

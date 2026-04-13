@@ -3,6 +3,8 @@ package br.com.oficina.ordemservico.application.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -21,7 +23,8 @@ class CriarNovaOrdemDeServicoServiceTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
         TestOrdemDeServicoRepository ordemDeServicoRepository = new TestOrdemDeServicoRepository();
-        clienteRepository.salvar(new Cliente("cliente-1", "Maria", "11111111111", TipoCliente.PF));
+        UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
                 "ABC1D23",
                 "Toyota",
@@ -36,10 +39,10 @@ class CriarNovaOrdemDeServicoServiceTest {
                 veiculoRepository,
                 ordemDeServicoRepository);
 
-        service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand("cliente-1", "func-1", "ABC1D23"));
+        service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(clienteId.toString(), "func-1", "ABC1D23"));
 
         assertEquals(1, ordemDeServicoRepository.buscarTodas().size());
-        assertEquals("cliente-1", ordemDeServicoRepository.buscarTodas().get(0).getCliente().getId());
+        assertEquals(clienteId, ordemDeServicoRepository.buscarTodas().get(0).getCliente().getId());
     }
 
     @Test
@@ -51,7 +54,7 @@ class CriarNovaOrdemDeServicoServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand("cliente-1", "func-1", "ABC1D23")));
+                () -> service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(UUID.fromString("32222222-2222-2222-2222-222222222222").toString(), "func-1", "ABC1D23")));
 
         assertEquals("Cliente nao encontrado", exception.getMessage());
     }

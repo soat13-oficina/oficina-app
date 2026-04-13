@@ -1,5 +1,7 @@
 package br.com.oficina.ordemservico.infrastructure.persistence;
 
+import java.util.UUID;
+
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
@@ -120,7 +122,7 @@ public class OrdemDeServicoJpaEntity {
                 ordemDeServico.getFuncionario().getId(),
                 ordemDeServico.getFuncionario().getNome(),
                 ordemDeServico.getFuncionario().getCpf(),
-                ordemDeServico.getCliente().getId(),
+                ordemDeServico.getCliente().getId().toString(),
                 ordemDeServico.getCliente().getNome(),
                 ordemDeServico.getCliente().getCpfOuCnpj(),
                 ordemDeServico.getCliente().getTipoCliente(),
@@ -137,7 +139,7 @@ public class OrdemDeServicoJpaEntity {
 
     public OrdemDeServico toDomain() {
         Funcionario funcionario = new Funcionario(funcionarioId, funcionarioNome, funcionarioCpf);
-        Cliente cliente = new Cliente(clienteId, clienteNome, clienteDocumento, clienteTipo);
+        Cliente cliente = Cliente.reconstituir(UUID.fromString(clienteId), clienteNome, clienteDocumento, clienteTipo);
         Veiculo veiculo = new Veiculo(
                 veiculoPlaca,
                 veiculoMarca,
