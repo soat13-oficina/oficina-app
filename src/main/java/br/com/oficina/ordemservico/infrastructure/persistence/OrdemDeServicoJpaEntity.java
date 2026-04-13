@@ -141,6 +141,7 @@ public class OrdemDeServicoJpaEntity {
         Funcionario funcionario = new Funcionario(funcionarioId, funcionarioNome, funcionarioCpf);
         Cliente cliente = Cliente.reconstituir(UUID.fromString(clienteId), clienteNome, clienteDocumento, clienteTipo);
         Veiculo veiculo = new Veiculo(
+                cliente.getId(),
                 veiculoPlaca,
                 veiculoMarca,
                 veiculoModelo,

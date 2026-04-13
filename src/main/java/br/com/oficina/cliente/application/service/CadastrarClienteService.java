@@ -10,6 +10,7 @@ import br.com.oficina.cliente.application.command.CadastrarClienteCommand;
 import br.com.oficina.cliente.application.usecase.CadastrarClienteUseCase;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
+import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 
 @Service
 public class CadastrarClienteService implements CadastrarClienteUseCase {
@@ -26,11 +27,24 @@ public class CadastrarClienteService implements CadastrarClienteUseCase {
         log.info("Iniciando cadastro de cliente. tipoCliente={}, documentoInformado={}",
                 command.tipoCliente(),
                 command.cpfOuCnpj() != null && !command.cpfOuCnpj().isBlank());
+        validarDuplicidade(command.cpfOuCnpj(), null);
         Cliente clienteSalvo = clienteRepository.salvar(new Cliente(
                 command.nome(),
                 command.cpfOuCnpj(),
                 command.tipoCliente()));
         log.info("Cliente cadastrado com sucesso. clienteId={}", clienteSalvo.getId());
         return clienteSalvo.getId();
+    }
+
+    private void validarDuplicidade(String cpfOuCnpj, UUID clienteIdAtual) {
+        if (cpfOuCnpj == null || cpfOuCnpj.isBlank()) {
+            return;
+        }
+
+        clienteRepository.buscarPorDocumento(cpfOuCnpj)
+                .filter(clienteExistente -> clienteIdAtual == null || !clienteExistente.getId().equals(clienteIdAtual))
+                .ifPresent(clienteExistente -> {
+                    throw new RegraDeNegocioException("Ja existe cliente cadastrado com o mesmo CPF ou CNPJ.");
+                });
     }
 }

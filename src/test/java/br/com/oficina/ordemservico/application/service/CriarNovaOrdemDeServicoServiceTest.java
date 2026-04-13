@@ -26,6 +26,7 @@ class CriarNovaOrdemDeServicoServiceTest {
         UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
+                clienteId,
                 "ABC1D23",
                 "Toyota",
                 "Corolla",

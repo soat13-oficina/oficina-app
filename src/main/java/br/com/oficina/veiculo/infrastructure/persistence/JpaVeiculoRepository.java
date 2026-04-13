@@ -21,22 +21,22 @@ public class JpaVeiculoRepository implements VeiculoRepository {
     @Override
     @Transactional
     public void salvar(Veiculo veiculo) {
-        repository.save(VeiculoJpaEntity.fromDomain(veiculo));
+        repository.save(veiculo);
     }
 
     @Override
     public Optional<Veiculo> buscarPorPlaca(String placa) {
-        return repository.findById(placa).map(VeiculoJpaEntity::toDomain);
+        return repository.findByPlaca(Veiculo.normalizarPlaca(placa));
     }
 
     @Override
     public List<Veiculo> buscarTodos() {
-        return repository.findAll().stream().map(VeiculoJpaEntity::toDomain).toList();
+        return repository.findAll();
     }
 
     @Override
     @Transactional
     public void excluirPorPlaca(String placa) {
-        repository.deleteById(placa);
+        repository.deleteByPlaca(Veiculo.normalizarPlaca(placa));
     }
 }

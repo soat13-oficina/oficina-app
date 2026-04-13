@@ -29,14 +29,14 @@ class AlterarOrdemDeServicoServiceTest {
         UUID clienteId2 = UUID.fromString("22222222-2222-2222-2222-222222222222");
         clienteRepository.salvar(Cliente.reconstituir(clienteId1, "Maria", "11111111111", TipoCliente.PF));
         clienteRepository.salvar(Cliente.reconstituir(clienteId2, "Bianca", "22222222222", TipoCliente.PF));
-        veiculoRepository.salvar(novoVeiculo("ABC1D23", "Toyota"));
-        veiculoRepository.salvar(novoVeiculo("XYZ9Z99", "Honda"));
+        veiculoRepository.salvar(novoVeiculo(clienteId1, "ABC1D23", "Toyota"));
+        veiculoRepository.salvar(novoVeiculo(clienteId2, "XYZ9Z99", "Honda"));
         ordemDeServicoRepository.salvar(OrdemDeServico.abrir(
                 "id-1",
                 "OS-001",
                 new Funcionario("func-1", "Joao", null),
                 Cliente.reconstituir(clienteId1, "Maria", "11111111111", TipoCliente.PF),
-                novoVeiculo("ABC1D23", "Toyota")));
+                novoVeiculo(clienteId1, "ABC1D23", "Toyota")));
         AlterarOrdemDeServicoService service = new AlterarOrdemDeServicoService(
                 clienteRepository,
                 veiculoRepository,
@@ -64,8 +64,9 @@ class AlterarOrdemDeServicoServiceTest {
         assertEquals("Ordem de servico nao encontrada", exception.getMessage());
     }
 
-    private Veiculo novoVeiculo(String placa, String marca) {
+    private Veiculo novoVeiculo(UUID clienteId, String placa, String marca) {
         return new Veiculo(
+                clienteId,
                 placa,
                 marca,
                 "Modelo",

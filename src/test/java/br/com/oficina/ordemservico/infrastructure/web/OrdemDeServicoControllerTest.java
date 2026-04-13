@@ -73,6 +73,7 @@ class OrdemDeServicoControllerTest {
     void deveCriarOrdemDeServico() throws Exception {
         Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11111111111", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
                 "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
 
         String requestBody = """
@@ -96,8 +97,10 @@ class OrdemDeServicoControllerTest {
         Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
         Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberta", "99999999999", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
+                cliente1.getId(),
                 "ALT1A11", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         veiculoRepository.salvar(new Veiculo(
+                cliente2.getId(),
                 "ALT2B22", "Honda", "City", "Honda Motor Co.", 2023, 126, "AUTOMATICO", TipoCombustivel.FLEX));
 
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
@@ -105,7 +108,7 @@ class OrdemDeServicoControllerTest {
                 "OS-ALTERAR-1",
                 new Funcionario("func-20", "Joao", null),
                 cliente1,
-                new Veiculo("ALT1A11", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+                new Veiculo(cliente1.getId(), "ALT1A11", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         ordemDeServicoRepository.salvar(ordemDeServico);
 
         String requestBody = """

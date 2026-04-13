@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
+import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
@@ -37,6 +38,9 @@ public class AlterarOrdemDeServicoService implements AlterarOrdemDeServicoUseCas
                 .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
         Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placaVeiculo())
                 .orElseThrow(() -> new IllegalArgumentException("Veiculo nao encontrado"));
+        if (!veiculo.getClienteId().equals(cliente.getId())) {
+            throw new RegraDeNegocioException("Veiculo informado nao pertence ao cliente selecionado.");
+        }
         Funcionario funcionario = new Funcionario(command.funcionarioId(), "Funcionario responsavel", null);
 
         ordemDeServico.alterar(funcionario, cliente, veiculo);

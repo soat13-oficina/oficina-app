@@ -1,5 +1,6 @@
 package br.com.oficina.cliente.infrastructure.persistence;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.Optional;
 
@@ -39,5 +40,33 @@ public class JpaClienteRepository implements ClienteRepository {
     @Override
     public Optional<Cliente> buscarPorId(UUID clienteId) {
         return repository.findById(clienteId);
+    }
+
+    @Override
+    public List<Cliente> buscarTodos() {
+        return repository.findAll();
+    }
+
+    @Override
+    public Optional<Cliente> buscarPorNomeEDocumento(String nome, String cpfOuCnpj) {
+        return repository.findAll().stream()
+                .filter(cliente -> cliente.getNome() != null && cliente.getNome().trim().equalsIgnoreCase(nome.trim()))
+                .filter(cliente -> documentosSaoIguais(cliente.getCpfOuCnpj(), cpfOuCnpj))
+                .findFirst();
+    }
+
+    @Override
+    public Optional<Cliente> buscarPorDocumento(String cpfOuCnpj) {
+        return repository.findAll().stream()
+                .filter(cliente -> documentosSaoIguais(cliente.getCpfOuCnpj(), cpfOuCnpj))
+                .findFirst();
+    }
+
+    private boolean documentosSaoIguais(String documentoAtual, String documentoInformado) {
+        if (documentoAtual == null || documentoInformado == null) {
+            return false;
+        }
+
+        return documentoAtual.replaceAll("\\D", "").equals(documentoInformado.replaceAll("\\D", ""));
     }
 }
