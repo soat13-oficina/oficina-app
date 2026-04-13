@@ -1,17 +1,14 @@
-package br.com.oficina.ordemservico.infrastructure.persistence;
+package br.com.oficina.support.persistence;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.stereotype.Repository;
-
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 
-@Repository
-public class InMemoryOrdemDeServicoRepository implements OrdemDeServicoRepository {
+public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
     private final Map<String, OrdemDeServico> ordens = new ConcurrentHashMap<>();
 
     @Override

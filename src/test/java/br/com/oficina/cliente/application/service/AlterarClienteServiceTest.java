@@ -7,13 +7,13 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.application.command.AlterarClienteCommand;
 import br.com.oficina.cliente.domain.model.Cliente;
-import br.com.oficina.cliente.infrastructure.persistence.InMemoryClienteRepository;
+import br.com.oficina.support.persistence.TestClienteRepository;
 
 class AlterarClienteServiceTest {
 
     @Test
     void deveAlterarClienteExistente() {
-        InMemoryClienteRepository repository = new InMemoryClienteRepository();
+        TestClienteRepository repository = new TestClienteRepository();
         repository.salvar(new Cliente("cliente-1", "Maria", "12345678901"));
         AlterarClienteService service = new AlterarClienteService(repository);
 
@@ -26,7 +26,7 @@ class AlterarClienteServiceTest {
 
     @Test
     void deveFalharAoAlterarClienteInexistente() {
-        AlterarClienteService service = new AlterarClienteService(new InMemoryClienteRepository());
+        AlterarClienteService service = new AlterarClienteService(new TestClienteRepository());
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,

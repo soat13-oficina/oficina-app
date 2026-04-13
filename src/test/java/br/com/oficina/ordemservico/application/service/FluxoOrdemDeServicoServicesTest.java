@@ -14,7 +14,7 @@ import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
-import br.com.oficina.ordemservico.infrastructure.persistence.InMemoryOrdemDeServicoRepository;
+import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 
@@ -22,7 +22,7 @@ class FluxoOrdemDeServicoServicesTest {
 
     @Test
     void deveIniciarConcluirFinalizarEExcluirOrdemDeServico() {
-        InMemoryOrdemDeServicoRepository repository = new InMemoryOrdemDeServicoRepository();
+        TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
         repository.salvar(novaOrdem("OS-001"));
 
         new IniciarDiagnosticoService(repository).iniciarDiagnostico(new IniciarDiagnosticoCommand("OS-001"));
@@ -38,7 +38,7 @@ class FluxoOrdemDeServicoServicesTest {
 
     @Test
     void deveFalharAoExcluirOrdemDeServicoInexistente() {
-        ExcluirOrdemDeServicoService service = new ExcluirOrdemDeServicoService(new InMemoryOrdemDeServicoRepository());
+        ExcluirOrdemDeServicoService service = new ExcluirOrdemDeServicoService(new TestOrdemDeServicoRepository());
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,

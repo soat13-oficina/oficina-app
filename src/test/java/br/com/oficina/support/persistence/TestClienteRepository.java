@@ -1,16 +1,13 @@
-package br.com.oficina.cliente.infrastructure.persistence;
+package br.com.oficina.support.persistence;
 
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.stereotype.Repository;
-
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
 
-@Repository
-public class InMemoryClienteRepository implements ClienteRepository {
+public class TestClienteRepository implements ClienteRepository {
     private final Map<String, Cliente> clientes = new ConcurrentHashMap<>();
 
     @Override

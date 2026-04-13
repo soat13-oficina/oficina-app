@@ -12,13 +12,13 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.orcamento.application.command.ExcluirOrcamentoCommand;
 import br.com.oficina.orcamento.domain.model.Orcamento;
-import br.com.oficina.orcamento.infrastructure.persistence.InMemoryOrcamentoRepository;
+import br.com.oficina.support.persistence.TestOrcamentoRepository;
 
 class ExcluirOrcamentoServiceTest {
 
     @Test
     void deveExcluirOrcamentoExistente() {
-        InMemoryOrcamentoRepository repository = new InMemoryOrcamentoRepository();
+        TestOrcamentoRepository repository = new TestOrcamentoRepository();
         repository.salvar(novoOrcamento());
         ExcluirOrcamentoService service = new ExcluirOrcamentoService(repository);
 
@@ -29,7 +29,7 @@ class ExcluirOrcamentoServiceTest {
 
     @Test
     void deveFalharAoExcluirOrcamentoInexistente() {
-        ExcluirOrcamentoService service = new ExcluirOrcamentoService(new InMemoryOrcamentoRepository());
+        ExcluirOrcamentoService service = new ExcluirOrcamentoService(new TestOrcamentoRepository());
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
