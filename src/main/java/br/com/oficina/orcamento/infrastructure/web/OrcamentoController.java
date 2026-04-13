@@ -2,7 +2,10 @@ package br.com.oficina.orcamento.infrastructure.web;
 
 import java.net.URI;
 import java.util.List;
+import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,6 +26,7 @@ import br.com.oficina.orcamento.application.usecase.AlterarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ConsultarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ExcluirOrcamentoUseCase;
+import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.infrastructure.web.request.AlterarOrcamentoRequest;
 import br.com.oficina.orcamento.infrastructure.web.request.CadastrarOrcamentoRequest;
@@ -31,6 +35,8 @@ import br.com.oficina.orcamento.infrastructure.web.response.OrcamentoResponse;
 @RestController
 @RequestMapping("/orcamentos")
 public class OrcamentoController {
+    private static final Logger log = LoggerFactory.getLogger(OrcamentoController.class);
+
     private final CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase;
     private final ConsultarOrcamentoUseCase consultarOrcamentoUseCase;
     private final AlterarOrcamentoUseCase alterarOrcamentoUseCase;
@@ -49,9 +55,11 @@ public class OrcamentoController {
 
     @PostMapping
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarOrcamentoRequest request) {
+        log.info("Recebida requisicao de cadastro de orcamento. numeroOrcamento={}, clienteId={}, ordemDeServicoId={}",
+                request.numeroOrcamento(), request.clienteId(), request.ordemDeServicoId());
         cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
                 request.numeroOrcamento(),
-                request.clienteId(),
+                validarClienteId(request.clienteId()),
                 request.ordemDeServicoId(),
                 request.funcionarioId(),
                 request.placaVeiculo(),
@@ -69,17 +77,20 @@ public class OrcamentoController {
                 .path("/{id}")
                 .buildAndExpand(request.numeroOrcamento())
                 .toUri();
+        log.info("Requisicao de cadastro de orcamento concluida. numeroOrcamento={}", request.numeroOrcamento());
         return ResponseEntity.created(location).build();
     }
 
     @GetMapping("/{orcamentoId}")
     public ResponseEntity<OrcamentoResponse> consultar(@PathVariable String orcamentoId) {
+        log.info("Recebida requisicao de consulta de orcamento. numeroOrcamento={}", orcamentoId);
         OrcamentoResponse response = consultarOrcamentoUseCase
                 .consultarOrcamento(new ConsultarOrcamentoQuery(orcamentoId, null, null))
                 .stream()
                 .findFirst()
                 .map(OrcamentoResponse::from)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Orcamento nao encontrado para o numero informado."));
+        log.info("Requisicao de consulta de orcamento concluida. numeroOrcamento={}", orcamentoId);
         return ResponseEntity.ok(response);
     }
 
@@ -88,11 +99,16 @@ public class OrcamentoController {
             @RequestParam(required = false) String numeroOrcamento,
             @RequestParam(required = false) String cpfCliente,
             @RequestParam(required = false) String placaVeiculo) {
+        log.info("Recebida requisicao de consulta de orcamentos. numeroInformado={}, cpfInformado={}, placaInformada={}",
+                numeroOrcamento != null && !numeroOrcamento.isBlank(),
+                cpfCliente != null && !cpfCliente.isBlank(),
+                placaVeiculo != null && !placaVeiculo.isBlank());
         List<OrcamentoResponse> orcamentos = consultarOrcamentoUseCase
                 .consultarOrcamento(new ConsultarOrcamentoQuery(numeroOrcamento, cpfCliente, placaVeiculo))
                 .stream()
                 .map(OrcamentoResponse::from)
                 .toList();
+        log.info("Requisicao de consulta de orcamentos concluida. quantidadeOrcamentos={}", orcamentos.size());
         return ResponseEntity.ok(orcamentos);
     }
 
@@ -100,9 +116,11 @@ public class OrcamentoController {
     public ResponseEntity<Void> alterar(
             @PathVariable String orcamentoId,
             @RequestBody AlterarOrcamentoRequest request) {
+        log.info("Recebida requisicao de alteracao de orcamento. numeroOrcamento={}, clienteId={}, ordemDeServicoId={}",
+                orcamentoId, request.clienteId(), request.ordemDeServicoId());
         alterarOrcamentoUseCase.alterarOrcamento(new AlterarOrcamentoCommand(
                 orcamentoId,
-                request.clienteId(),
+                validarClienteId(request.clienteId()),
                 request.ordemDeServicoId(),
                 request.funcionarioId(),
                 request.placaVeiculo(),
@@ -115,12 +133,23 @@ public class OrcamentoController {
                 request.valorPecas(),
                 request.validade(),
                 request.observacoes()));
+        log.info("Requisicao de alteracao de orcamento concluida. numeroOrcamento={}", orcamentoId);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{orcamentoId}")
     public ResponseEntity<Void> excluir(@PathVariable String orcamentoId) {
+        log.info("Recebida requisicao de exclusao de orcamento. numeroOrcamento={}", orcamentoId);
         excluirOrcamentoUseCase.excluirOrcamento(new ExcluirOrcamentoCommand(orcamentoId));
+        log.info("Requisicao de exclusao de orcamento concluida. numeroOrcamento={}", orcamentoId);
         return ResponseEntity.noContent().build();
+    }
+
+    private String validarClienteId(String clienteId) {
+        try {
+            return UUID.fromString(clienteId).toString();
+        } catch (IllegalArgumentException exception) {
+            throw new RegraDeNegocioException("Identificador do cliente invalido.");
+        }
     }
 }

@@ -148,4 +148,72 @@ class OrcamentoControllerTest {
                         .with(user("tester")))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void deveRetornarNotFoundQuandoOrcamentoNaoExiste() throws Exception {
+        mockMvc.perform(get("/orcamentos/orc-inexistente")
+                        .with(user("tester")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Orcamento nao encontrado para o numero informado."));
+    }
+
+    @Test
+    void deveRetornarBadRequestQuandoClienteIdForInvalido() throws Exception {
+        String cadastro = """
+                {
+                  "numeroOrcamento": "orc-invalido",
+                  "clienteId": "cliente-invalido",
+                  "ordemDeServicoId": "os-1",
+                  "funcionarioId": "func-1",
+                  "placaVeiculo": "ABC1D23",
+                  "marcaVeiculo": "Toyota",
+                  "modeloVeiculo": "Corolla",
+                  "descricaoDiagnostico": "Troca de pastilhas",
+                  "servicosPropostos": ["Troca de pastilhas"],
+                  "pecasPrevistas": ["Pastilha dianteira"],
+                  "valorMaoDeObra": 150.00,
+                  "valorPecas": 250.00,
+                  "validade": "2030-12-31T10:00:00",
+                  "observacoes": "Prioridade alta"
+                }
+                """;
+
+        mockMvc.perform(post("/orcamentos")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cadastro))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Identificador do cliente invalido."));
+    }
+
+    @Test
+    void deveRetornarBadRequestQuandoPayloadForInvalido() throws Exception {
+        String cadastro = """
+                {
+                  "numeroOrcamento": "orc-payload-invalido",
+                  "clienteId": "%s",
+                  "ordemDeServicoId": "os-1",
+                  "funcionarioId": "func-1",
+                  "placaVeiculo": "ABC1D23",
+                  "marcaVeiculo": "Toyota",
+                  "modeloVeiculo": "Corolla",
+                  "descricaoDiagnostico": "Troca de pastilhas",
+                  "servicosPropostos": ["Troca de pastilhas"],
+                  "pecasPrevistas": ["Pastilha dianteira"],
+                  "valorMaoDeObra": 150.00,
+                  "valorPecas": 250.00,
+                  "validade": "data-invalida",
+                  "observacoes": "Prioridade alta"
+                }
+                """.formatted(clienteId);
+
+        mockMvc.perform(post("/orcamentos")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cadastro))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Os dados enviados sao invalidos. Revise o corpo da requisicao."));
+    }
 }
