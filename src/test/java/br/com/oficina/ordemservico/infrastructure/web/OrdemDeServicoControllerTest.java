@@ -248,6 +248,6 @@ class OrdemDeServicoControllerTest {
 
         OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorNumero("os-finalizar-1")
                 .orElseThrow();
-        assert ordemAtualizada.getStatus() == StatusOrdemDeServico.FINALIZADA;
+        assert ordemAtualizada.getStatus() == StatusOrdemDeServico.OS_FINALIZADA;
     }
 }

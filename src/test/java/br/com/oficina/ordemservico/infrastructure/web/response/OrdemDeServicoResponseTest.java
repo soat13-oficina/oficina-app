@@ -42,6 +42,6 @@ class OrdemDeServicoResponseTest {
         assertEquals("11111111111", response.documentoCliente());
         assertEquals(TipoCliente.PF, response.tipoCliente());
         assertEquals("ABC1D23", response.placaVeiculo());
-        assertEquals(StatusOrdemDeServico.ABERTA, response.status());
+        assertEquals(StatusOrdemDeServico.OS_ABERTA, response.status());
     }
 }

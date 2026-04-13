@@ -32,7 +32,7 @@ class FluxoOrdemDeServicoServicesTest {
         new ConcluirDiagnosticoService(repository).concluirDiagnostico(new ConcluirDiagnosticoCommand("OS-001"));
         new FinalizarOrdemDeServicoService(repository).finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand("OS-001"));
 
-        assertEquals(StatusOrdemDeServico.FINALIZADA, repository.buscarPorNumero("OS-001").orElseThrow().getStatus());
+        assertEquals(StatusOrdemDeServico.OS_FINALIZADA, repository.buscarPorNumero("OS-001").orElseThrow().getStatus());
 
         new ExcluirOrdemDeServicoService(repository).excluirOrdemDeServico(new ExcluirOrdemDeServicoCommand("OS-001"));
 

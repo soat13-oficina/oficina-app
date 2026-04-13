@@ -150,17 +150,6 @@ public class OrdemDeServicoJpaEntity {
                 veiculoPotencia,
                 veiculoCambio,
                 veiculoTipo);
-        OrdemDeServico ordemDeServico = OrdemDeServico.abrir(id, numeroOrdemServico, funcionario, cliente, veiculo);
-        if (status == StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO) {
-            ordemDeServico.iniciarDiagnostico();
-        } else if (status == StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
-            ordemDeServico.iniciarDiagnostico();
-            ordemDeServico.concluirDiagnostico();
-        } else if (status == StatusOrdemDeServico.FINALIZADA) {
-            ordemDeServico.iniciarDiagnostico();
-            ordemDeServico.concluirDiagnostico();
-            ordemDeServico.finalizar();
-        }
-        return ordemDeServico;
+        return OrdemDeServico.reconstituir(id, numeroOrdemServico, funcionario, cliente, veiculo, status);
     }
 }

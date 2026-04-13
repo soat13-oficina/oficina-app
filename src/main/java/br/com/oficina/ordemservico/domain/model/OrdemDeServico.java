@@ -10,19 +10,21 @@ public class OrdemDeServico {
     private Funcionario funcionario;
     private Cliente cliente;
     private Veiculo veiculo;
-    private StatusOrdemDeServico status = StatusOrdemDeServico.ABERTA;
+    private StatusOrdemDeServico status;
 
     private OrdemDeServico(
             String id,
             String numeroOrdemServico,
             Funcionario funcionario,
             Cliente cliente,
-            Veiculo veiculo) {
+            Veiculo veiculo,
+            StatusOrdemDeServico status) {
         this.id = id;
         this.numeroOrdemServico = numeroOrdemServico;
         this.funcionario = funcionario;
         this.cliente = cliente;
         this.veiculo = veiculo;
+        this.status = status;
     }
 
     public static OrdemDeServico abrir(
@@ -31,18 +33,34 @@ public class OrdemDeServico {
             Funcionario funcionario,
             Cliente cliente,
             Veiculo veiculo) {
-        return new OrdemDeServico(id, numeroOrdemServico, funcionario, cliente, veiculo);
+        return new OrdemDeServico(
+                id,
+                numeroOrdemServico,
+                funcionario,
+                cliente,
+                veiculo,
+                StatusOrdemDeServico.OS_ABERTA);
+    }
+
+    public static OrdemDeServico reconstituir(
+            String id,
+            String numeroOrdemServico,
+            Funcionario funcionario,
+            Cliente cliente,
+            Veiculo veiculo,
+            StatusOrdemDeServico status) {
+        return new OrdemDeServico(id, numeroOrdemServico, funcionario, cliente, veiculo, status);
     }
 
     public void iniciarDiagnostico() {
-        if (status != StatusOrdemDeServico.ABERTA) {
+        if (status != StatusOrdemDeServico.OS_ABERTA) {
             throw new RegraDeNegocioException("Diagnostico so pode ser iniciado para ordem aberta");
         }
         status = StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO;
     }
 
     public void alterar(Funcionario funcionario, Cliente cliente, Veiculo veiculo) {
-        if (status != StatusOrdemDeServico.ABERTA) {
+        if (status != StatusOrdemDeServico.OS_ABERTA) {
             throw new RegraDeNegocioException("Ordem de servico so pode ser alterada enquanto estiver aberta");
         }
         this.funcionario = funcionario;
@@ -61,7 +79,7 @@ public class OrdemDeServico {
         if (status != StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
             throw new RegraDeNegocioException("Ordem de servico so pode ser finalizada com diagnostico concluido");
         }
-        status = StatusOrdemDeServico.FINALIZADA;
+        status = StatusOrdemDeServico.OS_FINALIZADA;
     }
 
     public String getNumeroOrdemServico() {

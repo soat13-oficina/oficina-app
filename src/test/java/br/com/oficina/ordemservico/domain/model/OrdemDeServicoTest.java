@@ -37,7 +37,7 @@ class OrdemDeServicoTest {
         assertEquals("func-2", ordemDeServico.getFuncionario().getId());
         assertEquals("Bianca", ordemDeServico.getCliente().getNome());
         assertEquals("XYZ9Z99", ordemDeServico.getVeiculo().getPlaca());
-        assertEquals(StatusOrdemDeServico.ABERTA, ordemDeServico.getStatus());
+        assertEquals(StatusOrdemDeServico.OS_ABERTA, ordemDeServico.getStatus());
         assertEquals("Paula", ordemDeServico.getFuncionario().getNome());
         assertEquals("123", ordemDeServico.getFuncionario().getCpf());
     }
@@ -50,7 +50,7 @@ class OrdemDeServicoTest {
         ordemDeServico.concluirDiagnostico();
         ordemDeServico.finalizar();
 
-        assertEquals(StatusOrdemDeServico.FINALIZADA, ordemDeServico.getStatus());
+        assertEquals(StatusOrdemDeServico.OS_FINALIZADA, ordemDeServico.getStatus());
     }
 
     @Test
