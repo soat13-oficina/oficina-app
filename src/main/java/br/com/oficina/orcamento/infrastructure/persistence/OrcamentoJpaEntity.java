@@ -6,10 +6,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import br.com.oficina.orcamento.domain.model.Orcamento;
+import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
@@ -27,10 +30,19 @@ public class OrcamentoJpaEntity {
     private String funcionarioId;
 
     @Column(nullable = false)
-    private String clienteId;
+    private String clienteNome;
+
+    @Column(nullable = false)
+    private String clienteCpf;
 
     @Column(nullable = false)
     private String placaVeiculo;
+
+    @Column(nullable = false)
+    private String marcaVeiculo;
+
+    @Column(nullable = false)
+    private String modeloVeiculo;
 
     @Column(nullable = false, length = 4000)
     private String descricaoDiagnostico;
@@ -63,6 +75,10 @@ public class OrcamentoJpaEntity {
     @Column(length = 4000)
     private String observacoes;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatusOrcamento status;
+
     private LocalDateTime enviadoParaAprovacaoEm;
 
     protected OrcamentoJpaEntity() {
@@ -72,8 +88,11 @@ public class OrcamentoJpaEntity {
             String id,
             String ordemDeServicoId,
             String funcionarioId,
-            String clienteId,
+            String clienteNome,
+            String clienteCpf,
             String placaVeiculo,
+            String marcaVeiculo,
+            String modeloVeiculo,
             String descricaoDiagnostico,
             List<String> servicosPropostos,
             List<String> pecasPrevistas,
@@ -83,12 +102,16 @@ public class OrcamentoJpaEntity {
             LocalDateTime criadoEm,
             LocalDateTime validade,
             String observacoes,
+            StatusOrcamento status,
             LocalDateTime enviadoParaAprovacaoEm) {
         this.id = id;
         this.ordemDeServicoId = ordemDeServicoId;
         this.funcionarioId = funcionarioId;
-        this.clienteId = clienteId;
+        this.clienteNome = clienteNome;
+        this.clienteCpf = clienteCpf;
         this.placaVeiculo = placaVeiculo;
+        this.marcaVeiculo = marcaVeiculo;
+        this.modeloVeiculo = modeloVeiculo;
         this.descricaoDiagnostico = descricaoDiagnostico;
         this.servicosPropostos = new ArrayList<>(servicosPropostos);
         this.pecasPrevistas = new ArrayList<>(pecasPrevistas);
@@ -98,16 +121,20 @@ public class OrcamentoJpaEntity {
         this.criadoEm = criadoEm;
         this.validade = validade;
         this.observacoes = observacoes;
+        this.status = status;
         this.enviadoParaAprovacaoEm = enviadoParaAprovacaoEm;
     }
 
     public static OrcamentoJpaEntity fromDomain(Orcamento orcamento) {
         return new OrcamentoJpaEntity(
-                orcamento.getId(),
+                orcamento.getNumeroOrcamento(),
                 orcamento.getOrdemDeServicoId(),
                 orcamento.getFuncionarioId(),
-                orcamento.getClienteId(),
+                orcamento.getClienteNome(),
+                orcamento.getClienteCpf(),
                 orcamento.getPlacaVeiculo(),
+                orcamento.getMarcaVeiculo(),
+                orcamento.getModeloVeiculo(),
                 orcamento.getDescricaoDiagnostico(),
                 orcamento.getServicosPropostos(),
                 orcamento.getPecasPrevistas(),
@@ -117,6 +144,7 @@ public class OrcamentoJpaEntity {
                 orcamento.getCriadoEm(),
                 orcamento.getValidade(),
                 orcamento.getObservacoes(),
+                orcamento.getStatus(),
                 orcamento.getEnviadoParaAprovacaoEm());
     }
 
@@ -125,8 +153,11 @@ public class OrcamentoJpaEntity {
                 id,
                 ordemDeServicoId,
                 funcionarioId,
-                clienteId,
+                clienteNome,
+                clienteCpf,
                 placaVeiculo,
+                marcaVeiculo,
+                modeloVeiculo,
                 descricaoDiagnostico,
                 servicosPropostos,
                 pecasPrevistas,
@@ -134,9 +165,16 @@ public class OrcamentoJpaEntity {
                 valorPecas,
                 criadoEm,
                 validade,
-                observacoes);
+                observacoes,
+                status);
         if (enviadoParaAprovacaoEm != null) {
             orcamento.enviarParaAprovacao(enviadoParaAprovacaoEm);
+        }
+        if (status == StatusOrcamento.APROVADO) {
+            orcamento.aprovar();
+        }
+        if (status == StatusOrcamento.REJEITADO) {
+            orcamento.rejeitar();
         }
         return orcamento;
     }

@@ -2,6 +2,7 @@ package br.com.oficina.orcamento.application.service;
 
 import org.springframework.stereotype.Service;
 
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
 import br.com.oficina.orcamento.application.usecase.AlterarOrcamentoUseCase;
 import br.com.oficina.orcamento.domain.model.Orcamento;
@@ -17,15 +18,18 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
 
     @Override
     public void alterarOrcamento(AlterarOrcamentoCommand command) {
-        Orcamento orcamentoAtual = orcamentoRepository.buscarPorId(command.orcamentoId())
-                .orElseThrow(() -> new IllegalArgumentException("Orcamento nao encontrado"));
+        Orcamento orcamentoAtual = orcamentoRepository.buscarPorId(command.numeroOrcamento())
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Orcamento nao encontrado para o numero informado."));
 
         Orcamento orcamentoAtualizado = new Orcamento(
-                command.orcamentoId(),
+                command.numeroOrcamento(),
                 command.ordemDeServicoId(),
                 command.funcionarioId(),
-                command.clienteId(),
+                command.clienteNome(),
+                command.clienteCpf(),
                 command.placaVeiculo(),
+                command.marcaVeiculo(),
+                command.modeloVeiculo(),
                 command.descricaoDiagnostico(),
                 command.servicosPropostos(),
                 command.pecasPrevistas(),
@@ -33,10 +37,17 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
                 command.valorPecas(),
                 orcamentoAtual.getCriadoEm(),
                 command.validade(),
-                command.observacoes());
+                command.observacoes(),
+                orcamentoAtual.getStatus());
 
         if (orcamentoAtual.getEnviadoParaAprovacaoEm() != null) {
             orcamentoAtualizado.enviarParaAprovacao(orcamentoAtual.getEnviadoParaAprovacaoEm());
+        }
+        if (orcamentoAtual.getStatus() == br.com.oficina.orcamento.domain.model.StatusOrcamento.APROVADO) {
+            orcamentoAtualizado.aprovar();
+        }
+        if (orcamentoAtual.getStatus() == br.com.oficina.orcamento.domain.model.StatusOrcamento.REJEITADO) {
+            orcamentoAtualizado.rejeitar();
         }
 
         orcamentoRepository.atualizar(orcamentoAtualizado);

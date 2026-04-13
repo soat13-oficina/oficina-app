@@ -5,11 +5,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public class Orcamento {
-    private final String id;
+    private final String numeroOrcamento;
     private final String ordemDeServicoId;
     private final String funcionarioId;
-    private final String clienteId;
+    private final String clienteNome;
+    private final String clienteCpf;
     private final String placaVeiculo;
+    private final String marcaVeiculo;
+    private final String modeloVeiculo;
     private final String descricaoDiagnostico;
     private final List<String> servicosPropostos;
     private final List<String> pecasPrevistas;
@@ -19,14 +22,18 @@ public class Orcamento {
     private final LocalDateTime criadoEm;
     private final LocalDateTime validade;
     private final String observacoes;
+    private StatusOrcamento status;
     private LocalDateTime enviadoParaAprovacaoEm;
 
     public Orcamento(
-            String id,
+            String numeroOrcamento,
             String ordemDeServicoId,
             String funcionarioId,
-            String clienteId,
+            String clienteNome,
+            String clienteCpf,
             String placaVeiculo,
+            String marcaVeiculo,
+            String modeloVeiculo,
             String descricaoDiagnostico,
             List<String> servicosPropostos,
             List<String> pecasPrevistas,
@@ -34,12 +41,16 @@ public class Orcamento {
             BigDecimal valorPecas,
             LocalDateTime criadoEm,
             LocalDateTime validade,
-            String observacoes) {
-        this.id = id;
+            String observacoes,
+            StatusOrcamento status) {
+        this.numeroOrcamento = numeroOrcamento;
         this.ordemDeServicoId = ordemDeServicoId;
         this.funcionarioId = funcionarioId;
-        this.clienteId = clienteId;
+        this.clienteNome = clienteNome;
+        this.clienteCpf = clienteCpf;
         this.placaVeiculo = placaVeiculo;
+        this.marcaVeiculo = marcaVeiculo;
+        this.modeloVeiculo = modeloVeiculo;
         this.descricaoDiagnostico = descricaoDiagnostico;
         this.servicosPropostos = List.copyOf(servicosPropostos);
         this.pecasPrevistas = List.copyOf(pecasPrevistas);
@@ -49,14 +60,24 @@ public class Orcamento {
         this.criadoEm = criadoEm;
         this.validade = validade;
         this.observacoes = observacoes;
+        this.status = status;
     }
 
     public void enviarParaAprovacao(LocalDateTime enviadoParaAprovacaoEm) {
         this.enviadoParaAprovacaoEm = enviadoParaAprovacaoEm;
+        this.status = StatusOrcamento.AGUARDANDO_APROVACAO;
     }
 
-    public String getId() {
-        return id;
+    public void aprovar() {
+        this.status = StatusOrcamento.APROVADO;
+    }
+
+    public void rejeitar() {
+        this.status = StatusOrcamento.REJEITADO;
+    }
+
+    public String getNumeroOrcamento() {
+        return numeroOrcamento;
     }
 
     public String getOrdemDeServicoId() {
@@ -67,12 +88,24 @@ public class Orcamento {
         return funcionarioId;
     }
 
-    public String getClienteId() {
-        return clienteId;
+    public String getClienteNome() {
+        return clienteNome;
+    }
+
+    public String getClienteCpf() {
+        return clienteCpf;
     }
 
     public String getPlacaVeiculo() {
         return placaVeiculo;
+    }
+
+    public String getMarcaVeiculo() {
+        return marcaVeiculo;
+    }
+
+    public String getModeloVeiculo() {
+        return modeloVeiculo;
     }
 
     public String getDescricaoDiagnostico() {
@@ -109,6 +142,10 @@ public class Orcamento {
 
     public String getObservacoes() {
         return observacoes;
+    }
+
+    public StatusOrcamento getStatus() {
+        return status;
     }
 
     public LocalDateTime getEnviadoParaAprovacaoEm() {

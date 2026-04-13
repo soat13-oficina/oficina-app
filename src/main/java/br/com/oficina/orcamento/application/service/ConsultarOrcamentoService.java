@@ -1,6 +1,6 @@
 package br.com.oficina.orcamento.application.service;
 
-import java.util.Optional;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 
@@ -18,7 +18,14 @@ public class ConsultarOrcamentoService implements ConsultarOrcamentoUseCase {
     }
 
     @Override
-    public Optional<Orcamento> consultarOrcamento(ConsultarOrcamentoQuery query) {
-        return orcamentoRepository.buscarPorId(query.orcamentoId());
+    public List<Orcamento> consultarOrcamento(ConsultarOrcamentoQuery query) {
+        return orcamentoRepository.buscarTodos().stream()
+                .filter(orcamento -> query.numeroOrcamento() == null
+                        || orcamento.getNumeroOrcamento().equalsIgnoreCase(query.numeroOrcamento()))
+                .filter(orcamento -> query.cpfCliente() == null
+                        || orcamento.getClienteCpf().equalsIgnoreCase(query.cpfCliente()))
+                .filter(orcamento -> query.placaVeiculo() == null
+                        || orcamento.getPlacaVeiculo().equalsIgnoreCase(query.placaVeiculo()))
+                .toList();
     }
 }

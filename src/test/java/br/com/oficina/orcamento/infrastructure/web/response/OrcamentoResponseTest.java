@@ -18,8 +18,11 @@ class OrcamentoResponseTest {
                 "orc-1",
                 "os-1",
                 "func-1",
-                "cliente-1",
+                "Joao Silva",
+                "12345678901",
                 "ABC1D23",
+                "Toyota",
+                "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
                 List.of("Pastilha dianteira"),
@@ -27,16 +30,18 @@ class OrcamentoResponseTest {
                 new BigDecimal("250.00"),
                 LocalDateTime.of(2030, 1, 1, 10, 0),
                 LocalDateTime.of(2030, 1, 10, 10, 0),
-                "Prioridade alta");
+                "Prioridade alta",
+                br.com.oficina.orcamento.domain.model.StatusOrcamento.AGUARDANDO_APROVACAO);
 
         OrcamentoResponse response = OrcamentoResponse.from(orcamento);
 
-        assertEquals("orc-1", response.id());
-        assertEquals("os-1", response.ordemDeServicoId());
-        assertEquals("func-1", response.funcionarioId());
-        assertEquals("cliente-1", response.clienteId());
-        assertEquals("ABC1D23", response.placaVeiculo());
-        assertEquals(new BigDecimal("400.00"), response.valorTotal());
-        assertEquals("Prioridade alta", response.observacoes());
+        assertEquals("orc-1", response.numeroOrcamento());
+        assertEquals("Joao Silva", response.cliente().nome());
+        assertEquals("12345678901", response.cliente().cpf());
+        assertEquals("ABC1D23", response.veiculo().placa());
+        assertEquals("Toyota", response.veiculo().marca());
+        assertEquals(new BigDecimal("400.00"), response.detalhesServico().valorTotal());
+        assertEquals("Prioridade alta", response.detalhesServico().observacoes());
+        assertEquals("AGUARDANDO_APROVACAO", response.status());
     }
 }

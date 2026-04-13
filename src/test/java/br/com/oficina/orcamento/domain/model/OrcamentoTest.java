@@ -18,8 +18,11 @@ class OrcamentoTest {
                 "orc-1",
                 "os-1",
                 "func-1",
-                "cliente-1",
+                "Joao Silva",
+                "12345678901",
                 "ABC1D23",
+                "Toyota",
+                "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
                 List.of("Pastilha dianteira"),
@@ -27,15 +30,19 @@ class OrcamentoTest {
                 new BigDecimal("250.00"),
                 criadoEm,
                 validade,
-                "Prioridade alta");
+                "Prioridade alta",
+                StatusOrcamento.AGUARDANDO_APROVACAO);
 
         orcamento.enviarParaAprovacao(LocalDateTime.of(2030, 1, 2, 9, 0));
 
-        assertEquals("orc-1", orcamento.getId());
+        assertEquals("orc-1", orcamento.getNumeroOrcamento());
         assertEquals("os-1", orcamento.getOrdemDeServicoId());
         assertEquals("func-1", orcamento.getFuncionarioId());
-        assertEquals("cliente-1", orcamento.getClienteId());
+        assertEquals("Joao Silva", orcamento.getClienteNome());
+        assertEquals("12345678901", orcamento.getClienteCpf());
         assertEquals("ABC1D23", orcamento.getPlacaVeiculo());
+        assertEquals("Toyota", orcamento.getMarcaVeiculo());
+        assertEquals("Corolla", orcamento.getModeloVeiculo());
         assertEquals("Troca de pastilhas", orcamento.getDescricaoDiagnostico());
         assertEquals(List.of("Troca de pastilhas"), orcamento.getServicosPropostos());
         assertEquals(List.of("Pastilha dianteira"), orcamento.getPecasPrevistas());
@@ -45,6 +52,7 @@ class OrcamentoTest {
         assertEquals(criadoEm, orcamento.getCriadoEm());
         assertEquals(validade, orcamento.getValidade());
         assertEquals("Prioridade alta", orcamento.getObservacoes());
+        assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, orcamento.getStatus());
         assertEquals(LocalDateTime.of(2030, 1, 2, 9, 0), orcamento.getEnviadoParaAprovacaoEm());
     }
 }

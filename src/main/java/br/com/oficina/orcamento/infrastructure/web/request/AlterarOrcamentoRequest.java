@@ -7,8 +7,11 @@ import java.util.List;
 public record AlterarOrcamentoRequest(
         String ordemDeServicoId,
         String funcionarioId,
-        String clienteId,
+        String clienteNome,
+        String clienteCpf,
         String placaVeiculo,
+        String marcaVeiculo,
+        String modeloVeiculo,
         String descricaoDiagnostico,
         List<String> servicosPropostos,
         List<String> pecasPrevistas,

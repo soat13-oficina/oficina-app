@@ -13,12 +13,12 @@ public class TestOrcamentoRepository implements OrcamentoRepository {
 
     @Override
     public void salvar(Orcamento orcamento) {
-        orcamentos.put(orcamento.getId(), orcamento);
+        orcamentos.put(orcamento.getNumeroOrcamento(), orcamento);
     }
 
     @Override
     public void atualizar(Orcamento orcamento) {
-        orcamentos.put(orcamento.getId(), orcamento);
+        orcamentos.put(orcamento.getNumeroOrcamento(), orcamento);
     }
 
     @Override

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
 import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.orcamento.domain.model.Orcamento;
+import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
 
 @Service
@@ -20,11 +21,14 @@ public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseC
     @Override
     public void cadastrarNovoOrcamento(CadastrarNovoOrcamentoCommand command) {
         Orcamento orcamento = new Orcamento(
-                command.id(),
+                command.numeroOrcamento(),
                 command.ordemDeServicoId(),
                 command.funcionarioId(),
-                command.clienteId(),
+                command.clienteNome(),
+                command.clienteCpf(),
                 command.placaVeiculo(),
+                command.marcaVeiculo(),
+                command.modeloVeiculo(),
                 command.descricaoDiagnostico(),
                 command.servicosPropostos(),
                 command.pecasPrevistas(),
@@ -32,7 +36,8 @@ public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseC
                 command.valorPecas(),
                 LocalDateTime.now(),
                 command.validade(),
-                command.observacoes());
+                command.observacoes(),
+                StatusOrcamento.AGUARDANDO_APROVACAO);
 
         orcamentoRepository.salvar(orcamento);
     }

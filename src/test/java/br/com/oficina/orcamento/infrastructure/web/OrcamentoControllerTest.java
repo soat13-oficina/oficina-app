@@ -38,11 +38,14 @@ class OrcamentoControllerTest {
     void deveExecutarCrudDeOrcamento() throws Exception {
         String cadastro = """
                 {
-                  "id": "orc-1",
+                  "numeroOrcamento": "orc-1",
                   "ordemDeServicoId": "os-1",
                   "funcionarioId": "func-1",
-                  "clienteId": "cliente-1",
+                  "clienteNome": "Joao Silva",
+                  "clienteCpf": "12345678901",
                   "placaVeiculo": "ABC1D23",
+                  "marcaVeiculo": "Toyota",
+                  "modeloVeiculo": "Corolla",
                   "descricaoDiagnostico": "Troca de pastilhas",
                   "servicosPropostos": ["Troca de pastilhas"],
                   "pecasPrevistas": ["Pastilha dianteira"],
@@ -64,16 +67,23 @@ class OrcamentoControllerTest {
         mockMvc.perform(get("/orcamentos/orc-1")
                         .with(user("tester")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value("orc-1"))
-                .andExpect(jsonPath("$.valorTotal").value(400.0))
-                .andExpect(jsonPath("$.descricaoDiagnostico").value("Troca de pastilhas"));
+                .andExpect(jsonPath("$.numeroOrcamento").value("orc-1"))
+                .andExpect(jsonPath("$.cliente.nome").value("Joao Silva"))
+                .andExpect(jsonPath("$.cliente.cpf").value("12345678901"))
+                .andExpect(jsonPath("$.veiculo.placa").value("ABC1D23"))
+                .andExpect(jsonPath("$.detalhesServico.valorTotal").value(400.0))
+                .andExpect(jsonPath("$.detalhesServico.descricaoDiagnostico").value("Troca de pastilhas"))
+                .andExpect(jsonPath("$.status").value("AGUARDANDO_APROVACAO"));
 
         String alteracao = """
                 {
                   "ordemDeServicoId": "os-1",
                   "funcionarioId": "func-2",
-                  "clienteId": "cliente-1",
+                  "clienteNome": "Joao Silva",
+                  "clienteCpf": "12345678901",
                   "placaVeiculo": "ABC1D23",
+                  "marcaVeiculo": "Toyota",
+                  "modeloVeiculo": "Corolla",
                   "descricaoDiagnostico": "Revisao de freios",
                   "servicosPropostos": ["Revisao freios"],
                   "pecasPrevistas": ["Fluido de freio"],
@@ -94,9 +104,26 @@ class OrcamentoControllerTest {
         mockMvc.perform(get("/orcamentos/orc-1")
                         .with(user("tester")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.funcionarioId").value("func-2"))
-                .andExpect(jsonPath("$.valorTotal").value(300.0))
-                .andExpect(jsonPath("$.descricaoDiagnostico").value("Revisao de freios"));
+                .andExpect(jsonPath("$.detalhesServico.valorTotal").value(300.0))
+                .andExpect(jsonPath("$.detalhesServico.descricaoDiagnostico").value("Revisao de freios"));
+
+        mockMvc.perform(get("/orcamentos")
+                        .param("cpfCliente", "12345678901")
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].numeroOrcamento").value("orc-1"));
+
+        mockMvc.perform(get("/orcamentos")
+                        .param("placaVeiculo", "ABC1D23")
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].numeroOrcamento").value("orc-1"));
+
+        mockMvc.perform(get("/orcamentos")
+                        .param("numeroOrcamento", "orc-1")
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].numeroOrcamento").value("orc-1"));
 
         mockMvc.perform(delete("/orcamentos/orc-1")
                         .with(user("tester"))

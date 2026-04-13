@@ -9,8 +9,10 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
 import br.com.oficina.orcamento.domain.model.Orcamento;
+import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
 
 class AlterarOrcamentoServiceTest {
@@ -27,8 +29,11 @@ class AlterarOrcamentoServiceTest {
                 "orc-1",
                 "os-2",
                 "func-2",
-                "cliente-2",
+                "Maria Souza",
+                "99999999999",
                 "XYZ9Z99",
+                "Honda",
+                "City",
                 "Revisao de freios",
                 List.of("Revisao freios"),
                 List.of("Fluido de freio"),
@@ -40,25 +45,32 @@ class AlterarOrcamentoServiceTest {
         Orcamento atualizado = repository.buscarPorId("orc-1").orElseThrow();
         assertEquals("os-2", atualizado.getOrdemDeServicoId());
         assertEquals("func-2", atualizado.getFuncionarioId());
-        assertEquals("cliente-2", atualizado.getClienteId());
+        assertEquals("Maria Souza", atualizado.getClienteNome());
+        assertEquals("99999999999", atualizado.getClienteCpf());
         assertEquals("XYZ9Z99", atualizado.getPlacaVeiculo());
+        assertEquals("Honda", atualizado.getMarcaVeiculo());
+        assertEquals("City", atualizado.getModeloVeiculo());
         assertEquals(new BigDecimal("300.00"), atualizado.getValorTotal());
         assertEquals(LocalDateTime.of(2030, 1, 1, 10, 0), atualizado.getCriadoEm());
         assertEquals(LocalDateTime.of(2030, 1, 2, 9, 0), atualizado.getEnviadoParaAprovacaoEm());
+        assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, atualizado.getStatus());
     }
 
     @Test
     void deveFalharAoAlterarOrcamentoInexistente() {
         AlterarOrcamentoService service = new AlterarOrcamentoService(new TestOrcamentoRepository());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        RecursoNaoEncontradoException exception = assertThrows(
+                RecursoNaoEncontradoException.class,
                 () -> service.alterarOrcamento(new AlterarOrcamentoCommand(
                         "orc-404",
                         "os-1",
                         "func-1",
-                        "cliente-1",
+                        "Joao Silva",
+                        "12345678901",
                         "ABC1D23",
+                        "Toyota",
+                        "Corolla",
                         "Troca de pastilhas",
                         List.of("Troca de pastilhas"),
                         List.of("Pastilha dianteira"),
@@ -67,7 +79,7 @@ class AlterarOrcamentoServiceTest {
                         LocalDateTime.of(2030, 1, 10, 10, 0),
                         "Prioridade alta")));
 
-        assertEquals("Orcamento nao encontrado", exception.getMessage());
+        assertEquals("Orcamento nao encontrado para o numero informado.", exception.getMessage());
     }
 
     private Orcamento novoOrcamento() {
@@ -75,8 +87,11 @@ class AlterarOrcamentoServiceTest {
                 "orc-1",
                 "os-1",
                 "func-1",
-                "cliente-1",
+                "Joao Silva",
+                "12345678901",
                 "ABC1D23",
+                "Toyota",
+                "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
                 List.of("Pastilha dianteira"),
@@ -84,6 +99,7 @@ class AlterarOrcamentoServiceTest {
                 new BigDecimal("250.00"),
                 LocalDateTime.of(2030, 1, 1, 10, 0),
                 LocalDateTime.of(2030, 1, 10, 10, 0),
-                "Prioridade alta");
+                "Prioridade alta",
+                StatusOrcamento.AGUARDANDO_APROVACAO);
     }
 }

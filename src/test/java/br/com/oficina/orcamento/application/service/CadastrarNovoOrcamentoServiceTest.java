@@ -9,6 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
+import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
 
 class CadastrarNovoOrcamentoServiceTest {
@@ -22,8 +23,11 @@ class CadastrarNovoOrcamentoServiceTest {
                 "orc-1",
                 "os-1",
                 "func-1",
-                "cliente-1",
+                "Joao Silva",
+                "12345678901",
                 "ABC1D23",
+                "Toyota",
+                "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
                 List.of("Pastilha dianteira"),
@@ -34,5 +38,6 @@ class CadastrarNovoOrcamentoServiceTest {
 
         assertEquals(1, repository.buscarTodos().size());
         assertEquals(new BigDecimal("400.00"), repository.buscarPorId("orc-1").orElseThrow().getValorTotal());
+        assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, repository.buscarPorId("orc-1").orElseThrow().getStatus());
     }
 }

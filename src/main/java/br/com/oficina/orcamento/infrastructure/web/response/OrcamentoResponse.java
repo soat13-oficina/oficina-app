@@ -1,43 +1,51 @@
 package br.com.oficina.orcamento.infrastructure.web.response;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import br.com.oficina.orcamento.domain.model.Orcamento;
 
 public record OrcamentoResponse(
-        String id,
-        String ordemDeServicoId,
-        String funcionarioId,
-        String clienteId,
-        String placaVeiculo,
-        String descricaoDiagnostico,
-        List<String> servicosPropostos,
-        List<String> pecasPrevistas,
-        BigDecimal valorMaoDeObra,
-        BigDecimal valorPecas,
-        BigDecimal valorTotal,
+        String numeroOrcamento,
+        ClienteOrcamentoResponse cliente,
+        VeiculoOrcamentoResponse veiculo,
+        DetalhesServicoResponse detalhesServico,
+        String status,
         LocalDateTime criadoEm,
-        LocalDateTime validade,
-        String observacoes,
         LocalDateTime enviadoParaAprovacaoEm) {
     public static OrcamentoResponse from(Orcamento orcamento) {
         return new OrcamentoResponse(
-                orcamento.getId(),
-                orcamento.getOrdemDeServicoId(),
-                orcamento.getFuncionarioId(),
-                orcamento.getClienteId(),
-                orcamento.getPlacaVeiculo(),
-                orcamento.getDescricaoDiagnostico(),
-                orcamento.getServicosPropostos(),
-                orcamento.getPecasPrevistas(),
-                orcamento.getValorMaoDeObra(),
-                orcamento.getValorPecas(),
-                orcamento.getValorTotal(),
+                orcamento.getNumeroOrcamento(),
+                new ClienteOrcamentoResponse(orcamento.getClienteNome(), orcamento.getClienteCpf()),
+                new VeiculoOrcamentoResponse(orcamento.getPlacaVeiculo(), orcamento.getMarcaVeiculo(), orcamento.getModeloVeiculo()),
+                new DetalhesServicoResponse(
+                        orcamento.getDescricaoDiagnostico(),
+                        orcamento.getServicosPropostos(),
+                        orcamento.getPecasPrevistas(),
+                        orcamento.getValorMaoDeObra(),
+                        orcamento.getValorPecas(),
+                        orcamento.getValorTotal(),
+                        orcamento.getValidade(),
+                        orcamento.getObservacoes()),
+                orcamento.getStatus().name(),
                 orcamento.getCriadoEm(),
-                orcamento.getValidade(),
-                orcamento.getObservacoes(),
                 orcamento.getEnviadoParaAprovacaoEm());
+    }
+
+    public record ClienteOrcamentoResponse(String nome, String cpf) {
+    }
+
+    public record VeiculoOrcamentoResponse(String placa, String marca, String modelo) {
+    }
+
+    public record DetalhesServicoResponse(
+            String descricaoDiagnostico,
+            List<String> servicosPropostos,
+            List<String> pecasPrevistas,
+            java.math.BigDecimal valorMaoDeObra,
+            java.math.BigDecimal valorPecas,
+            java.math.BigDecimal valorTotal,
+            LocalDateTime validade,
+            String observacoes) {
     }
 }

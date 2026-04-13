@@ -3,6 +3,7 @@ package br.com.oficina.orcamento.infrastructure.web;
 import java.net.URI;
 import java.util.List;
 
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,12 +19,11 @@ import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.ExcluirOrcamentoCommand;
 import br.com.oficina.orcamento.application.query.ConsultarOrcamentoQuery;
-import br.com.oficina.orcamento.application.query.ListarOrcamentosQuery;
 import br.com.oficina.orcamento.application.usecase.AlterarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ConsultarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ExcluirOrcamentoUseCase;
-import br.com.oficina.orcamento.application.usecase.ListarOrcamentosUseCase;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.infrastructure.web.request.AlterarOrcamentoRequest;
 import br.com.oficina.orcamento.infrastructure.web.request.CadastrarOrcamentoRequest;
 import br.com.oficina.orcamento.infrastructure.web.response.OrcamentoResponse;
@@ -35,29 +35,29 @@ public class OrcamentoController {
     private final ConsultarOrcamentoUseCase consultarOrcamentoUseCase;
     private final AlterarOrcamentoUseCase alterarOrcamentoUseCase;
     private final ExcluirOrcamentoUseCase excluirOrcamentoUseCase;
-    private final ListarOrcamentosUseCase listarOrcamentosUseCase;
 
     public OrcamentoController(
             CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase,
             ConsultarOrcamentoUseCase consultarOrcamentoUseCase,
             AlterarOrcamentoUseCase alterarOrcamentoUseCase,
-            ExcluirOrcamentoUseCase excluirOrcamentoUseCase,
-            ListarOrcamentosUseCase listarOrcamentosUseCase) {
+            ExcluirOrcamentoUseCase excluirOrcamentoUseCase) {
         this.cadastrarNovoOrcamentoUseCase = cadastrarNovoOrcamentoUseCase;
         this.consultarOrcamentoUseCase = consultarOrcamentoUseCase;
         this.alterarOrcamentoUseCase = alterarOrcamentoUseCase;
         this.excluirOrcamentoUseCase = excluirOrcamentoUseCase;
-        this.listarOrcamentosUseCase = listarOrcamentosUseCase;
     }
 
     @PostMapping
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarOrcamentoRequest request) {
         cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
-                request.id(),
+                request.numeroOrcamento(),
                 request.ordemDeServicoId(),
                 request.funcionarioId(),
-                request.clienteId(),
+                request.clienteNome(),
+                request.clienteCpf(),
                 request.placaVeiculo(),
+                request.marcaVeiculo(),
+                request.modeloVeiculo(),
                 request.descricaoDiagnostico(),
                 request.servicosPropostos(),
                 request.pecasPrevistas(),
@@ -68,22 +68,29 @@ public class OrcamentoController {
 
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
-                .buildAndExpand(request.id())
+                .buildAndExpand(request.numeroOrcamento())
                 .toUri();
         return ResponseEntity.created(location).build();
     }
 
     @GetMapping("/{orcamentoId}")
     public ResponseEntity<OrcamentoResponse> consultar(@PathVariable String orcamentoId) {
-        return consultarOrcamentoUseCase.consultarOrcamento(new ConsultarOrcamentoQuery(orcamentoId))
+        OrcamentoResponse response = consultarOrcamentoUseCase
+                .consultarOrcamento(new ConsultarOrcamentoQuery(orcamentoId, null, null))
+                .stream()
+                .findFirst()
                 .map(OrcamentoResponse::from)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Orcamento nao encontrado para o numero informado."));
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping
-    public ResponseEntity<List<OrcamentoResponse>> listar() {
-        List<OrcamentoResponse> orcamentos = listarOrcamentosUseCase.listarOrcamentos(new ListarOrcamentosQuery())
+    public ResponseEntity<List<OrcamentoResponse>> consultarPorFiltros(
+            @RequestParam(required = false) String numeroOrcamento,
+            @RequestParam(required = false) String cpfCliente,
+            @RequestParam(required = false) String placaVeiculo) {
+        List<OrcamentoResponse> orcamentos = consultarOrcamentoUseCase
+                .consultarOrcamento(new ConsultarOrcamentoQuery(numeroOrcamento, cpfCliente, placaVeiculo))
                 .stream()
                 .map(OrcamentoResponse::from)
                 .toList();
@@ -98,8 +105,11 @@ public class OrcamentoController {
                 orcamentoId,
                 request.ordemDeServicoId(),
                 request.funcionarioId(),
-                request.clienteId(),
+                request.clienteNome(),
+                request.clienteCpf(),
                 request.placaVeiculo(),
+                request.marcaVeiculo(),
+                request.modeloVeiculo(),
                 request.descricaoDiagnostico(),
                 request.servicosPropostos(),
                 request.pecasPrevistas(),
