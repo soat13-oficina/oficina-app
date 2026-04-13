@@ -66,10 +66,11 @@ public class VeiculoController {
     @PostMapping
     @Operation(
             summary = "Cadastrar veiculo",
-            description = "Cria um novo veículo. A placa aceita formato Mercosul e formato antigo, e sempre é normalizada sem espaços, sem hífen e em caixa alta. Não são permitidos veículos com a mesma placa.")
+            description = "Cria um novo veículo vinculado a um cliente proprietário existente. A placa aceita formato Mercosul e formato antigo, e sempre é normalizada sem espaços, sem hífen e em caixa alta. Não são permitidos veículos com a mesma placa.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Veículo cadastrado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro, placa inválida ou placa já cadastrada", content = @Content)
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro, placa inválida ou placa já cadastrada", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Cliente proprietário não encontrado", content = @Content)
     })
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarVeiculoRequest request) {
         log.info("Recebida requisicao de cadastro de veiculo. placaInformada={}, marca={}, fabricante={}",

@@ -70,7 +70,7 @@ public class ClienteController {
     @PostMapping
     @Operation(
             summary = "Cadastrar cliente",
-            description = "Cria um novo cliente pessoa física ou pessoa jurídica. O CPF/CNPJ deve ser único e não pode estar associado a outro cliente já cadastrado.")
+            description = "Cria um novo cliente. O nome é obrigatório. CPF/CNPJ e tipo do cliente são opcionais, mas quando um for informado o outro também deve ser informado. Se houver CPF/CNPJ, ele deve ser único e não pode estar associado a outro cliente já cadastrado.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Cliente cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro ou CPF/CNPJ já cadastrado", content = @Content)
@@ -127,7 +127,7 @@ public class ClienteController {
     @PutMapping("/{clienteId}")
     @Operation(
             summary = "Alterar cliente",
-            description = "Atualiza os dados de um cliente existente. O CPF/CNPJ informado deve continuar único e não pode pertencer a outro cliente.")
+            description = "Atualiza os dados de um cliente existente. O nome continua obrigatório. CPF/CNPJ e tipo do cliente permanecem opcionais, mas quando um for informado o outro também deve ser informado. Se houver CPF/CNPJ, ele deve continuar único e não pode pertencer a outro cliente.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Cliente alterado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados inválidos para alteração ou CPF/CNPJ já cadastrado para outro cliente", content = @Content),
