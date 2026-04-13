@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.veiculo.application.command.AlterarVeiculoCommand;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.support.persistence.TestVeiculoRepository;
 
 class AlterarVeiculoServiceTest {
@@ -75,8 +76,8 @@ class AlterarVeiculoServiceTest {
         TestVeiculoRepository repository = new TestVeiculoRepository();
         AlterarVeiculoService service = new AlterarVeiculoService(repository);
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        RecursoNaoEncontradoException exception = assertThrows(
+                RecursoNaoEncontradoException.class,
                 () -> service.alterarVeiculo(new AlterarVeiculoCommand(
                         "ABC1D23",
                         "Volkswagen",
@@ -87,6 +88,6 @@ class AlterarVeiculoServiceTest {
                         "AUTOMATICO",
                         TipoCombustivel.GASOLINA)));
 
-        assertEquals("Veiculo nao encontrado", exception.getMessage());
+        assertEquals("Veiculo nao encontrado para a placa informada.", exception.getMessage());
     }
 }

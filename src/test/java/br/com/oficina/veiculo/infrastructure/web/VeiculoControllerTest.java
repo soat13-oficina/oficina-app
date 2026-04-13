@@ -250,4 +250,61 @@ class VeiculoControllerTest {
                 .andExpect(jsonPath("$[0].potencia").value(150))
                 .andExpect(jsonPath("$[0].tipo").value("GASOLINA"));
     }
+
+    @Test
+    void deveRetornarNotFoundAoAlterarVeiculoInexistente() throws Exception {
+        String alteracao = """
+                {
+                  "marca": "Volkswagen",
+                  "modelo": "Taos",
+                  "fabricante": "Volkswagen AG",
+                  "ano": 2024,
+                  "potencia": 150,
+                  "cambio": "AUTOMATICO",
+                  "tipo": "GASOLINA"
+                }
+                """;
+
+        mockMvc.perform(put("/veiculos/ABC1D23")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(alteracao))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Veiculo nao encontrado para a placa informada."));
+    }
+
+    @Test
+    void deveRetornarNotFoundAoExcluirVeiculoInexistente() throws Exception {
+        mockMvc.perform(delete("/veiculos/ABC1D23")
+                        .with(user("tester"))
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Veiculo nao encontrado para a placa informada."));
+    }
+
+    @Test
+    void deveRetornarBadRequestQuandoPlacaForInvalida() throws Exception {
+        String requestBody = """
+                {
+                  "placa": "AB12",
+                  "marca": "Toyota",
+                  "modelo": "Corolla",
+                  "fabricante": "Toyota Motor Corporation",
+                  "ano": 2024,
+                  "potencia": 177,
+                  "cambio": "AUTOMATICO",
+                  "tipo": "FLEX",
+                  "clienteId": "cliente-1"
+                }
+                """;
+
+        mockMvc.perform(post("/veiculos")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Placa do veiculo invalida"));
+    }
 }

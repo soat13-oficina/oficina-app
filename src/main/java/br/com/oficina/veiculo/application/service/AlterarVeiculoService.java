@@ -6,6 +6,7 @@ import br.com.oficina.veiculo.application.command.AlterarVeiculoCommand;
 import br.com.oficina.veiculo.application.usecase.AlterarVeiculoUseCase;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 
 @Service
 public class AlterarVeiculoService implements AlterarVeiculoUseCase {
@@ -18,7 +19,7 @@ public class AlterarVeiculoService implements AlterarVeiculoUseCase {
     @Override
     public void alterarVeiculo(AlterarVeiculoCommand command) {
         Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placa())
-                .orElseThrow(() -> new IllegalArgumentException("Veiculo nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Veiculo nao encontrado para a placa informada."));
 
         veiculo.alterar(
                 command.marca(),
