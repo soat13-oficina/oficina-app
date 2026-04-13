@@ -2,10 +2,12 @@ package br.com.oficina.orcamento.infrastructure.web.response;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import br.com.oficina.orcamento.domain.model.Orcamento;
 
 public record OrcamentoResponse(
+        UUID id,
         String numeroOrcamento,
         ClienteOrcamentoResponse cliente,
         VeiculoOrcamentoResponse veiculo,
@@ -15,6 +17,7 @@ public record OrcamentoResponse(
         LocalDateTime enviadoParaAprovacaoEm) {
     public static OrcamentoResponse from(Orcamento orcamento) {
         return new OrcamentoResponse(
+                orcamento.getId(),
                 orcamento.getNumeroOrcamento(),
                 new ClienteOrcamentoResponse(orcamento.getClienteNome(), orcamento.getClienteCpf()),
                 new VeiculoOrcamentoResponse(orcamento.getPlacaVeiculo(), orcamento.getMarcaVeiculo(), orcamento.getModeloVeiculo()),

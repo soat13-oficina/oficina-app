@@ -20,16 +20,22 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import br.com.oficina.veiculo.infrastructure.persistence.SpringDataVeiculoRepository;
+
 @SpringBootTest
 class VeiculoControllerTest {
 
     @Autowired
     private WebApplicationContext context;
 
+    @Autowired
+    private SpringDataVeiculoRepository veiculoRepository;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        veiculoRepository.deleteAll();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();

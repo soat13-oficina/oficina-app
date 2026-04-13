@@ -2,28 +2,92 @@ package br.com.oficina.orcamento.domain.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "orcamentos")
 public class Orcamento {
-    private final String numeroOrcamento;
-    private final String ordemDeServicoId;
-    private final String funcionarioId;
-    private final String clienteNome;
-    private final String clienteCpf;
-    private final String placaVeiculo;
-    private final String marcaVeiculo;
-    private final String modeloVeiculo;
-    private final String descricaoDiagnostico;
-    private final List<String> servicosPropostos;
-    private final List<String> pecasPrevistas;
-    private final BigDecimal valorMaoDeObra;
-    private final BigDecimal valorPecas;
-    private final BigDecimal valorTotal;
-    private final LocalDateTime criadoEm;
-    private final LocalDateTime validade;
-    private final String observacoes;
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @Column(nullable = false, unique = true)
+    private String numeroOrcamento;
+
+    @Column(nullable = false)
+    private String ordemDeServicoId;
+
+    @Column(nullable = false)
+    private String funcionarioId;
+
+    @Column(nullable = false)
+    private String clienteNome;
+
+    @Column(nullable = false)
+    private String clienteCpf;
+
+    @Column(nullable = false)
+    private String placaVeiculo;
+
+    @Column(nullable = false)
+    private String marcaVeiculo;
+
+    @Column(nullable = false)
+    private String modeloVeiculo;
+
+    @Column(nullable = false, length = 4000)
+    private String descricaoDiagnostico;
+
+    @ElementCollection
+    @CollectionTable(name = "orcamento_servicos_propostos", joinColumns = @JoinColumn(name = "orcamento_id"))
+    @Column(name = "servico", nullable = false)
+    private List<String> servicosPropostos = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "orcamento_pecas_previstas", joinColumns = @JoinColumn(name = "orcamento_id"))
+    @Column(name = "peca", nullable = false)
+    private List<String> pecasPrevistas = new ArrayList<>();
+
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal valorMaoDeObra;
+
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal valorPecas;
+
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal valorTotal;
+
+    @Column(nullable = false)
+    private LocalDateTime criadoEm;
+
+    @Column(nullable = false)
+    private LocalDateTime validade;
+
+    @Column(length = 4000)
+    private String observacoes;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private StatusOrcamento status;
+
     private LocalDateTime enviadoParaAprovacaoEm;
+
+    protected Orcamento() {
+    }
 
     public Orcamento(
             String numeroOrcamento,
@@ -43,24 +107,65 @@ public class Orcamento {
             LocalDateTime validade,
             String observacoes,
             StatusOrcamento status) {
-        this.numeroOrcamento = numeroOrcamento;
-        this.ordemDeServicoId = ordemDeServicoId;
-        this.funcionarioId = funcionarioId;
-        this.clienteNome = clienteNome;
-        this.clienteCpf = clienteCpf;
-        this.placaVeiculo = placaVeiculo;
-        this.marcaVeiculo = marcaVeiculo;
-        this.modeloVeiculo = modeloVeiculo;
-        this.descricaoDiagnostico = descricaoDiagnostico;
-        this.servicosPropostos = List.copyOf(servicosPropostos);
-        this.pecasPrevistas = List.copyOf(pecasPrevistas);
-        this.valorMaoDeObra = valorMaoDeObra;
-        this.valorPecas = valorPecas;
-        this.valorTotal = valorMaoDeObra.add(valorPecas);
-        this.criadoEm = criadoEm;
-        this.validade = validade;
-        this.observacoes = observacoes;
-        this.status = status;
+        definirDados(
+                numeroOrcamento,
+                ordemDeServicoId,
+                funcionarioId,
+                clienteNome,
+                clienteCpf,
+                placaVeiculo,
+                marcaVeiculo,
+                modeloVeiculo,
+                descricaoDiagnostico,
+                servicosPropostos,
+                pecasPrevistas,
+                valorMaoDeObra,
+                valorPecas,
+                criadoEm,
+                validade,
+                observacoes,
+                status);
+    }
+
+    public static Orcamento reconstituir(
+            UUID id,
+            String numeroOrcamento,
+            String ordemDeServicoId,
+            String funcionarioId,
+            String clienteNome,
+            String clienteCpf,
+            String placaVeiculo,
+            String marcaVeiculo,
+            String modeloVeiculo,
+            String descricaoDiagnostico,
+            List<String> servicosPropostos,
+            List<String> pecasPrevistas,
+            BigDecimal valorMaoDeObra,
+            BigDecimal valorPecas,
+            LocalDateTime criadoEm,
+            LocalDateTime validade,
+            String observacoes,
+            StatusOrcamento status) {
+        Orcamento orcamento = new Orcamento(
+                numeroOrcamento,
+                ordemDeServicoId,
+                funcionarioId,
+                clienteNome,
+                clienteCpf,
+                placaVeiculo,
+                marcaVeiculo,
+                modeloVeiculo,
+                descricaoDiagnostico,
+                servicosPropostos,
+                pecasPrevistas,
+                valorMaoDeObra,
+                valorPecas,
+                criadoEm,
+                validade,
+                observacoes,
+                status);
+        orcamento.id = id;
+        return orcamento;
     }
 
     public void enviarParaAprovacao(LocalDateTime enviadoParaAprovacaoEm) {
@@ -74,6 +179,10 @@ public class Orcamento {
 
     public void rejeitar() {
         this.status = StatusOrcamento.REJEITADO;
+    }
+
+    public UUID getId() {
+        return id;
     }
 
     public String getNumeroOrcamento() {
@@ -113,11 +222,11 @@ public class Orcamento {
     }
 
     public List<String> getServicosPropostos() {
-        return servicosPropostos;
+        return List.copyOf(servicosPropostos);
     }
 
     public List<String> getPecasPrevistas() {
-        return pecasPrevistas;
+        return List.copyOf(pecasPrevistas);
     }
 
     public BigDecimal getValorMaoDeObra() {
@@ -150,5 +259,43 @@ public class Orcamento {
 
     public LocalDateTime getEnviadoParaAprovacaoEm() {
         return enviadoParaAprovacaoEm;
+    }
+
+    private void definirDados(
+            String numeroOrcamento,
+            String ordemDeServicoId,
+            String funcionarioId,
+            String clienteNome,
+            String clienteCpf,
+            String placaVeiculo,
+            String marcaVeiculo,
+            String modeloVeiculo,
+            String descricaoDiagnostico,
+            List<String> servicosPropostos,
+            List<String> pecasPrevistas,
+            BigDecimal valorMaoDeObra,
+            BigDecimal valorPecas,
+            LocalDateTime criadoEm,
+            LocalDateTime validade,
+            String observacoes,
+            StatusOrcamento status) {
+        this.numeroOrcamento = numeroOrcamento;
+        this.ordemDeServicoId = ordemDeServicoId;
+        this.funcionarioId = funcionarioId;
+        this.clienteNome = clienteNome;
+        this.clienteCpf = clienteCpf;
+        this.placaVeiculo = placaVeiculo;
+        this.marcaVeiculo = marcaVeiculo;
+        this.modeloVeiculo = modeloVeiculo;
+        this.descricaoDiagnostico = descricaoDiagnostico;
+        this.servicosPropostos = new ArrayList<>(servicosPropostos);
+        this.pecasPrevistas = new ArrayList<>(pecasPrevistas);
+        this.valorMaoDeObra = valorMaoDeObra;
+        this.valorPecas = valorPecas;
+        this.valorTotal = valorMaoDeObra.add(valorPecas);
+        this.criadoEm = criadoEm;
+        this.validade = validade;
+        this.observacoes = observacoes;
+        this.status = status;
     }
 }

@@ -1,6 +1,7 @@
 package br.com.oficina.orcamento.application.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigDecimal;
@@ -42,7 +43,8 @@ class AlterarOrcamentoServiceTest {
                 LocalDateTime.of(2031, 1, 10, 10, 0),
                 "Aprovacao imediata"));
 
-        Orcamento atualizado = repository.buscarPorId("orc-1").orElseThrow();
+        Orcamento atualizado = repository.buscarPorNumeroOrcamento("orc-1").orElseThrow();
+        assertNotNull(atualizado.getId());
         assertEquals("os-2", atualizado.getOrdemDeServicoId());
         assertEquals("func-2", atualizado.getFuncionarioId());
         assertEquals("Maria Souza", atualizado.getClienteNome());

@@ -67,6 +67,7 @@ class OrcamentoControllerTest {
         mockMvc.perform(get("/orcamentos/orc-1")
                         .with(user("tester")))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").isNotEmpty())
                 .andExpect(jsonPath("$.numeroOrcamento").value("orc-1"))
                 .andExpect(jsonPath("$.cliente.nome").value("Joao Silva"))
                 .andExpect(jsonPath("$.cliente.cpf").value("12345678901"))

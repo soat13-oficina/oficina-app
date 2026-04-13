@@ -26,7 +26,7 @@ class ExcluirOrcamentoServiceTest {
 
         service.excluirOrcamento(new ExcluirOrcamentoCommand("orc-1"));
 
-        assertTrue(repository.buscarPorId("orc-1").isEmpty());
+        assertTrue(repository.buscarPorNumeroOrcamento("orc-1").isEmpty());
     }
 
     @Test

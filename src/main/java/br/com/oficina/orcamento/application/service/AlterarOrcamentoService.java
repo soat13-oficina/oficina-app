@@ -18,10 +18,11 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
 
     @Override
     public void alterarOrcamento(AlterarOrcamentoCommand command) {
-        Orcamento orcamentoAtual = orcamentoRepository.buscarPorId(command.numeroOrcamento())
+        Orcamento orcamentoAtual = orcamentoRepository.buscarPorNumeroOrcamento(command.numeroOrcamento())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Orcamento nao encontrado para o numero informado."));
 
-        Orcamento orcamentoAtualizado = new Orcamento(
+        Orcamento orcamentoAtualizado = Orcamento.reconstituir(
+                orcamentoAtual.getId(),
                 command.numeroOrcamento(),
                 command.ordemDeServicoId(),
                 command.funcionarioId(),

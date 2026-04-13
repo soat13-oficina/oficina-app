@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -14,7 +15,9 @@ class OrcamentoResponseTest {
 
     @Test
     void deveConverterOrcamentoParaResponse() {
-        Orcamento orcamento = new Orcamento(
+        UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        Orcamento orcamento = Orcamento.reconstituir(
+                id,
                 "orc-1",
                 "os-1",
                 "func-1",
@@ -35,6 +38,7 @@ class OrcamentoResponseTest {
 
         OrcamentoResponse response = OrcamentoResponse.from(orcamento);
 
+        assertEquals(id, response.id());
         assertEquals("orc-1", response.numeroOrcamento());
         assertEquals("Joao Silva", response.cliente().nome());
         assertEquals("12345678901", response.cliente().cpf());

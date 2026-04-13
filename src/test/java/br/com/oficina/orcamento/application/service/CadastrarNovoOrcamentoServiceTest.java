@@ -1,6 +1,7 @@
 package br.com.oficina.orcamento.application.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -37,7 +38,8 @@ class CadastrarNovoOrcamentoServiceTest {
                 "Prioridade alta"));
 
         assertEquals(1, repository.buscarTodos().size());
-        assertEquals(new BigDecimal("400.00"), repository.buscarPorId("orc-1").orElseThrow().getValorTotal());
-        assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, repository.buscarPorId("orc-1").orElseThrow().getStatus());
+        assertEquals(new BigDecimal("400.00"), repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getValorTotal());
+        assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getStatus());
+        assertNotNull(repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getId());
     }
 }

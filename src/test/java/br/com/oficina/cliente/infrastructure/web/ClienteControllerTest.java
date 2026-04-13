@@ -22,16 +22,22 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
+
 @SpringBootTest
 class ClienteControllerTest {
 
     @Autowired
     private WebApplicationContext context;
 
+    @Autowired
+    private SpringDataClienteRepository clienteRepository;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        clienteRepository.deleteAll();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();

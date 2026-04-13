@@ -2,17 +2,20 @@ package br.com.oficina.orcamento.domain.repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import br.com.oficina.orcamento.domain.model.Orcamento;
 
 public interface OrcamentoRepository {
-    void salvar(Orcamento orcamento);
+    Orcamento salvar(Orcamento orcamento);
 
     void atualizar(Orcamento orcamento);
 
-    void excluirPorId(String orcamentoId);
+    void excluirPorNumeroOrcamento(String numeroOrcamento);
 
-    Optional<Orcamento> buscarPorId(String orcamentoId);
+    Optional<Orcamento> buscarPorId(UUID id);
+
+    Optional<Orcamento> buscarPorNumeroOrcamento(String numeroOrcamento);
 
     List<Orcamento> buscarTodos();
 }
