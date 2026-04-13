@@ -31,7 +31,7 @@ Para autenticar no Swagger:
 ## 🚀 Executando Localmente
 
 ### Pré-requisitos
-- Java 17+
+- Java 21+
 - Docker & Docker Compose
 
 ### Subindo o ambiente
