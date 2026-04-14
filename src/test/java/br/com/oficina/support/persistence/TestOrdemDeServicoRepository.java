@@ -21,7 +21,9 @@ public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
                         ordemDeServico.getFuncionario(),
                         ordemDeServico.getCliente(),
                         ordemDeServico.getVeiculo(),
-                        ordemDeServico.getStatus())
+                        ordemDeServico.getStatus(),
+                        ordemDeServico.getIniciadaEm(),
+                        ordemDeServico.getFinalizadaEm())
                 : ordemDeServico;
         ordens.put(ordemPersistida.getNumeroOrdemServico(), ordemPersistida);
     }

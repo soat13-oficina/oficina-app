@@ -9,7 +9,7 @@ import br.com.oficina.cliente.domain.repository.ClienteRepository;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseCase;
-import br.com.oficina.ordemservico.domain.model.Funcionario;
+import br.com.oficina.ordemservico.domain.repository.FuncionarioRepository;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 import br.com.oficina.veiculo.domain.model.Veiculo;
@@ -19,31 +19,39 @@ import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 public class AlterarOrdemDeServicoService implements AlterarOrdemDeServicoUseCase {
     private final ClienteRepository clienteRepository;
     private final VeiculoRepository veiculoRepository;
+    private final FuncionarioRepository funcionarioRepository;
     private final OrdemDeServicoRepository ordemDeServicoRepository;
 
     public AlterarOrdemDeServicoService(
             ClienteRepository clienteRepository,
             VeiculoRepository veiculoRepository,
+            FuncionarioRepository funcionarioRepository,
             OrdemDeServicoRepository ordemDeServicoRepository) {
         this.clienteRepository = clienteRepository;
         this.veiculoRepository = veiculoRepository;
+        this.funcionarioRepository = funcionarioRepository;
         this.ordemDeServicoRepository = ordemDeServicoRepository;
     }
 
     @Override
     public void alterarOrdemDeServico(AlterarOrdemDeServicoCommand command) {
+        UUID funcionarioId = UUID.fromString(command.funcionarioId());
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new IllegalArgumentException("Ordem de servico nao encontrada"));
         Cliente cliente = clienteRepository.buscarPorId(UUID.fromString(command.clienteId()))
                 .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
         Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placaVeiculo())
                 .orElseThrow(() -> new IllegalArgumentException("Veiculo nao encontrado"));
+        funcionarioRepository.buscarPorId(funcionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionario nao encontrado"));
         if (!veiculo.getClienteId().equals(cliente.getId())) {
             throw new RegraDeNegocioException("Veiculo informado nao pertence ao cliente selecionado.");
         }
-        Funcionario funcionario = new Funcionario(command.funcionarioId(), "Funcionario responsavel", null);
+        if (!ordemDeServico.getFuncionario().getId().equals(funcionarioId)) {
+            throw new RegraDeNegocioException("Funcionario criador da ordem de servico nao pode ser alterado.");
+        }
 
-        ordemDeServico.alterar(funcionario, cliente, veiculo);
+        ordemDeServico.alterar(cliente, veiculo);
         ordemDeServicoRepository.salvar(ordemDeServico);
     }
 }

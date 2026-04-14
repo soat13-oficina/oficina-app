@@ -11,6 +11,7 @@ import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoComman
 import br.com.oficina.ordemservico.application.usecase.CriarNovaOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.repository.FuncionarioRepository;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
@@ -19,14 +20,17 @@ import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUseCase {
     private final ClienteRepository clienteRepository;
     private final VeiculoRepository veiculoRepository;
+    private final FuncionarioRepository funcionarioRepository;
     private final OrdemDeServicoRepository ordemDeServicoRepository;
 
     public CriarNovaOrdemDeServicoService(
             ClienteRepository clienteRepository,
             VeiculoRepository veiculoRepository,
+            FuncionarioRepository funcionarioRepository,
             OrdemDeServicoRepository ordemDeServicoRepository) {
         this.clienteRepository = clienteRepository;
         this.veiculoRepository = veiculoRepository;
+        this.funcionarioRepository = funcionarioRepository;
         this.ordemDeServicoRepository = ordemDeServicoRepository;
     }
 
@@ -36,12 +40,13 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
                 .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
         Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placaVeiculo())
                 .orElseThrow(() -> new IllegalArgumentException("Veiculo nao encontrado"));
+        Funcionario funcionario = funcionarioRepository.buscarPorId(UUID.fromString(command.funcionarioId()))
+                .orElseThrow(() -> new IllegalArgumentException("Funcionario nao encontrado"));
         if (!veiculo.getClienteId().equals(cliente.getId())) {
             throw new RegraDeNegocioException("Veiculo informado nao pertence ao cliente selecionado.");
         }
 
         UUID identificador = UUID.randomUUID();
-        Funcionario funcionario = new Funcionario(command.funcionarioId(), "Funcionario responsavel", null);
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
                 null,
                 "OS-" + identificador.toString().substring(0, 8).toUpperCase(),

@@ -1,5 +1,6 @@
 package br.com.oficina.ordemservico.domain.model;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -27,7 +28,7 @@ public class OrdemDeServico {
     private String numeroOrdemServico;
 
     @Column(nullable = false)
-    private String funcionarioId;
+    private UUID funcionarioId;
 
     @Column(nullable = false)
     private String funcionarioNome;
@@ -36,6 +37,9 @@ public class OrdemDeServico {
 
     @Column(nullable = false)
     private UUID clienteId;
+
+    @Column(nullable = false)
+    private UUID veiculoId;
 
     @Column(nullable = false)
     private String clienteNome;
@@ -74,6 +78,10 @@ public class OrdemDeServico {
     @Column(nullable = false)
     private StatusOrdemDeServico status;
 
+    private LocalDateTime iniciadaEm;
+
+    private LocalDateTime finalizadaEm;
+
     protected OrdemDeServico() {
     }
 
@@ -83,10 +91,14 @@ public class OrdemDeServico {
             Funcionario funcionario,
             Cliente cliente,
             Veiculo veiculo,
-            StatusOrdemDeServico status) {
+            StatusOrdemDeServico status,
+            LocalDateTime iniciadaEm,
+            LocalDateTime finalizadaEm) {
         this.id = id;
         this.numeroOrdemServico = numeroOrdemServico;
         this.status = status;
+        this.iniciadaEm = iniciadaEm;
+        this.finalizadaEm = finalizadaEm;
         definirDados(funcionario, cliente, veiculo);
     }
 
@@ -102,7 +114,9 @@ public class OrdemDeServico {
                 funcionario,
                 cliente,
                 veiculo,
-                StatusOrdemDeServico.OS_ABERTA);
+                StatusOrdemDeServico.OS_ABERTA,
+                null,
+                null);
     }
 
     public static OrdemDeServico reconstituir(
@@ -111,8 +125,10 @@ public class OrdemDeServico {
             Funcionario funcionario,
             Cliente cliente,
             Veiculo veiculo,
-            StatusOrdemDeServico status) {
-        return new OrdemDeServico(id, numeroOrdemServico, funcionario, cliente, veiculo, status);
+            StatusOrdemDeServico status,
+            LocalDateTime iniciadaEm,
+            LocalDateTime finalizadaEm) {
+        return new OrdemDeServico(id, numeroOrdemServico, funcionario, cliente, veiculo, status, iniciadaEm, finalizadaEm);
     }
 
     public void iniciarDiagnostico() {
@@ -120,13 +136,14 @@ public class OrdemDeServico {
             throw new RegraDeNegocioException("Diagnostico so pode ser iniciado para ordem aberta");
         }
         status = StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO;
+        iniciadaEm = LocalDateTime.now();
     }
 
-    public void alterar(Funcionario funcionario, Cliente cliente, Veiculo veiculo) {
+    public void alterar(Cliente cliente, Veiculo veiculo) {
         if (status != StatusOrdemDeServico.OS_ABERTA) {
             throw new RegraDeNegocioException("Ordem de servico so pode ser alterada enquanto estiver aberta");
         }
-        definirDados(funcionario, cliente, veiculo);
+        definirDados(getFuncionario(), cliente, veiculo);
     }
 
     public void concluirDiagnostico() {
@@ -141,6 +158,7 @@ public class OrdemDeServico {
             throw new RegraDeNegocioException("Ordem de servico so pode ser finalizada com diagnostico concluido");
         }
         status = StatusOrdemDeServico.OS_FINALIZADA;
+        finalizadaEm = LocalDateTime.now();
     }
 
     public UUID getId() {
@@ -152,15 +170,20 @@ public class OrdemDeServico {
     }
 
     public Funcionario getFuncionario() {
-        return new Funcionario(funcionarioId, funcionarioNome, funcionarioCpf);
+        return Funcionario.reconstituir(funcionarioId, funcionarioNome, funcionarioCpf);
     }
 
     public Cliente getCliente() {
         return Cliente.reconstituir(clienteId, clienteNome, clienteDocumento, clienteTipo);
     }
 
+    public UUID getVeiculoId() {
+        return veiculoId;
+    }
+
     public Veiculo getVeiculo() {
-        return new Veiculo(
+        return Veiculo.reconstituir(
+                veiculoId,
                 clienteId,
                 veiculoPlaca,
                 veiculoMarca,
@@ -176,7 +199,21 @@ public class OrdemDeServico {
         return status;
     }
 
+    public LocalDateTime getIniciadaEm() {
+        return iniciadaEm;
+    }
+
+    public LocalDateTime getFinalizadaEm() {
+        return finalizadaEm;
+    }
+
     private void definirDados(Funcionario funcionario, Cliente cliente, Veiculo veiculo) {
+        if (cliente.getId() == null) {
+            throw new RegraDeNegocioException("Cliente da ordem de servico deve possuir identificador.");
+        }
+        if (veiculo.getId() == null) {
+            throw new RegraDeNegocioException("Veiculo da ordem de servico deve possuir identificador.");
+        }
         this.funcionarioId = funcionario.getId();
         this.funcionarioNome = funcionario.getNome();
         this.funcionarioCpf = funcionario.getCpf();
@@ -184,6 +221,7 @@ public class OrdemDeServico {
         this.clienteNome = cliente.getNome();
         this.clienteDocumento = cliente.getCpfOuCnpj();
         this.clienteTipo = cliente.getTipoCliente();
+        this.veiculoId = veiculo.getId();
         this.veiculoPlaca = veiculo.getPlaca();
         this.veiculoMarca = veiculo.getMarca();
         this.veiculoModelo = veiculo.getModelo();

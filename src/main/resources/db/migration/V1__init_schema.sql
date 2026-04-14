@@ -24,6 +24,12 @@ CREATE TABLE IF NOT EXISTS veiculos (
     tipo VARCHAR(255) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS funcionarios (
+    id UUID PRIMARY KEY,
+    nome VARCHAR(255) NOT NULL,
+    cpf VARCHAR(255)
+);
+
 CREATE TABLE IF NOT EXISTS orcamentos (
     id UUID PRIMARY KEY,
     numero_orcamento VARCHAR(255) NOT NULL UNIQUE,
@@ -63,10 +69,11 @@ CREATE TABLE IF NOT EXISTS orcamento_pecas_previstas (
 CREATE TABLE IF NOT EXISTS ordens_de_servico (
     id UUID PRIMARY KEY,
     numero_ordem_servico VARCHAR(255) NOT NULL UNIQUE,
-    funcionario_id VARCHAR(255) NOT NULL,
+    funcionario_id UUID NOT NULL,
     funcionario_nome VARCHAR(255) NOT NULL,
     funcionario_cpf VARCHAR(255),
     cliente_id UUID NOT NULL,
+    veiculo_id UUID NOT NULL,
     cliente_nome VARCHAR(255) NOT NULL,
     cliente_documento VARCHAR(255),
     cliente_tipo VARCHAR(255),
@@ -78,7 +85,9 @@ CREATE TABLE IF NOT EXISTS ordens_de_servico (
     veiculo_potencia INTEGER NOT NULL,
     veiculo_cambio VARCHAR(255) NOT NULL,
     veiculo_tipo VARCHAR(255) NOT NULL,
-    status VARCHAR(255) NOT NULL
+    status VARCHAR(255) NOT NULL,
+    iniciada_em TIMESTAMP,
+    finalizada_em TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS pecas_insumos (

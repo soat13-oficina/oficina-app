@@ -1,6 +1,7 @@
 package br.com.oficina.ordemservico.infrastructure.web.response;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.UUID;
 
@@ -19,12 +20,17 @@ class OrdemDeServicoResponseTest {
     @Test
     void deveConverterOrdemDeServicoParaResponse() {
         UUID id = UUID.fromString("41111111-1111-1111-1111-111111111112");
+        UUID clienteId = UUID.fromString("41111111-1111-1111-1111-111111111111");
+        UUID veiculoId = UUID.fromString("42222222-2222-2222-2222-222222222222");
+        UUID funcionarioId = UUID.fromString("43333333-3333-3333-3333-333333333333");
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
                 id,
                 "OS-001",
-                new Funcionario("func-1", "Joao", null),
-                Cliente.reconstituir(UUID.fromString("41111111-1111-1111-1111-111111111111"), "Maria", "11111111111", TipoCliente.PF),
-                new Veiculo(
+                Funcionario.reconstituir(funcionarioId, "Joao", null),
+                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Veiculo.reconstituir(
+                        veiculoId,
+                        clienteId,
                         "ABC1D23",
                         "Toyota",
                         "Corolla",
@@ -38,11 +44,15 @@ class OrdemDeServicoResponseTest {
 
         assertEquals(id, response.id());
         assertEquals("OS-001", response.numeroOrdemServico());
+        assertEquals(funcionarioId, response.funcionarioId());
         assertEquals("41111111-1111-1111-1111-111111111111", response.clienteId());
+        assertEquals(veiculoId, response.veiculoId());
         assertEquals("Maria", response.nomeCliente());
         assertEquals("11111111111", response.documentoCliente());
         assertEquals(TipoCliente.PF, response.tipoCliente());
         assertEquals("ABC1D23", response.placaVeiculo());
         assertEquals(StatusOrdemDeServico.OS_ABERTA, response.status());
+        assertNull(response.iniciadaEm());
+        assertNull(response.finalizadaEm());
     }
 }
