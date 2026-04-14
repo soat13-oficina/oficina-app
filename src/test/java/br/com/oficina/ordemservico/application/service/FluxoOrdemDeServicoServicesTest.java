@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.application.service.CadastrarNovoOrcamentoService;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
@@ -69,11 +70,11 @@ class FluxoOrdemDeServicoServicesTest {
     void deveFalharAoExcluirOrdemDeServicoInexistente() {
         ExcluirOrdemDeServicoService service = new ExcluirOrdemDeServicoService(new TestOrdemDeServicoRepository());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        RecursoNaoEncontradoException exception = assertThrows(
+                RecursoNaoEncontradoException.class,
                 () -> service.excluirOrdemDeServico(new ExcluirOrdemDeServicoCommand("OS-404")));
 
-        assertEquals("Ordem de servico nao encontrada", exception.getMessage());
+        assertEquals("Ordem de servico nao encontrada para o numero informado.", exception.getMessage());
     }
 
     private OrdemDeServico novaOrdem(String numero) {
