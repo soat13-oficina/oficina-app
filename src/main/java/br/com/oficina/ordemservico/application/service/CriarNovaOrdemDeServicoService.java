@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.usecase.CriarNovaOrdemDeServicoUseCase;
@@ -36,12 +37,13 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
 
     @Override
     public void criarNovaOrdemDeServico(CriarOrdemDeServicoCommand command) {
-        Cliente cliente = clienteRepository.buscarPorId(UUID.fromString(command.clienteId()))
-                .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
+        Cliente cliente = clienteRepository.buscarPorId(paraUuid(command.clienteId(), "Identificador do cliente invalido."))
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado."));
         Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placaVeiculo())
-                .orElseThrow(() -> new IllegalArgumentException("Veiculo nao encontrado"));
-        Funcionario funcionario = funcionarioRepository.buscarPorId(UUID.fromString(command.funcionarioId()))
-                .orElseThrow(() -> new IllegalArgumentException("Funcionario nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Veiculo nao encontrado para a placa informada."));
+        Funcionario funcionario = funcionarioRepository
+                .buscarPorId(paraUuid(command.funcionarioId(), "Identificador do funcionario invalido."))
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Funcionario nao encontrado para o identificador informado."));
         if (!veiculo.getClienteId().equals(cliente.getId())) {
             throw new RegraDeNegocioException("Veiculo informado nao pertence ao cliente selecionado.");
         }
@@ -55,5 +57,13 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
                 veiculo);
 
         ordemDeServicoRepository.salvar(ordemDeServico);
+    }
+
+    private UUID paraUuid(String valor, String mensagemErro) {
+        try {
+            return UUID.fromString(valor);
+        } catch (IllegalArgumentException exception) {
+            throw new RegraDeNegocioException(mensagemErro);
+        }
     }
 }

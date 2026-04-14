@@ -2,6 +2,7 @@ package br.com.oficina.ordemservico.application.service;
 
 import org.springframework.stereotype.Service;
 
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
@@ -18,7 +19,7 @@ public class FinalizarOrdemDeServicoService implements FinalizarOrdemDeServicoUs
     @Override
     public void finalizarOrdemDeServico(FinalizarOrdemDeServicoCommand command) {
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
-                .orElseThrow(() -> new IllegalArgumentException("Ordem de servico nao encontrada"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
         ordemDeServico.finalizar();
         ordemDeServicoRepository.salvar(ordemDeServico);
     }

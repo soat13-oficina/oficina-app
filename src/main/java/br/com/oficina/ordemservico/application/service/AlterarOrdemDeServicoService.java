@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseCase;
@@ -35,15 +36,15 @@ public class AlterarOrdemDeServicoService implements AlterarOrdemDeServicoUseCas
 
     @Override
     public void alterarOrdemDeServico(AlterarOrdemDeServicoCommand command) {
-        UUID funcionarioId = UUID.fromString(command.funcionarioId());
+        UUID funcionarioId = paraUuid(command.funcionarioId(), "Identificador do funcionario invalido.");
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
-                .orElseThrow(() -> new IllegalArgumentException("Ordem de servico nao encontrada"));
-        Cliente cliente = clienteRepository.buscarPorId(UUID.fromString(command.clienteId()))
-                .orElseThrow(() -> new IllegalArgumentException("Cliente nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
+        Cliente cliente = clienteRepository.buscarPorId(paraUuid(command.clienteId(), "Identificador do cliente invalido."))
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado."));
         Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placaVeiculo())
-                .orElseThrow(() -> new IllegalArgumentException("Veiculo nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Veiculo nao encontrado para a placa informada."));
         funcionarioRepository.buscarPorId(funcionarioId)
-                .orElseThrow(() -> new IllegalArgumentException("Funcionario nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Funcionario nao encontrado para o identificador informado."));
         if (!veiculo.getClienteId().equals(cliente.getId())) {
             throw new RegraDeNegocioException("Veiculo informado nao pertence ao cliente selecionado.");
         }
@@ -53,5 +54,13 @@ public class AlterarOrdemDeServicoService implements AlterarOrdemDeServicoUseCas
 
         ordemDeServico.alterar(cliente, veiculo);
         ordemDeServicoRepository.salvar(ordemDeServico);
+    }
+
+    private UUID paraUuid(String valor, String mensagemErro) {
+        try {
+            return UUID.fromString(valor);
+        } catch (IllegalArgumentException exception) {
+            throw new RegraDeNegocioException(mensagemErro);
+        }
     }
 }

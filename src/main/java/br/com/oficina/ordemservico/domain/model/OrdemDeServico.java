@@ -153,9 +153,16 @@ public class OrdemDeServico {
         status = StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO;
     }
 
-    public void finalizar() {
+    public void enviarParaOrcamento() {
         if (status != StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
-            throw new RegraDeNegocioException("Ordem de servico so pode ser finalizada com diagnostico concluido");
+            throw new RegraDeNegocioException("Diagnostico so pode ser enviado para orcamento quando concluido");
+        }
+        status = StatusOrdemDeServico.ORCAMENTO_GERADO;
+    }
+
+    public void finalizar() {
+        if (status != StatusOrdemDeServico.ORCAMENTO_GERADO) {
+            throw new RegraDeNegocioException("Ordem de servico so pode ser finalizada com orcamento gerado");
         }
         status = StatusOrdemDeServico.OS_FINALIZADA;
         finalizadaEm = LocalDateTime.now();

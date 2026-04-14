@@ -51,6 +51,7 @@ class OrdemDeServicoTest {
 
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();
+        ordemDeServico.enviarParaOrcamento();
         ordemDeServico.finalizar();
 
         assertEquals(StatusOrdemDeServico.OS_FINALIZADA, ordemDeServico.getStatus());
@@ -89,7 +90,7 @@ class OrdemDeServicoTest {
                 RegraDeNegocioException.class,
                 ordemDeServico::finalizar);
 
-        assertEquals("Ordem de servico so pode ser finalizada com diagnostico concluido", exception.getMessage());
+        assertEquals("Ordem de servico so pode ser finalizada com orcamento gerado", exception.getMessage());
     }
 
     @Test
