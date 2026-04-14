@@ -19,16 +19,21 @@ import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoComman
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
+import br.com.oficina.ordemservico.application.query.AcompanharOrdemDeServicoQuery;
 import br.com.oficina.ordemservico.application.query.ConsultarOrdensDeServicoQuery;
+import br.com.oficina.ordemservico.application.usecase.AcompanharOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConcluirDiagnosticoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarOrdensDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.CriarNovaOrdemDeServicoUseCase;
+import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ExcluirOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.IniciarDiagnosticoUseCase;
 import br.com.oficina.ordemservico.infrastructure.web.request.AlterarOrdemDeServicoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.CriarOrdemDeServicoRequest;
+import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoParaOrcamentoRequest;
+import br.com.oficina.ordemservico.infrastructure.web.response.AcompanhamentoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.OrdemDeServicoResponse;
 
 @RestController
@@ -38,25 +43,31 @@ public class OrdemDeServicoController {
     private final CriarNovaOrdemDeServicoUseCase criarNovaOrdemDeServicoUseCase;
     private final IniciarDiagnosticoUseCase iniciarDiagnosticoUseCase;
     private final ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase;
+    private final EnviarDiagnosticoParaOrcamentoUseCase enviarDiagnosticoParaOrcamentoUseCase;
     private final ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase;
     private final FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase;
     private final ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase;
+    private final AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase;
 
     public OrdemDeServicoController(
             AlterarOrdemDeServicoUseCase alterarOrdemDeServicoUseCase,
             CriarNovaOrdemDeServicoUseCase criarNovaOrdemDeServicoUseCase,
             IniciarDiagnosticoUseCase iniciarDiagnosticoUseCase,
             ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase,
+            EnviarDiagnosticoParaOrcamentoUseCase enviarDiagnosticoParaOrcamentoUseCase,
             ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase,
             FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase,
-            ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase) {
+            ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase,
+            AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase) {
         this.alterarOrdemDeServicoUseCase = alterarOrdemDeServicoUseCase;
         this.criarNovaOrdemDeServicoUseCase = criarNovaOrdemDeServicoUseCase;
         this.iniciarDiagnosticoUseCase = iniciarDiagnosticoUseCase;
         this.concluirDiagnosticoUseCase = concluirDiagnosticoUseCase;
+        this.enviarDiagnosticoParaOrcamentoUseCase = enviarDiagnosticoParaOrcamentoUseCase;
         this.excluirOrdemDeServicoUseCase = excluirOrdemDeServicoUseCase;
         this.finalizarOrdemDeServicoUseCase = finalizarOrdemDeServicoUseCase;
         this.consultarOrdensDeServicoUseCase = consultarOrdensDeServicoUseCase;
+        this.acompanharOrdemDeServicoUseCase = acompanharOrdemDeServicoUseCase;
     }
 
     @PostMapping
@@ -102,6 +113,16 @@ public class OrdemDeServicoController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{numeroOrdemServico}/acompanhamento")
+    public ResponseEntity<AcompanhamentoOrdemDeServicoResponse> acompanhar(
+            @PathVariable String numeroOrdemServico,
+            @RequestParam String documentoCliente) {
+        AcompanhamentoOrdemDeServicoResponse response = AcompanhamentoOrdemDeServicoResponse.from(
+                acompanharOrdemDeServicoUseCase.acompanhar(
+                        new AcompanharOrdemDeServicoQuery(numeroOrdemServico, documentoCliente)));
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/{numeroOrdemServico}/diagnostico/iniciar")
     public ResponseEntity<Void> iniciarDiagnostico(@PathVariable String numeroOrdemServico) {
         iniciarDiagnosticoUseCase.iniciarDiagnostico(new IniciarDiagnosticoCommand(numeroOrdemServico));
@@ -111,6 +132,23 @@ public class OrdemDeServicoController {
     @PostMapping("/{numeroOrdemServico}/diagnostico/concluir")
     public ResponseEntity<Void> concluirDiagnostico(@PathVariable String numeroOrdemServico) {
         concluirDiagnosticoUseCase.concluirDiagnostico(new ConcluirDiagnosticoCommand(numeroOrdemServico));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{numeroOrdemServico}/diagnostico/enviar-para-orcamento")
+    public ResponseEntity<Void> enviarDiagnosticoParaOrcamento(
+            @PathVariable String numeroOrdemServico,
+            @RequestBody EnviarDiagnosticoParaOrcamentoRequest request) {
+        enviarDiagnosticoParaOrcamentoUseCase.enviarDiagnosticoParaOrcamento(
+                new EnviarDiagnosticoParaOrcamentoUseCase.EnviarDiagnosticoParaOrcamentoRequest(
+                        numeroOrdemServico,
+                        request.descricaoDiagnostico(),
+                        request.servicosPropostos(),
+                        request.pecasPrevistas(),
+                        request.valorMaoDeObra(),
+                        request.valorPecas(),
+                        request.validade(),
+                        request.observacoes()));
         return ResponseEntity.noContent().build();
     }
 

@@ -227,6 +227,54 @@ class OrdemDeServicoControllerTest {
     }
 
     @Test
+    void devePermitirClienteAcompanharAndamentoDaOrdem() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "CLI1A23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
+                null,
+                "OS-CLIENTE-001",
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculoRepository.buscarPorPlaca("CLI1A23").orElseThrow());
+        ordemDeServico.iniciarDiagnostico();
+        ordemDeServicoRepository.salvar(ordemDeServico);
+
+        mockMvc.perform(get("/ordens-servico/OS-CLIENTE-001/acompanhamento")
+                        .with(user("tester"))
+                        .param("documentoCliente", "12345678901"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numeroOrdemServico").value("OS-CLIENTE-001"))
+                .andExpect(jsonPath("$.nomeCliente").value("Marina"))
+                .andExpect(jsonPath("$.placaVeiculo").value("CLI1A23"))
+                .andExpect(jsonPath("$.status").value("DIAGNOSTICO_EM_ANDAMENTO"))
+                .andExpect(jsonPath("$.iniciadaEm").isNotEmpty());
+    }
+
+    @Test
+    void deveRetornarNotFoundQuandoClienteNaoPuderAcompanharOrdem() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "CLI9Z99", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        ordemDeServicoRepository.salvar(OrdemDeServico.abrir(
+                null,
+                "OS-CLIENTE-002",
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculoRepository.buscarPorPlaca("CLI9Z99").orElseThrow()));
+
+        mockMvc.perform(get("/ordens-servico/OS-CLIENTE-002/acompanhamento")
+                        .with(user("tester"))
+                        .param("documentoCliente", "00000000000"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Ordem de servico nao encontrada"));
+    }
+
+    @Test
     void deveIniciarDiagnostico() throws Exception {
         Cliente cliente = clienteRepository.salvar(new Cliente("Ana"));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
@@ -287,6 +335,7 @@ class OrdemDeServicoControllerTest {
                 veiculoRepository.buscarPorPlaca("JKL4M56").orElseThrow());
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();
+        ordemDeServico.enviarParaOrcamento();
         ordemDeServicoRepository.salvar(ordemDeServico);
 
         mockMvc.perform(post("/ordens-servico/os-finalizar-1/finalizacao")
