@@ -10,7 +10,9 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
+import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.support.persistence.TestClienteRepository;
+import br.com.oficina.support.persistence.TestFuncionarioRepository;
 import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
 import br.com.oficina.support.persistence.TestVeiculoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
@@ -21,10 +23,13 @@ class CriarNovaOrdemDeServicoServiceTest {
     @Test
     void deveCriarNovaOrdemDeServico() {
         TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestFuncionarioRepository funcionarioRepository = new TestFuncionarioRepository();
         TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
         TestOrdemDeServicoRepository ordemDeServicoRepository = new TestOrdemDeServicoRepository();
         UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
+        UUID funcionarioId = UUID.fromString("41111111-1111-1111-1111-111111111111");
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
+        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678901"));
         veiculoRepository.salvar(new Veiculo(
                 clienteId,
                 "ABC1D23",
@@ -38,12 +43,14 @@ class CriarNovaOrdemDeServicoServiceTest {
         CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
                 clienteRepository,
                 veiculoRepository,
+                funcionarioRepository,
                 ordemDeServicoRepository);
 
-        service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(clienteId.toString(), "func-1", "ABC1D23"));
+        service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(clienteId.toString(), funcionarioId.toString(), "ABC1D23"));
 
         assertEquals(1, ordemDeServicoRepository.buscarTodas().size());
         assertEquals(clienteId, ordemDeServicoRepository.buscarTodas().get(0).getCliente().getId());
+        assertEquals(funcionarioId, ordemDeServicoRepository.buscarTodas().get(0).getFuncionario().getId());
     }
 
     @Test
@@ -51,11 +58,15 @@ class CriarNovaOrdemDeServicoServiceTest {
         CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
                 new TestClienteRepository(),
                 new TestVeiculoRepository(),
+                new TestFuncionarioRepository(),
                 new TestOrdemDeServicoRepository());
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(UUID.fromString("32222222-2222-2222-2222-222222222222").toString(), "func-1", "ABC1D23")));
+                () -> service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(
+                        UUID.fromString("32222222-2222-2222-2222-222222222222").toString(),
+                        UUID.fromString("42222222-2222-2222-2222-222222222222").toString(),
+                        "ABC1D23")));
 
         assertEquals("Cliente nao encontrado", exception.getMessage());
     }

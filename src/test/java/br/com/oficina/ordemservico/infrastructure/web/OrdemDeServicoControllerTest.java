@@ -27,6 +27,7 @@ import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
+import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataFuncionarioRepository;
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataOrdemDeServicoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
@@ -57,6 +58,9 @@ class OrdemDeServicoControllerTest {
     @Autowired
     private SpringDataClienteRepository springDataClienteRepository;
 
+    @Autowired
+    private SpringDataFuncionarioRepository springDataFuncionarioRepository;
+
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -64,6 +68,7 @@ class OrdemDeServicoControllerTest {
         springDataOrdemDeServicoRepository.deleteAll();
         springDataVeiculoRepository.deleteAll();
         springDataClienteRepository.deleteAll();
+        springDataFuncionarioRepository.deleteAll();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
@@ -72,6 +77,7 @@ class OrdemDeServicoControllerTest {
     @Test
     void deveCriarOrdemDeServico() throws Exception {
         Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11111111111", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", "12345678901"));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
                 "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
@@ -79,45 +85,52 @@ class OrdemDeServicoControllerTest {
         String requestBody = """
                 {
                   "clienteId": "%s",
-                  "funcionarioId": "func-1",
+                  "funcionarioId": "%s",
                   "placaVeiculo": "ABC1D23"
                 }
-                """.formatted(cliente.getId());
+                """.formatted(cliente.getId(), funcionario.getId());
 
         mockMvc.perform(post("/ordens-servico")
                         .with(user("tester"))
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
                 .andExpect(status().isAccepted());
+
+        OrdemDeServico ordemCriada = ordemDeServicoRepository.buscarTodas().get(0);
+        assert ordemCriada.getFuncionario().getId().equals(funcionario.getId());
+        assert ordemCriada.getVeiculoId() != null;
     }
 
     @Test
     void deveAlterarOrdemDeServico() throws Exception {
         Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
         Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberta", "99999999999", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente1.getId(),
                 "ALT1A11", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         veiculoRepository.salvar(new Veiculo(
                 cliente2.getId(),
                 "ALT2B22", "Honda", "City", "Honda Motor Co.", 2023, 126, "AUTOMATICO", TipoCombustivel.FLEX));
+        Veiculo veiculoCliente1 = veiculoRepository.buscarPorPlaca("ALT1A11").orElseThrow();
+        Veiculo veiculoCliente2 = veiculoRepository.buscarPorPlaca("ALT2B22").orElseThrow();
 
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                "id-os-alterar-1",
+                null,
                 "OS-ALTERAR-1",
-                new Funcionario("func-20", "Joao", null),
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
                 cliente1,
-                new Veiculo(cliente1.getId(), "ALT1A11", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+                veiculoCliente1);
         ordemDeServicoRepository.salvar(ordemDeServico);
 
         String requestBody = """
                 {
                   "clienteId": "%s",
-                  "funcionarioId": "func-21",
+                  "funcionarioId": "%s",
                   "placaVeiculo": "ALT2B22"
                 }
-                """.formatted(cliente2.getId());
+                """.formatted(cliente2.getId(), funcionario.getId());
 
         mockMvc.perform(put("/ordens-servico/OS-ALTERAR-1")
                         .with(user("tester"))
@@ -130,17 +143,23 @@ class OrdemDeServicoControllerTest {
                 .orElseThrow();
         assert ordemAtualizada.getCliente().getId().equals(cliente2.getId());
         assert ordemAtualizada.getVeiculo().getPlaca().equals("ALT2B22");
-        assert ordemAtualizada.getFuncionario().getId().equals("func-21");
+        assert ordemAtualizada.getFuncionario().getId().equals(funcionario.getId());
+        assert ordemAtualizada.getVeiculoId().equals(veiculoCliente2.getId());
     }
 
     @Test
     void deveExcluirOrdemDeServico() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "DEL1O23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                "id-os-excluir-1",
+                null,
                 "OS-EXCLUIR-1",
-                new Funcionario("func-30", "Joao", null),
-                clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF)),
-                new Veiculo("DEL1O23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculoRepository.buscarPorPlaca("DEL1O23").orElseThrow());
         ordemDeServicoRepository.salvar(ordemDeServico);
 
         mockMvc.perform(delete("/ordens-servico/OS-EXCLUIR-1")
@@ -155,27 +174,37 @@ class OrdemDeServicoControllerTest {
     void deveConsultarOrdemDeServicoPorFiltros() throws Exception {
         Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
         Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberto", "99999999999", TipoCliente.PF));
+        Funcionario funcionario1 = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
+        Funcionario funcionario2 = springDataFuncionarioRepository.save(new Funcionario("Paulo", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente1.getId(),
+                "QRY1A23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        veiculoRepository.salvar(new Veiculo(
+                cliente2.getId(),
+                "ZZZ9Z99", "Honda", "City", "Honda Motor Co.", 2023, 126, "AUTOMATICO", TipoCombustivel.FLEX));
         OrdemDeServico primeiraOrdem = OrdemDeServico.abrir(
-                "id-os-consulta-1",
+                null,
                 "OS-0001",
-                new Funcionario("func-10", "Joao", null),
+                Funcionario.reconstituir(funcionario1.getId(), funcionario1.getNome(), funcionario1.getCpf()),
                 cliente1,
-                new Veiculo("QRY1A23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+                veiculoRepository.buscarPorPlaca("QRY1A23").orElseThrow());
         OrdemDeServico segundaOrdem = OrdemDeServico.abrir(
-                "id-os-consulta-2",
+                null,
                 "OS-0002",
-                new Funcionario("func-11", "Paulo", null),
+                Funcionario.reconstituir(funcionario2.getId(), funcionario2.getNome(), funcionario2.getCpf()),
                 cliente2,
-                new Veiculo("ZZZ9Z99", "Honda", "City", "Honda Motor Co.", 2023, 126, "AUTOMATICO", TipoCombustivel.FLEX));
+                veiculoRepository.buscarPorPlaca("ZZZ9Z99").orElseThrow());
         ordemDeServicoRepository.salvar(primeiraOrdem);
         ordemDeServicoRepository.salvar(segundaOrdem);
+        String primeiraOrdemId = ordemDeServicoRepository.buscarPorNumero("OS-0001").orElseThrow().getId().toString();
 
         mockMvc.perform(get("/ordens-servico")
                         .with(user("tester"))
                         .param("numeroOrdemServico", "OS-0001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].numeroOrdemServico").value("OS-0001"))
-                .andExpect(jsonPath("$[0].nomeCliente").value("Marina"));
+                .andExpect(jsonPath("$[0].nomeCliente").value("Marina"))
+                .andExpect(jsonPath("$[0].funcionarioId").value(funcionario1.getId().toString()));
 
         mockMvc.perform(get("/ordens-servico")
                         .with(user("tester"))
@@ -187,39 +216,53 @@ class OrdemDeServicoControllerTest {
                         .with(user("tester"))
                         .param("placaVeiculo", "QRY1A23"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("id-os-consulta-1"));
+                .andExpect(jsonPath("$[0].id").value(primeiraOrdemId));
 
         mockMvc.perform(get("/ordens-servico")
                         .with(user("tester"))
                         .param("documentoCliente", "12345678901"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].placaVeiculo").value("QRY1A23"));
+                .andExpect(jsonPath("$[0].placaVeiculo").value("QRY1A23"))
+                .andExpect(jsonPath("$[0].veiculoId").isNotEmpty());
     }
 
     @Test
     void deveIniciarDiagnostico() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Ana"));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "DEF2G34", "Honda", "Civic", "Honda Motor Co.", 2023, 155, "AUTOMATICO", TipoCombustivel.FLEX));
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                "id-os-iniciar-1",
+                null,
                 "os-iniciar-1",
-                new Funcionario("func-2", "Joao", null),
-                clienteRepository.salvar(new Cliente("Ana")),
-                new Veiculo("DEF2G34", "Honda", "Civic", "Honda Motor Co.", 2023, 155, "AUTOMATICO", TipoCombustivel.FLEX));
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculoRepository.buscarPorPlaca("DEF2G34").orElseThrow());
         ordemDeServicoRepository.salvar(ordemDeServico);
 
         mockMvc.perform(post("/ordens-servico/os-iniciar-1/diagnostico/iniciar")
                         .with(user("tester"))
                         .with(csrf()))
                 .andExpect(status().isNoContent());
+
+        OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorNumero("os-iniciar-1").orElseThrow();
+        assert ordemAtualizada.getIniciadaEm() != null;
     }
 
     @Test
     void deveConcluirDiagnostico() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Paula"));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Carlos", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "GHI3J45", "Fiat", "Argo", "Stellantis", 2022, 107, "MANUAL", TipoCombustivel.FLEX));
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                "id-os-concluir-1",
+                null,
                 "os-concluir-1",
-                new Funcionario("func-3", "Carlos", null),
-                clienteRepository.salvar(new Cliente("Paula")),
-                new Veiculo("GHI3J45", "Fiat", "Argo", "Stellantis", 2022, 107, "MANUAL", TipoCombustivel.FLEX));
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculoRepository.buscarPorPlaca("GHI3J45").orElseThrow());
         ordemDeServico.iniciarDiagnostico();
         ordemDeServicoRepository.salvar(ordemDeServico);
 
@@ -231,12 +274,17 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveFinalizarOrdemDeServico() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca"));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "JKL4M56", "Jeep", "Renegade", "Stellantis", 2024, 185, "AUTOMATICO", TipoCombustivel.DIESEL));
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                "id-os-finalizar-1",
+                null,
                 "os-finalizar-1",
-                new Funcionario("func-4", "Marcos", null),
-                clienteRepository.salvar(new Cliente("Bianca")),
-                new Veiculo("JKL4M56", "Jeep", "Renegade", "Stellantis", 2024, 185, "AUTOMATICO", TipoCombustivel.DIESEL));
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculoRepository.buscarPorPlaca("JKL4M56").orElseThrow());
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();
         ordemDeServicoRepository.salvar(ordemDeServico);
@@ -248,6 +296,7 @@ class OrdemDeServicoControllerTest {
 
         OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorNumero("os-finalizar-1")
                 .orElseThrow();
-        assert ordemAtualizada.getStatus() == StatusOrdemDeServico.FINALIZADA;
+        assert ordemAtualizada.getStatus() == StatusOrdemDeServico.OS_FINALIZADA;
+        assert ordemAtualizada.getFinalizadaEm() != null;
     }
 }

@@ -1,6 +1,7 @@
 package br.com.oficina.ordemservico.application.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,7 +33,10 @@ class FluxoOrdemDeServicoServicesTest {
         new ConcluirDiagnosticoService(repository).concluirDiagnostico(new ConcluirDiagnosticoCommand("OS-001"));
         new FinalizarOrdemDeServicoService(repository).finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand("OS-001"));
 
-        assertEquals(StatusOrdemDeServico.FINALIZADA, repository.buscarPorNumero("OS-001").orElseThrow().getStatus());
+        OrdemDeServico ordemAtualizada = repository.buscarPorNumero("OS-001").orElseThrow();
+        assertEquals(StatusOrdemDeServico.OS_FINALIZADA, ordemAtualizada.getStatus());
+        assertNotNull(ordemAtualizada.getIniciadaEm());
+        assertNotNull(ordemAtualizada.getFinalizadaEm());
 
         new ExcluirOrdemDeServicoService(repository).excluirOrdemDeServico(new ExcluirOrdemDeServicoCommand("OS-001"));
 
@@ -51,12 +55,16 @@ class FluxoOrdemDeServicoServicesTest {
     }
 
     private OrdemDeServico novaOrdem(String numero) {
+        UUID clienteId = UUID.fromString("61111111-1111-1111-1111-111111111111");
+        UUID funcionarioId = UUID.fromString("71111111-1111-1111-1111-111111111111");
         return OrdemDeServico.abrir(
-                "id-" + numero,
+                UUID.nameUUIDFromBytes(("ordem-" + numero).getBytes()),
                 numero,
-                new Funcionario("func-1", "Joao", null),
-                Cliente.reconstituir(UUID.fromString("61111111-1111-1111-1111-111111111111"), "Maria", "11111111111", TipoCliente.PF),
-                new Veiculo(
+                Funcionario.reconstituir(funcionarioId, "Joao", null),
+                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Veiculo.reconstituir(
+                        UUID.nameUUIDFromBytes(("veiculo-" + numero).getBytes()),
+                        clienteId,
                         "ABC1D23",
                         "Toyota",
                         "Corolla",

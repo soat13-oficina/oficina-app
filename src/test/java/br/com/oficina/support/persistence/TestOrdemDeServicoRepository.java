@@ -3,6 +3,7 @@ package br.com.oficina.support.persistence;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
@@ -13,7 +14,18 @@ public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
 
     @Override
     public void salvar(OrdemDeServico ordemDeServico) {
-        ordens.put(ordemDeServico.getNumeroOrdemServico(), ordemDeServico);
+        OrdemDeServico ordemPersistida = ordemDeServico.getId() == null
+                ? OrdemDeServico.reconstituir(
+                        UUID.randomUUID(),
+                        ordemDeServico.getNumeroOrdemServico(),
+                        ordemDeServico.getFuncionario(),
+                        ordemDeServico.getCliente(),
+                        ordemDeServico.getVeiculo(),
+                        ordemDeServico.getStatus(),
+                        ordemDeServico.getIniciadaEm(),
+                        ordemDeServico.getFinalizadaEm())
+                : ordemDeServico;
+        ordens.put(ordemPersistida.getNumeroOrdemServico(), ordemPersistida);
     }
 
     @Override

@@ -21,17 +21,17 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
     @Override
     @Transactional
     public void salvar(OrdemDeServico ordemDeServico) {
-        repository.save(OrdemDeServicoJpaEntity.fromDomain(ordemDeServico));
+        repository.save(ordemDeServico);
     }
 
     @Override
     public Optional<OrdemDeServico> buscarPorNumero(String numeroOrdemServico) {
-        return repository.findByNumeroOrdemServico(numeroOrdemServico).map(OrdemDeServicoJpaEntity::toDomain);
+        return repository.findByNumeroOrdemServico(numeroOrdemServico);
     }
 
     @Override
     public List<OrdemDeServico> buscarTodas() {
-        return repository.findAll().stream().map(OrdemDeServicoJpaEntity::toDomain).toList();
+        return repository.findAll();
     }
 
     @Override
