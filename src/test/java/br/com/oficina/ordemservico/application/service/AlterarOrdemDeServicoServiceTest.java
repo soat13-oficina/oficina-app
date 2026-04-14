@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
+import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
@@ -83,8 +85,8 @@ class AlterarOrdemDeServicoServiceTest {
                 funcionarioRepository,
                 ordemDeServicoRepository);
 
-        var exception = assertThrows(
-                br.com.oficina.common.domain.exception.RegraDeNegocioException.class,
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
                 () -> service.alterarOrdemDeServico(new AlterarOrdemDeServicoCommand("OS-002", clienteId.toString(), outroFuncionarioId.toString(), "ABC1D23")));
 
         assertEquals("Funcionario criador da ordem de servico nao pode ser alterado.", exception.getMessage());
@@ -98,15 +100,50 @@ class AlterarOrdemDeServicoServiceTest {
                 new TestFuncionarioRepository(),
                 new TestOrdemDeServicoRepository());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        RecursoNaoEncontradoException exception = assertThrows(
+                RecursoNaoEncontradoException.class,
                 () -> service.alterarOrdemDeServico(new AlterarOrdemDeServicoCommand(
                         "OS-404",
                         UUID.fromString("23333333-3333-3333-3333-333333333333").toString(),
                         UUID.fromString("43333333-3333-3333-3333-333333333333").toString(),
                         "ABC1D23")));
 
-        assertEquals("Ordem de servico nao encontrada", exception.getMessage());
+        assertEquals("Ordem de servico nao encontrada para o numero informado.", exception.getMessage());
+    }
+
+    @Test
+    void deveFalharQuandoFuncionarioNaoExistir() {
+        TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestFuncionarioRepository funcionarioRepository = new TestFuncionarioRepository();
+        TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
+        TestOrdemDeServicoRepository ordemDeServicoRepository = new TestOrdemDeServicoRepository();
+        UUID clienteId = UUID.fromString("21111111-1111-1111-1111-111111111111");
+        UUID funcionarioCriadorId = UUID.fromString("31111111-1111-1111-1111-111111111111");
+        UUID funcionarioInexistenteId = UUID.fromString("39999999-1111-1111-1111-111111111111");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
+        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioCriadorId, "Joao", null));
+        veiculoRepository.salvar(novoVeiculo(clienteId, "ABC1D23", "Toyota"));
+        ordemDeServicoRepository.salvar(OrdemDeServico.abrir(
+                UUID.fromString("11111111-1111-1111-1111-111111111111"),
+                "OS-001",
+                Funcionario.reconstituir(funcionarioCriadorId, "Joao", null),
+                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                veiculoRepository.buscarPorPlaca("ABC1D23").orElseThrow()));
+        AlterarOrdemDeServicoService service = new AlterarOrdemDeServicoService(
+                clienteRepository,
+                veiculoRepository,
+                funcionarioRepository,
+                ordemDeServicoRepository);
+
+        RecursoNaoEncontradoException exception = assertThrows(
+                RecursoNaoEncontradoException.class,
+                () -> service.alterarOrdemDeServico(new AlterarOrdemDeServicoCommand(
+                        "OS-001",
+                        clienteId.toString(),
+                        funcionarioInexistenteId.toString(),
+                        "ABC1D23")));
+
+        assertEquals("Funcionario nao encontrado para o identificador informado.", exception.getMessage());
     }
 
     private Veiculo novoVeiculo(UUID clienteId, String placa, String marca) {

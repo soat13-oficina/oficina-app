@@ -103,6 +103,30 @@ class OrdemDeServicoControllerTest {
     }
 
     @Test
+    void deveRetornarBadRequestQuandoFuncionarioIdForInvalidoAoCriarOrdem() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11111111111", TipoCliente.PF));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+
+        String requestBody = """
+                {
+                  "clienteId": "%s",
+                  "funcionarioId": "funcionario-invalido",
+                  "placaVeiculo": "ABC1D23"
+                }
+                """.formatted(cliente.getId());
+
+        mockMvc.perform(post("/ordens-servico")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Identificador do funcionario invalido."));
+    }
+
+    @Test
     void deveAlterarOrdemDeServico() throws Exception {
         Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
         Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberta", "99999999999", TipoCliente.PF));
@@ -347,5 +371,46 @@ class OrdemDeServicoControllerTest {
                 .orElseThrow();
         assert ordemAtualizada.getStatus() == StatusOrdemDeServico.OS_FINALIZADA;
         assert ordemAtualizada.getFinalizadaEm() != null;
+    }
+
+    @Test
+    void deveRetornarNotFoundQuandoOrdemNaoExistirAoExcluir() throws Exception {
+        mockMvc.perform(delete("/ordens-servico/OS-404")
+                        .with(user("tester"))
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Ordem de servico nao encontrada para o numero informado."));
+    }
+
+    @Test
+    void deveRetornarNotFoundQuandoFuncionarioNaoExistirAoAlterarOrdem() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "ALT1A11", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
+                null,
+                "OS-ALTERAR-404",
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculoRepository.buscarPorPlaca("ALT1A11").orElseThrow());
+        ordemDeServicoRepository.salvar(ordemDeServico);
+
+        String requestBody = """
+                {
+                  "clienteId": "%s",
+                  "funcionarioId": "99999999-9999-9999-9999-999999999999",
+                  "placaVeiculo": "ALT1A11"
+                }
+                """.formatted(cliente.getId());
+
+        mockMvc.perform(put("/ordens-servico/OS-ALTERAR-404")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Funcionario nao encontrado para o identificador informado."));
     }
 }

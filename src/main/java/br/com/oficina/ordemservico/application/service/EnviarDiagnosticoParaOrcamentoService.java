@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
 import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase;
@@ -25,7 +26,7 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
     @Override
     public void enviarDiagnosticoParaOrcamento(EnviarDiagnosticoParaOrcamentoRequest request) {
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(request.numeroOrdemServico())
-                .orElseThrow(() -> new IllegalArgumentException("Ordem de servico nao encontrada"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
 
         ordemDeServico.enviarParaOrcamento();
 

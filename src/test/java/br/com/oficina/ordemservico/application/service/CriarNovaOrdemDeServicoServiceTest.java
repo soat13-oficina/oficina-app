@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
+import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.support.persistence.TestClienteRepository;
@@ -61,13 +63,45 @@ class CriarNovaOrdemDeServicoServiceTest {
                 new TestFuncionarioRepository(),
                 new TestOrdemDeServicoRepository());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        RecursoNaoEncontradoException exception = assertThrows(
+                RecursoNaoEncontradoException.class,
                 () -> service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(
                         UUID.fromString("32222222-2222-2222-2222-222222222222").toString(),
                         UUID.fromString("42222222-2222-2222-2222-222222222222").toString(),
                         "ABC1D23")));
 
-        assertEquals("Cliente nao encontrado", exception.getMessage());
+        assertEquals("Cliente nao encontrado para o identificador informado.", exception.getMessage());
+    }
+
+    @Test
+    void deveFalharQuandoFuncionarioIdForInvalido() {
+        TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
+        UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
+        veiculoRepository.salvar(new Veiculo(
+                clienteId,
+                "ABC1D23",
+                "Toyota",
+                "Corolla",
+                "Toyota Motor Corporation",
+                2024,
+                177,
+                "AUTOMATICO",
+                TipoCombustivel.FLEX));
+        CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
+                clienteRepository,
+                veiculoRepository,
+                new TestFuncionarioRepository(),
+                new TestOrdemDeServicoRepository());
+
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
+                () -> service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(
+                        clienteId.toString(),
+                        "funcionario-invalido",
+                        "ABC1D23")));
+
+        assertEquals("Identificador do funcionario invalido.", exception.getMessage());
     }
 }
