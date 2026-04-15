@@ -1,5 +1,6 @@
 package br.com.oficina.cliente.domain.repository;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.Optional;
 
@@ -13,4 +14,10 @@ public interface ClienteRepository {
     void excluirPorId(UUID clienteId);
 
     Optional<Cliente> buscarPorId(UUID clienteId);
+
+    List<Cliente> buscarTodos();
+
+    Optional<Cliente> buscarPorNomeEDocumento(String nome, String cpfOuCnpj);
+
+    Optional<Cliente> buscarPorDocumento(String cpfOuCnpj);
 }

@@ -1,5 +1,6 @@
 package br.com.oficina.support.persistence;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,5 +34,33 @@ public class TestClienteRepository implements ClienteRepository {
     @Override
     public Optional<Cliente> buscarPorId(UUID clienteId) {
         return Optional.ofNullable(clientes.get(clienteId));
+    }
+
+    @Override
+    public List<Cliente> buscarTodos() {
+        return clientes.values().stream().toList();
+    }
+
+    @Override
+    public Optional<Cliente> buscarPorNomeEDocumento(String nome, String cpfOuCnpj) {
+        return clientes.values().stream()
+                .filter(cliente -> cliente.getNome() != null && cliente.getNome().trim().equalsIgnoreCase(nome.trim()))
+                .filter(cliente -> documentosSaoIguais(cliente.getCpfOuCnpj(), cpfOuCnpj))
+                .findFirst();
+    }
+
+    @Override
+    public Optional<Cliente> buscarPorDocumento(String cpfOuCnpj) {
+        return clientes.values().stream()
+                .filter(cliente -> documentosSaoIguais(cliente.getCpfOuCnpj(), cpfOuCnpj))
+                .findFirst();
+    }
+
+    private boolean documentosSaoIguais(String documentoAtual, String documentoInformado) {
+        if (documentoAtual == null || documentoInformado == null) {
+            return false;
+        }
+
+        return documentoAtual.replaceAll("\\D", "").equals(documentoInformado.replaceAll("\\D", ""));
     }
 }

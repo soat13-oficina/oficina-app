@@ -1,6 +1,7 @@
 package br.com.oficina.ordemservico.domain.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.UUID;
@@ -18,9 +19,10 @@ class OrdemDeServicoTest {
     @Test
     void deveAbrirAlterarEExporDadosDaOrdemDeServico() {
         OrdemDeServico ordemDeServico = novaOrdem("OS-001");
-        Funcionario novoFuncionario = new Funcionario("func-2", "Paula", "123");
         Cliente novoCliente = Cliente.reconstituir(UUID.fromString("51111111-1111-1111-1111-111111111111"), "Bianca", "99999999999", TipoCliente.PF);
-        Veiculo novoVeiculo = new Veiculo(
+        Veiculo novoVeiculo = Veiculo.reconstituir(
+                UUID.fromString("71111111-1111-1111-1111-111111111111"),
+                novoCliente.getId(),
                 "XYZ9Z99",
                 "Honda",
                 "City",
@@ -30,16 +32,17 @@ class OrdemDeServicoTest {
                 "AUTOMATICO",
                 TipoCombustivel.FLEX);
 
-        ordemDeServico.alterar(novoFuncionario, novoCliente, novoVeiculo);
+        ordemDeServico.alterar(novoCliente, novoVeiculo);
 
-        assertEquals("id-OS-001", ordemDeServico.getId());
+        assertEquals(UUID.nameUUIDFromBytes("ordem-OS-001".getBytes()), ordemDeServico.getId());
         assertEquals("OS-001", ordemDeServico.getNumeroOrdemServico());
-        assertEquals("func-2", ordemDeServico.getFuncionario().getId());
+        assertEquals(UUID.nameUUIDFromBytes("funcionario-OS-001".getBytes()), ordemDeServico.getFuncionario().getId());
         assertEquals("Bianca", ordemDeServico.getCliente().getNome());
         assertEquals("XYZ9Z99", ordemDeServico.getVeiculo().getPlaca());
-        assertEquals(StatusOrdemDeServico.ABERTA, ordemDeServico.getStatus());
-        assertEquals("Paula", ordemDeServico.getFuncionario().getNome());
-        assertEquals("123", ordemDeServico.getFuncionario().getCpf());
+        assertEquals(StatusOrdemDeServico.OS_ABERTA, ordemDeServico.getStatus());
+        assertEquals("Joao", ordemDeServico.getFuncionario().getNome());
+        assertEquals(null, ordemDeServico.getFuncionario().getCpf());
+        assertEquals(UUID.fromString("71111111-1111-1111-1111-111111111111"), ordemDeServico.getVeiculoId());
     }
 
     @Test
@@ -48,9 +51,12 @@ class OrdemDeServicoTest {
 
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();
+        ordemDeServico.enviarParaOrcamento();
         ordemDeServico.finalizar();
 
-        assertEquals(StatusOrdemDeServico.FINALIZADA, ordemDeServico.getStatus());
+        assertEquals(StatusOrdemDeServico.OS_FINALIZADA, ordemDeServico.getStatus());
+        assertNotNull(ordemDeServico.getIniciadaEm());
+        assertNotNull(ordemDeServico.getFinalizadaEm());
     }
 
     @Test
@@ -84,7 +90,7 @@ class OrdemDeServicoTest {
                 RegraDeNegocioException.class,
                 ordemDeServico::finalizar);
 
-        assertEquals("Ordem de servico so pode ser finalizada com diagnostico concluido", exception.getMessage());
+        assertEquals("Ordem de servico so pode ser finalizada com orcamento gerado", exception.getMessage());
     }
 
     @Test
@@ -95,9 +101,10 @@ class OrdemDeServicoTest {
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
                 () -> ordemDeServico.alterar(
-                        new Funcionario("func-3", "Carlos", null),
                         Cliente.reconstituir(UUID.fromString("53333333-3333-3333-3333-333333333333"), "Marcos", "22222222222", TipoCliente.PF),
-                        new Veiculo(
+                        Veiculo.reconstituir(
+                                UUID.fromString("73333333-3333-3333-3333-333333333333"),
+                                UUID.fromString("53333333-3333-3333-3333-333333333333"),
                                 "TTT1T11",
                                 "Jeep",
                                 "Renegade",
@@ -111,12 +118,15 @@ class OrdemDeServicoTest {
     }
 
     private OrdemDeServico novaOrdem(String numeroOrdemServico) {
+        UUID clienteId = UUID.fromString("51111111-1111-1111-1111-111111111112");
         return OrdemDeServico.abrir(
-                "id-" + numeroOrdemServico,
+                UUID.nameUUIDFromBytes(("ordem-" + numeroOrdemServico).getBytes()),
                 numeroOrdemServico,
-                new Funcionario("func-1", "Joao", null),
-                Cliente.reconstituir(UUID.fromString("51111111-1111-1111-1111-111111111112"), "Maria", "11111111111", TipoCliente.PF),
-                new Veiculo(
+                Funcionario.reconstituir(UUID.nameUUIDFromBytes(("funcionario-" + numeroOrdemServico).getBytes()), "Joao", null),
+                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Veiculo.reconstituir(
+                        UUID.nameUUIDFromBytes(("veiculo-" + numeroOrdemServico).getBytes()),
+                        clienteId,
                         "ABC1D23",
                         "Toyota",
                         "Corolla",

@@ -10,13 +10,18 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: true
     defer-datasource-initialization: false
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
 
 jwt:
   secret: ${JWT_SECRET:SUA_CHAVE_SECRETA_MUITO_SEGURA_E_LONGA_PARA_O_JWT_DA_OFICINA_2026}

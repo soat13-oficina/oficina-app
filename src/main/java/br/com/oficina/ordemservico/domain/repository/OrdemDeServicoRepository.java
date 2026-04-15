@@ -10,6 +10,12 @@ public interface OrdemDeServicoRepository {
 
     Optional<OrdemDeServico> buscarPorNumero(String numeroOrdemServico);
 
+    List<OrdemDeServico> buscarPorFiltros(
+            String numeroOrdemServico,
+            String nomeCliente,
+            String placaVeiculo,
+            String documentoCliente);
+
     List<OrdemDeServico> buscarTodas();
 
     void excluirPorNumero(String numeroOrdemServico);

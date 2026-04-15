@@ -1,6 +1,5 @@
 package br.com.oficina.support.persistence;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,7 +23,7 @@ public class TestPecaInsumoRepository implements PecaInsumoRepository {
 
     @Override
     public List<PecaInsumo> buscarTodos() {
-        return new ArrayList<>(pecas.values());
+        return List.copyOf(pecas.values());
     }
 
     @Override

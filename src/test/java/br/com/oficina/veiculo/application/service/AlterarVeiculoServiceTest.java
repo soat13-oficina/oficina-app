@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.veiculo.application.command.AlterarVeiculoCommand;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.support.persistence.TestVeiculoRepository;
 
 class AlterarVeiculoServiceTest {
@@ -43,12 +44,40 @@ class AlterarVeiculoServiceTest {
     }
 
     @Test
+    void deveAlterarVeiculoMesmoQuandoPlacaForInformadaComHifenOuEspacos() {
+        TestVeiculoRepository repository = new TestVeiculoRepository();
+        repository.salvar(new Veiculo(
+                "ABC1D23",
+                "Volkswagen",
+                "T-Cross",
+                "Volkswagen AG",
+                2023,
+                128,
+                "AUTOMATICO",
+                TipoCombustivel.FLEX));
+        AlterarVeiculoService service = new AlterarVeiculoService(repository);
+
+        service.alterarVeiculo(new AlterarVeiculoCommand(
+                " abc-1d23 ",
+                "Volkswagen",
+                "Nivus",
+                "Volkswagen AG",
+                2024,
+                128,
+                "AUTOMATICO",
+                TipoCombustivel.FLEX));
+
+        Veiculo alterado = repository.buscarPorPlaca("ABC1D23").orElseThrow();
+        assertEquals("Nivus", alterado.getModelo());
+    }
+
+    @Test
     void deveFalharAoAlterarVeiculoInexistente() {
         TestVeiculoRepository repository = new TestVeiculoRepository();
         AlterarVeiculoService service = new AlterarVeiculoService(repository);
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        RecursoNaoEncontradoException exception = assertThrows(
+                RecursoNaoEncontradoException.class,
                 () -> service.alterarVeiculo(new AlterarVeiculoCommand(
                         "ABC1D23",
                         "Volkswagen",
@@ -59,6 +88,6 @@ class AlterarVeiculoServiceTest {
                         "AUTOMATICO",
                         TipoCombustivel.GASOLINA)));
 
-        assertEquals("Veiculo nao encontrado", exception.getMessage());
+        assertEquals("Veiculo nao encontrado para a placa informada.", exception.getMessage());
     }
 }

@@ -4,17 +4,21 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import br.com.oficina.orcamento.domain.model.PecaOrcamento;
+
 public record AlterarOrcamentoCommand(
-        String orcamentoId,
+        String numeroOrcamento,
+        String clienteId,
         String ordemDeServicoId,
         String funcionarioId,
-        String clienteId,
         String placaVeiculo,
+        String marcaVeiculo,
+        String modeloVeiculo,
         String descricaoDiagnostico,
         List<String> servicosPropostos,
-        List<String> pecasPrevistas,
+        List<PecaOrcamento> pecasPrevistas,
         BigDecimal valorMaoDeObra,
-        BigDecimal valorPecas,
+        BigDecimal desconto,
         LocalDateTime validade,
         String observacoes) {
 }

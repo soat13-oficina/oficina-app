@@ -2,7 +2,9 @@ package br.com.oficina.orcamento.infrastructure.persistence;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,29 +22,51 @@ public class JpaOrcamentoRepository implements OrcamentoRepository {
 
     @Override
     @Transactional
-    public void salvar(Orcamento orcamento) {
-        repository.save(OrcamentoJpaEntity.fromDomain(orcamento));
+    public Orcamento salvar(Orcamento orcamento) {
+        return repository.save(orcamento);
     }
 
     @Override
     @Transactional
     public void atualizar(Orcamento orcamento) {
-        repository.save(OrcamentoJpaEntity.fromDomain(orcamento));
+        repository.save(orcamento);
     }
 
     @Override
     @Transactional
-    public void excluirPorId(String orcamentoId) {
-        repository.deleteById(orcamentoId);
+    public void excluirPorNumeroOrcamento(String numeroOrcamento) {
+        repository.deleteByNumeroOrcamento(numeroOrcamento);
     }
 
     @Override
-    public Optional<Orcamento> buscarPorId(String orcamentoId) {
-        return repository.findById(orcamentoId).map(OrcamentoJpaEntity::toDomain);
+    public Optional<Orcamento> buscarPorId(UUID id) {
+        return repository.findById(id);
+    }
+
+    @Override
+    public Optional<Orcamento> buscarPorNumeroOrcamento(String numeroOrcamento) {
+        return repository.findByNumeroOrcamento(numeroOrcamento);
+    }
+
+    @Override
+    public Optional<Orcamento> buscarPorOrdemDeServicoId(UUID ordemDeServicoId) {
+        return repository.findByOrdemDeServicoId(ordemDeServicoId);
+    }
+
+    @Override
+    public List<Orcamento> buscarPorFiltros(String numeroOrcamento, String cpfCliente, String placaVeiculo) {
+        Specification<Orcamento> specification = Specification.where(campoIgual("numeroOrcamento", numeroOrcamento))
+                .and(campoIgual("clienteCpf", cpfCliente))
+                .and(campoIgual("placaVeiculo", placaVeiculo));
+        return repository.findAll(specification);
     }
 
     @Override
     public List<Orcamento> buscarTodos() {
-        return repository.findAll().stream().map(OrcamentoJpaEntity::toDomain).toList();
+        return repository.findAll();
+    }
+
+    private static <T> Specification<Orcamento> campoIgual(String campo, T valor) {
+        return (root, query, criteriaBuilder) -> valor == null ? null : criteriaBuilder.equal(root.get(campo), valor);
     }
 }
