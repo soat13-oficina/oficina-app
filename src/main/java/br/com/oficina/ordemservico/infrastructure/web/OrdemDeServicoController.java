@@ -43,6 +43,7 @@ import br.com.oficina.ordemservico.infrastructure.web.request.AlterarOrdemDeServ
 import br.com.oficina.ordemservico.infrastructure.web.request.CriarOrdemDeServicoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoParaOrcamentoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.response.AcompanhamentoOrdemDeServicoResponse;
+import br.com.oficina.ordemservico.infrastructure.web.response.FinalizacaoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.OrdemDeServicoResponse;
 
 @RestController
@@ -211,9 +212,9 @@ public class OrdemDeServicoController {
                         numeroOrdemServico,
                         request.descricaoDiagnostico(),
                         request.servicosPropostos(),
-                        request.pecasPrevistas(),
+                        request.toPecasOrcamento(),
                         request.valorMaoDeObra(),
-                        request.valorPecas(),
+                        request.desconto(),
                         request.validade(),
                         request.observacoes()));
         return ResponseEntity.noContent().build();
@@ -222,12 +223,13 @@ public class OrdemDeServicoController {
     @PostMapping("/{numeroOrdemServico}/finalizacao")
     @Operation(summary = "Finalizar ordem de serviço", description = "Finaliza uma ordem de serviço com orçamento já gerado.")
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Ordem de serviço finalizada com sucesso"),
+            @ApiResponse(responseCode = "200", description = "Ordem de serviço finalizada com sucesso",
+                    content = @Content(schema = @Schema(implementation = FinalizacaoOrdemDeServicoResponse.class))),
             @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
+            @ApiResponse(responseCode = "404", description = "Ordem de serviço ou orçamento não encontrado", content = @Content)
     })
-    public ResponseEntity<Void> finalizar(@PathVariable String numeroOrdemServico) {
-        finalizarOrdemDeServicoUseCase.finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand(numeroOrdemServico));
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<FinalizacaoOrdemDeServicoResponse> finalizar(@PathVariable String numeroOrdemServico) {
+        return ResponseEntity.ok(FinalizacaoOrdemDeServicoResponse.from(
+                finalizarOrdemDeServicoUseCase.finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand(numeroOrdemServico))));
     }
 }

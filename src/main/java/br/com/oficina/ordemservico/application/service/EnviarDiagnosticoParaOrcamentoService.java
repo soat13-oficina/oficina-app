@@ -43,7 +43,7 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
                 request.servicosPropostos(),
                 request.pecasPrevistas(),
                 request.valorMaoDeObra(),
-                request.valorPecas(),
+                request.desconto(),
                 request.validade(),
                 request.observacoes()));
 

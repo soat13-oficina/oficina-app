@@ -48,6 +48,11 @@ public class JpaOrcamentoRepository implements OrcamentoRepository {
     }
 
     @Override
+    public Optional<Orcamento> buscarPorOrdemDeServicoId(String ordemDeServicoId) {
+        return repository.findByOrdemDeServicoId(ordemDeServicoId);
+    }
+
+    @Override
     public List<Orcamento> buscarTodos() {
         return repository.findAll();
     }

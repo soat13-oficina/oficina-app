@@ -23,6 +23,10 @@ import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
 import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
+import br.com.oficina.orcamento.domain.model.Orcamento;
+import br.com.oficina.orcamento.domain.model.PecaOrcamento;
+import br.com.oficina.orcamento.domain.model.StatusOrcamento;
+import br.com.oficina.orcamento.infrastructure.persistence.SpringDataOrcamentoRepository;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
@@ -61,6 +65,9 @@ class OrdemDeServicoControllerTest {
     @Autowired
     private SpringDataFuncionarioRepository springDataFuncionarioRepository;
 
+    @Autowired
+    private SpringDataOrcamentoRepository springDataOrcamentoRepository;
+
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -69,6 +76,7 @@ class OrdemDeServicoControllerTest {
         springDataVeiculoRepository.deleteAll();
         springDataClienteRepository.deleteAll();
         springDataFuncionarioRepository.deleteAll();
+        springDataOrcamentoRepository.deleteAll();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
@@ -346,7 +354,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveFinalizarOrdemDeServico() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca"));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "55555555555", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
@@ -361,11 +369,39 @@ class OrdemDeServicoControllerTest {
         ordemDeServico.concluirDiagnostico();
         ordemDeServico.enviarParaOrcamento();
         ordemDeServicoRepository.salvar(ordemDeServico);
+        springDataOrcamentoRepository.save(new Orcamento(
+                "ORC-001",
+                cliente.getId(),
+                ordemDeServico.getId().toString(),
+                funcionario.getId().toString(),
+                cliente.getNome(),
+                cliente.getCpfOuCnpj(),
+                "JKL4M56",
+                "Jeep",
+                "Renegade",
+                "Troca de oleo",
+                java.util.List.of("Troca de oleo"),
+                java.util.List.of(new PecaOrcamento("Filtro de oleo", new java.math.BigDecimal("80.00"))),
+                new java.math.BigDecimal("200.00"),
+                java.math.BigDecimal.ZERO,
+                java.time.LocalDateTime.of(2030, 1, 1, 10, 0),
+                java.time.LocalDateTime.of(2030, 1, 10, 10, 0),
+                "Finalizacao",
+                StatusOrcamento.AGUARDANDO_APROVACAO));
 
         mockMvc.perform(post("/ordens-servico/os-finalizar-1/finalizacao")
                         .with(user("tester"))
                         .with(csrf()))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numeroOrdemServico").value("os-finalizar-1"))
+                .andExpect(jsonPath("$.cliente.nome").value("Bianca"))
+                .andExpect(jsonPath("$.veiculo.placa").value("JKL4M56"))
+                .andExpect(jsonPath("$.servicoRealizado").value("Troca de oleo"))
+                .andExpect(jsonPath("$.valorServico").value(200.0))
+                .andExpect(jsonPath("$.pecas[0].descricao").value("Filtro de oleo"))
+                .andExpect(jsonPath("$.pecas[0].preco").value(80.0))
+                .andExpect(jsonPath("$.valorFinal").value(280.0))
+                .andExpect(jsonPath("$.desconto").value(0));
 
         OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorNumero("os-finalizar-1")
                 .orElseThrow();

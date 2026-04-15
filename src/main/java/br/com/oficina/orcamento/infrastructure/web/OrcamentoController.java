@@ -86,9 +86,9 @@ public class OrcamentoController {
                 request.modeloVeiculo(),
                 request.descricaoDiagnostico(),
                 request.servicosPropostos(),
-                request.pecasPrevistas(),
+                request.toPecasOrcamento(),
                 request.valorMaoDeObra(),
-                request.valorPecas(),
+                request.desconto(),
                 request.validade(),
                 request.observacoes()));
 
@@ -168,9 +168,9 @@ public class OrcamentoController {
                 request.modeloVeiculo(),
                 request.descricaoDiagnostico(),
                 request.servicosPropostos(),
-                request.pecasPrevistas(),
+                request.toPecasOrcamento(),
                 request.valorMaoDeObra(),
-                request.valorPecas(),
+                request.desconto(),
                 request.validade(),
                 request.observacoes()));
         log.info("Requisicao de alteracao de orcamento concluida. numeroOrcamento={}", orcamentoId);

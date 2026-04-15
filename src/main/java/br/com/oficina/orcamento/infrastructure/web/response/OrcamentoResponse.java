@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import br.com.oficina.orcamento.domain.model.Orcamento;
+import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(name = "OrcamentoResponse", description = "Representação de um orçamento")
@@ -74,10 +75,11 @@ public record OrcamentoResponse(
                 new DetalhesServicoResponse(
                         orcamento.getDescricaoDiagnostico(),
                         orcamento.getServicosPropostos(),
-                        orcamento.getPecasPrevistas(),
+                        orcamento.getPecasOrcamento().stream().map(PecaResponse::from).toList(),
                         orcamento.getValorMaoDeObra(),
                         orcamento.getValorPecas(),
                         orcamento.getValorTotal(),
+                        orcamento.getDesconto(),
                         orcamento.getValidade(),
                         orcamento.getObservacoes()),
                 orcamento.getStatus().name(),
@@ -125,10 +127,11 @@ public record OrcamentoResponse(
     public record DetalhesServicoResponse(
             String descricaoDiagnostico,
             List<String> servicosPropostos,
-            List<String> pecasPrevistas,
+            List<PecaResponse> pecasPrevistas,
             java.math.BigDecimal valorMaoDeObra,
             java.math.BigDecimal valorPecas,
             java.math.BigDecimal valorTotal,
+            java.math.BigDecimal desconto,
             LocalDateTime validade,
             String observacoes) {
         @Override
@@ -138,14 +141,14 @@ public record OrcamentoResponse(
         }
 
         @Override
-        @Schema(description = "Lista de serviços propostos")
+        @Schema(description = "Lista de serviços propostos", example = "[\"Troca de óleo\", \"Revisão de freios\"]")
         public List<String> servicosPropostos() {
             return servicosPropostos;
         }
 
         @Override
-        @Schema(description = "Lista de peças previstas")
-        public List<String> pecasPrevistas() {
+        @Schema(description = "Lista de peças previstas com descrição e preço unitário")
+        public List<PecaResponse> pecasPrevistas() {
             return pecasPrevistas;
         }
 
@@ -168,6 +171,12 @@ public record OrcamentoResponse(
         }
 
         @Override
+        @Schema(description = "Valor de desconto aplicado ao orçamento", example = "25.00")
+        public java.math.BigDecimal desconto() {
+            return desconto;
+        }
+
+        @Override
         @Schema(description = "Data de validade do orçamento", example = "2030-01-01T00:00:00")
         public LocalDateTime validade() {
             return validade;
@@ -177,6 +186,25 @@ public record OrcamentoResponse(
         @Schema(description = "Observações adicionais", example = "Peças sujeitas à disponibilidade em estoque")
         public String observacoes() {
             return observacoes;
+        }
+    }
+
+    @Schema(name = "PecaResponse", description = "Peça prevista no orçamento com preço unitário")
+    public record PecaResponse(String descricao, java.math.BigDecimal preco) {
+        @Override
+        @Schema(description = "Descrição da peça prevista", example = "Pastilha de freio dianteira")
+        public String descricao() {
+            return descricao;
+        }
+
+        @Override
+        @Schema(description = "Preço unitário da peça prevista", example = "189.90")
+        public java.math.BigDecimal preco() {
+            return preco;
+        }
+
+        static PecaResponse from(PecaOrcamento peca) {
+            return new PecaResponse(peca.getDescricao(), peca.getPreco());
         }
     }
 }

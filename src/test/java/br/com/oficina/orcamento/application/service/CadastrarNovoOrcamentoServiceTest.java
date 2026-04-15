@@ -16,6 +16,7 @@ import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
+import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import br.com.oficina.support.persistence.TestClienteRepository;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
@@ -40,9 +41,9 @@ class CadastrarNovoOrcamentoServiceTest {
                 "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
-                List.of("Pastilha dianteira"),
+                List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
                 new BigDecimal("150.00"),
-                new BigDecimal("250.00"),
+                BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 10, 10, 0),
                 "Prioridade alta"));
 
@@ -71,9 +72,9 @@ class CadastrarNovoOrcamentoServiceTest {
                 "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
-                List.of("Pastilha dianteira"),
+                List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
                 new BigDecimal("150.00"),
-                new BigDecimal("250.00"),
+                BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 1, 10, 0),
                 LocalDateTime.of(2030, 1, 10, 10, 0),
                 "Prioridade alta",
@@ -92,9 +93,9 @@ class CadastrarNovoOrcamentoServiceTest {
                         "City",
                         "Revisao",
                         List.of("Revisao"),
-                        List.of("Fluido"),
+                        List.of(new PecaOrcamento("Fluido", new BigDecimal("50.00"))),
                         new BigDecimal("100.00"),
-                        new BigDecimal("50.00"),
+                        BigDecimal.ZERO,
                         LocalDateTime.of(2030, 2, 1, 10, 0),
                         "Duplicado")));
 
@@ -119,9 +120,9 @@ class CadastrarNovoOrcamentoServiceTest {
                         "Corolla",
                         "Troca de pastilhas",
                         List.of("Troca de pastilhas"),
-                        List.of("Pastilha dianteira"),
+                        List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
                         new BigDecimal("150.00"),
-                        new BigDecimal("250.00"),
+                        BigDecimal.ZERO,
                         LocalDateTime.of(2030, 1, 10, 10, 0),
                         "Prioridade alta")));
 

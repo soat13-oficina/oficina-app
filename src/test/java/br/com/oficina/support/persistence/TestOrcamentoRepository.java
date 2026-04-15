@@ -28,9 +28,9 @@ public class TestOrcamentoRepository implements OrcamentoRepository {
                         orcamento.getModeloVeiculo(),
                         orcamento.getDescricaoDiagnostico(),
                         orcamento.getServicosPropostos(),
-                        orcamento.getPecasPrevistas(),
+                        orcamento.getPecasOrcamento(),
                         orcamento.getValorMaoDeObra(),
-                        orcamento.getValorPecas(),
+                        orcamento.getDesconto(),
                         orcamento.getCriadoEm(),
                         orcamento.getValidade(),
                         orcamento.getObservacoes(),
@@ -62,6 +62,13 @@ public class TestOrcamentoRepository implements OrcamentoRepository {
     public Optional<Orcamento> buscarPorNumeroOrcamento(String numeroOrcamento) {
         return orcamentos.values().stream()
                 .filter(orcamento -> orcamento.getNumeroOrcamento().equals(numeroOrcamento))
+                .findFirst();
+    }
+
+    @Override
+    public Optional<Orcamento> buscarPorOrdemDeServicoId(String ordemDeServicoId) {
+        return orcamentos.values().stream()
+                .filter(orcamento -> orcamento.getOrdemDeServicoId().equals(ordemDeServicoId))
                 .findFirst();
     }
 

@@ -62,9 +62,9 @@ class OrcamentoControllerTest {
                   "modeloVeiculo": "Corolla",
                   "descricaoDiagnostico": "Troca de pastilhas",
                   "servicosPropostos": ["Troca de pastilhas"],
-                  "pecasPrevistas": ["Pastilha dianteira"],
+                  "pecasPrevistas": [{"descricao": "Pastilha dianteira", "preco": 250.00}],
                   "valorMaoDeObra": 150.00,
-                  "valorPecas": 250.00,
+                  "desconto": 0.00,
                   "validade": "2030-12-31T10:00:00",
                   "observacoes": "Prioridade alta"
                 }
@@ -100,9 +100,9 @@ class OrcamentoControllerTest {
                   "modeloVeiculo": "Corolla",
                   "descricaoDiagnostico": "Revisao de freios",
                   "servicosPropostos": ["Revisao freios"],
-                  "pecasPrevistas": ["Fluido de freio"],
+                  "pecasPrevistas": [{"descricao": "Fluido de freio", "preco": 100.00}],
                   "valorMaoDeObra": 200.00,
-                  "valorPecas": 100.00,
+                  "desconto": 0.00,
                   "validade": "2031-01-15T10:00:00",
                   "observacoes": "Aprovacao imediata"
                 }
@@ -170,9 +170,9 @@ class OrcamentoControllerTest {
                   "modeloVeiculo": "Corolla",
                   "descricaoDiagnostico": "Troca de pastilhas",
                   "servicosPropostos": ["Troca de pastilhas"],
-                  "pecasPrevistas": ["Pastilha dianteira"],
+                  "pecasPrevistas": [{"descricao": "Pastilha dianteira", "preco": 250.00}],
                   "valorMaoDeObra": 150.00,
-                  "valorPecas": 250.00,
+                  "desconto": 0.00,
                   "validade": "2030-12-31T10:00:00",
                   "observacoes": "Prioridade alta"
                 }
@@ -200,9 +200,9 @@ class OrcamentoControllerTest {
                   "modeloVeiculo": "Corolla",
                   "descricaoDiagnostico": "Troca de pastilhas",
                   "servicosPropostos": ["Troca de pastilhas"],
-                  "pecasPrevistas": ["Pastilha dianteira"],
+                  "pecasPrevistas": [{"descricao": "Pastilha dianteira", "preco": 250.00}],
                   "valorMaoDeObra": 150.00,
-                  "valorPecas": 250.00,
+                  "desconto": 0.00,
                   "validade": "data-invalida",
                   "observacoes": "Prioridade alta"
                 }

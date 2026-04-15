@@ -51,7 +51,7 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
                 command.servicosPropostos(),
                 command.pecasPrevistas(),
                 command.valorMaoDeObra(),
-                command.valorPecas(),
+                command.desconto(),
                 orcamentoAtual.getCriadoEm(),
                 command.validade(),
                 command.observacoes(),
