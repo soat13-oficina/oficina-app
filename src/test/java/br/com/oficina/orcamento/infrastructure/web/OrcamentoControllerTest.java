@@ -55,8 +55,8 @@ class OrcamentoControllerTest {
                 {
                   "numeroOrcamento": "orc-1",
                   "clienteId": "%s",
-                  "ordemDeServicoId": "os-1",
-                  "funcionarioId": "func-1",
+                  "ordemDeServicoId": "00000000-0000-0000-0000-000000000001",
+                  "funcionarioId": "00000000-0000-0000-0000-000000000002",
                   "placaVeiculo": "ABC1D23",
                   "marcaVeiculo": "Toyota",
                   "modeloVeiculo": "Corolla",
@@ -93,8 +93,8 @@ class OrcamentoControllerTest {
         String alteracao = """
                 {
                   "clienteId": "%s",
-                  "ordemDeServicoId": "os-1",
-                  "funcionarioId": "func-2",
+                  "ordemDeServicoId": "00000000-0000-0000-0000-000000000001",
+                  "funcionarioId": "00000000-0000-0000-0000-000000000003",
                   "placaVeiculo": "ABC1D23",
                   "marcaVeiculo": "Toyota",
                   "modeloVeiculo": "Corolla",
