@@ -27,14 +27,10 @@ public class ConsultarOrcamentoService implements ConsultarOrcamentoUseCase {
                 query.numeroOrcamento() != null && !query.numeroOrcamento().isBlank(),
                 query.cpfCliente() != null && !query.cpfCliente().isBlank(),
                 query.placaVeiculo() != null && !query.placaVeiculo().isBlank());
-        List<Orcamento> orcamentos = orcamentoRepository.buscarTodos().stream()
-                .filter(orcamento -> query.numeroOrcamento() == null
-                        || orcamento.getNumeroOrcamento().equalsIgnoreCase(query.numeroOrcamento()))
-                .filter(orcamento -> query.cpfCliente() == null
-                        || orcamento.getClienteCpf().equalsIgnoreCase(query.cpfCliente()))
-                .filter(orcamento -> query.placaVeiculo() == null
-                        || orcamento.getPlacaVeiculo().equalsIgnoreCase(query.placaVeiculo()))
-                .toList();
+        List<Orcamento> orcamentos = orcamentoRepository.buscarPorFiltros(
+                query.numeroOrcamento(),
+                query.cpfCliente(),
+                query.placaVeiculo());
         log.info("Consulta de orcamentos finalizada. quantidadeOrcamentos={}", orcamentos.size());
         return orcamentos;
     }

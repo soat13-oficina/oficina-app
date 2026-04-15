@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import org.springframework.stereotype.Service;
 
@@ -33,15 +34,18 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
                 command.numeroOrcamento(), command.clienteId(), command.ordemDeServicoId());
         Orcamento orcamentoAtual = orcamentoRepository.buscarPorNumeroOrcamento(command.numeroOrcamento())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Orcamento nao encontrado para o numero informado."));
-        Cliente cliente = clienteRepository.buscarPorId(UUID.fromString(command.clienteId()))
+        UUID clienteId = paraUuid(command.clienteId(), "Identificador do cliente invalido.");
+        UUID ordemDeServicoId = paraUuid(command.ordemDeServicoId(), "Identificador da ordem de servico invalido.");
+        UUID funcionarioId = paraUuid(command.funcionarioId(), "Identificador do funcionario invalido.");
+        Cliente cliente = clienteRepository.buscarPorId(clienteId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado."));
 
         Orcamento orcamentoAtualizado = Orcamento.reconstituir(
                 orcamentoAtual.getId(),
                 command.numeroOrcamento(),
                 cliente.getId(),
-                command.ordemDeServicoId(),
-                command.funcionarioId(),
+                ordemDeServicoId,
+                funcionarioId,
                 cliente.getNome(),
                 cliente.getCpfOuCnpj(),
                 command.placaVeiculo(),
@@ -69,5 +73,13 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
 
         orcamentoRepository.atualizar(orcamentoAtualizado);
         log.info("Orcamento alterado com sucesso. numeroOrcamento={}", command.numeroOrcamento());
+    }
+
+    private UUID paraUuid(String valor, String mensagemErro) {
+        try {
+            return UUID.fromString(valor);
+        } catch (IllegalArgumentException exception) {
+            throw new RegraDeNegocioException(mensagemErro);
+        }
     }
 }

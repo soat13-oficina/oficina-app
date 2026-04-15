@@ -3,6 +3,7 @@ package br.com.oficina.ordemservico.infrastructure.persistence;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,19 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
     }
 
     @Override
+    public List<OrdemDeServico> buscarPorFiltros(
+            String numeroOrdemServico,
+            String nomeCliente,
+            String placaVeiculo,
+            String documentoCliente) {
+        Specification<OrdemDeServico> specification = Specification.where(campoIgual("numeroOrdemServico", numeroOrdemServico))
+                .and(campoIgual("clienteNome", nomeCliente))
+                .and(campoIgual("veiculoPlaca", placaVeiculo))
+                .and(campoIgual("clienteDocumento", documentoCliente));
+        return repository.findAll(specification);
+    }
+
+    @Override
     public List<OrdemDeServico> buscarTodas() {
         return repository.findAll();
     }
@@ -38,5 +52,9 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
     @Transactional
     public void excluirPorNumero(String numeroOrdemServico) {
         repository.deleteByNumeroOrdemServico(numeroOrdemServico);
+    }
+
+    private static <T> Specification<OrdemDeServico> campoIgual(String campo, T valor) {
+        return (root, query, criteriaBuilder) -> valor == null ? null : criteriaBuilder.equal(root.get(campo), valor);
     }
 }

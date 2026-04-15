@@ -2,6 +2,8 @@ package br.com.oficina.ordemservico.application.service;
 
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
@@ -13,6 +15,8 @@ import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 
 @Service
 public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoParaOrcamentoUseCase {
+    private static final Logger log = LoggerFactory.getLogger(EnviarDiagnosticoParaOrcamentoService.class);
+
     private final OrdemDeServicoRepository ordemDeServicoRepository;
     private final CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase;
 
@@ -25,6 +29,11 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
 
     @Override
     public void enviarDiagnosticoParaOrcamento(EnviarDiagnosticoParaOrcamentoRequest request) {
+        log.info(
+                "Iniciando envio de diagnostico para orcamento. numeroOrdemServico={}, quantidadeServicosPropostos={}, quantidadePecasPrevistas={}",
+                request.numeroOrdemServico(),
+                request.servicosPropostos() == null ? 0 : request.servicosPropostos().size(),
+                request.pecasPrevistas() == null ? 0 : request.pecasPrevistas().size());
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(request.numeroOrdemServico())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
 
@@ -48,5 +57,10 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
                 request.observacoes()));
 
         ordemDeServicoRepository.salvar(ordemDeServico);
+        log.info(
+                "Diagnostico enviado para orcamento com sucesso. numeroOrdemServico={}, numeroOrcamento={}, funcionarioId={}",
+                ordemDeServico.getNumeroOrdemServico(),
+                numeroOrcamento,
+                ordemDeServico.getFuncionario().getId());
     }
 }

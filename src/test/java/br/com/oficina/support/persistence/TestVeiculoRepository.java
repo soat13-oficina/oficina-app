@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 
@@ -32,6 +33,27 @@ public class TestVeiculoRepository implements VeiculoRepository {
     @Override
     public Optional<Veiculo> buscarPorPlaca(String placa) {
         return Optional.ofNullable(veiculos.get(Veiculo.normalizarPlaca(placa)));
+    }
+
+    @Override
+    public List<Veiculo> buscarPorFiltros(
+            String placa,
+            Integer ano,
+            String marca,
+            String fabricante,
+            Integer potencia,
+            String cambio,
+            TipoCombustivel tipo) {
+        String placaNormalizada = placa == null ? null : Veiculo.normalizarPlaca(placa);
+        return veiculos.values().stream()
+                .filter(veiculo -> placaNormalizada == null || veiculo.getPlaca().equalsIgnoreCase(placaNormalizada))
+                .filter(veiculo -> ano == null || veiculo.getAno() == ano)
+                .filter(veiculo -> marca == null || veiculo.getMarca().equalsIgnoreCase(marca))
+                .filter(veiculo -> fabricante == null || veiculo.getFabricante().equalsIgnoreCase(fabricante))
+                .filter(veiculo -> potencia == null || veiculo.getPotencia() == potencia)
+                .filter(veiculo -> cambio == null || veiculo.getCambio().equalsIgnoreCase(cambio))
+                .filter(veiculo -> tipo == null || veiculo.getTipo() == tipo)
+                .toList();
     }
 
     @Override

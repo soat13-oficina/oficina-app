@@ -5,11 +5,12 @@ import java.util.UUID;
 
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface SpringDataOrcamentoRepository extends JpaRepository<Orcamento, UUID> {
+public interface SpringDataOrcamentoRepository extends JpaRepository<Orcamento, UUID>, JpaSpecificationExecutor<Orcamento> {
     Optional<Orcamento> findByNumeroOrcamento(String numeroOrcamento);
 
-    Optional<Orcamento> findByOrdemDeServicoId(String ordemDeServicoId);
+    Optional<Orcamento> findByOrdemDeServicoId(UUID ordemDeServicoId);
 
     void deleteByNumeroOrcamento(String numeroOrcamento);
 }

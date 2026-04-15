@@ -372,8 +372,8 @@ class OrdemDeServicoControllerTest {
         springDataOrcamentoRepository.save(new Orcamento(
                 "ORC-001",
                 cliente.getId(),
-                ordemDeServico.getId().toString(),
-                funcionario.getId().toString(),
+                ordemDeServico.getId(),
+                funcionario.getId(),
                 cliente.getNome(),
                 cliente.getCpfOuCnpj(),
                 "JKL4M56",

@@ -15,10 +15,12 @@ class OrcamentoTest {
     void deveExporDadosDoOrcamentoECalcularValorTotal() {
         LocalDateTime criadoEm = LocalDateTime.of(2030, 1, 1, 10, 0);
         LocalDateTime validade = LocalDateTime.of(2030, 1, 10, 10, 0);
+        UUID ordemDeServicoId = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        UUID funcionarioId = UUID.fromString("44444444-4444-4444-4444-444444444444");
         Orcamento orcamento = new Orcamento(
                 "orc-1",
-                "os-1",
-                "func-1",
+                ordemDeServicoId,
+                funcionarioId,
                 "Joao Silva",
                 "12345678901",
                 "ABC1D23",
@@ -37,8 +39,8 @@ class OrcamentoTest {
         orcamento.enviarParaAprovacao(LocalDateTime.of(2030, 1, 2, 9, 0));
 
         assertEquals("orc-1", orcamento.getNumeroOrcamento());
-        assertEquals("os-1", orcamento.getOrdemDeServicoId());
-        assertEquals("func-1", orcamento.getFuncionarioId());
+        assertEquals(ordemDeServicoId, orcamento.getOrdemDeServicoId());
+        assertEquals(funcionarioId, orcamento.getFuncionarioId());
         assertEquals("Joao Silva", orcamento.getClienteNome());
         assertEquals("12345678901", orcamento.getClienteCpf());
         assertEquals("ABC1D23", orcamento.getPlacaVeiculo());
@@ -61,12 +63,14 @@ class OrcamentoTest {
     void deveReconstituirComClienteIdEAprovarOuRejeitar() {
         UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
         UUID clienteId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID ordemDeServicoId = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        UUID funcionarioId = UUID.fromString("44444444-4444-4444-4444-444444444444");
         Orcamento orcamento = Orcamento.reconstituir(
                 id,
                 "orc-2",
                 clienteId,
-                "os-2",
-                "func-2",
+                ordemDeServicoId,
+                funcionarioId,
                 "Maria Souza",
                 "99999999999",
                 "XYZ9Z99",

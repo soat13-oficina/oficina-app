@@ -17,11 +17,13 @@ class OrcamentoResponseTest {
     @Test
     void deveConverterOrcamentoParaResponse() {
         UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID ordemDeServicoId = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        UUID funcionarioId = UUID.fromString("44444444-4444-4444-4444-444444444444");
         Orcamento orcamento = Orcamento.reconstituir(
                 id,
                 "orc-1",
-                "os-1",
-                "func-1",
+                ordemDeServicoId,
+                funcionarioId,
                 "Joao Silva",
                 "12345678901",
                 "ABC1D23",

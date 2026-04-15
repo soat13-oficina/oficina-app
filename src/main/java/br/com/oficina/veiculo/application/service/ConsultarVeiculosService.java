@@ -29,17 +29,14 @@ public class ConsultarVeiculosService implements ConsultarVeiculosUseCase {
                 query.fabricante(),
                 query.ano(),
                 query.tipo());
-        String placaNormalizada = query.placa() == null ? null : Veiculo.normalizarPlaca(query.placa());
-        List<Veiculo> veiculos = veiculoRepository.buscarTodos().stream()
-                .filter(veiculo -> placaNormalizada == null || veiculo.getPlaca().equalsIgnoreCase(placaNormalizada))
-                .filter(veiculo -> query.ano() == null || veiculo.getAno() == query.ano())
-                .filter(veiculo -> query.marca() == null || veiculo.getMarca().equalsIgnoreCase(query.marca()))
-                .filter(veiculo -> query.fabricante() == null
-                        || veiculo.getFabricante().equalsIgnoreCase(query.fabricante()))
-                .filter(veiculo -> query.potencia() == null || veiculo.getPotencia() == query.potencia())
-                .filter(veiculo -> query.cambio() == null || veiculo.getCambio().equalsIgnoreCase(query.cambio()))
-                .filter(veiculo -> query.tipo() == null || veiculo.getTipo() == query.tipo())
-                .toList();
+        List<Veiculo> veiculos = veiculoRepository.buscarPorFiltros(
+                query.placa(),
+                query.ano(),
+                query.marca(),
+                query.fabricante(),
+                query.potencia(),
+                query.cambio(),
+                query.tipo());
         log.info("Consulta de veiculos finalizada. quantidadeVeiculos={}", veiculos.size());
         return veiculos;
     }

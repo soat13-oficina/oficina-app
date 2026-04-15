@@ -2,6 +2,8 @@ package br.com.oficina.ordemservico.application.service;
 
 import java.time.Duration;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
@@ -18,6 +20,8 @@ import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 
 @Service
 public class FinalizarOrdemDeServicoService implements FinalizarOrdemDeServicoUseCase {
+    private static final Logger log = LoggerFactory.getLogger(FinalizarOrdemDeServicoService.class);
+
     private final OrdemDeServicoRepository ordemDeServicoRepository;
     private final OrcamentoRepository orcamentoRepository;
 
@@ -30,13 +34,19 @@ public class FinalizarOrdemDeServicoService implements FinalizarOrdemDeServicoUs
 
     @Override
     public FinalizacaoOrdemDeServico finalizarOrdemDeServico(FinalizarOrdemDeServicoCommand command) {
+        log.info("Iniciando finalizacao de ordem de servico. numeroOrdemServico={}", command.numeroOrdemServico());
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
         Orcamento orcamento = orcamentoRepository.buscarPorOrdemDeServicoId(
-                        ordemDeServico.getId().toString())
+                        ordemDeServico.getId())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Orcamento nao encontrado para a ordem de servico informada."));
         ordemDeServico.finalizar();
         ordemDeServicoRepository.salvar(ordemDeServico);
+        log.info(
+                "Ordem de servico finalizada com sucesso. numeroOrdemServico={}, statusAtual={}, valorTotalOrcamento={}",
+                ordemDeServico.getNumeroOrdemServico(),
+                ordemDeServico.getStatus(),
+                orcamento.getValorTotal());
         return new FinalizacaoOrdemDeServico(
                 ordemDeServico.getNumeroOrdemServico(),
                 new ClienteFinalizacao(

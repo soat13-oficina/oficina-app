@@ -17,7 +17,9 @@ public interface OrcamentoRepository {
 
     Optional<Orcamento> buscarPorNumeroOrcamento(String numeroOrcamento);
 
-    Optional<Orcamento> buscarPorOrdemDeServicoId(String ordemDeServicoId);
+    Optional<Orcamento> buscarPorOrdemDeServicoId(UUID ordemDeServicoId);
+
+    List<Orcamento> buscarPorFiltros(String numeroOrcamento, String cpfCliente, String placaVeiculo);
 
     List<Orcamento> buscarTodos();
 }
