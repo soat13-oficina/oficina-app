@@ -2,6 +2,8 @@ package br.com.oficina.ordemservico.application.service;
 
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -19,6 +21,8 @@ import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 
 @Service
 public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUseCase {
+    private static final Logger log = LoggerFactory.getLogger(CriarNovaOrdemDeServicoService.class);
+
     private final ClienteRepository clienteRepository;
     private final VeiculoRepository veiculoRepository;
     private final FuncionarioRepository funcionarioRepository;
@@ -37,6 +41,10 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
 
     @Override
     public void criarNovaOrdemDeServico(CriarOrdemDeServicoCommand command) {
+        log.info("Iniciando criacao de ordem de servico. clienteId={}, funcionarioId={}, placaVeiculo={}",
+                command.clienteId(),
+                command.funcionarioId(),
+                command.placaVeiculo());
         Cliente cliente = clienteRepository.buscarPorId(paraUuid(command.clienteId(), "Identificador do cliente invalido."))
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado."));
         Veiculo veiculo = veiculoRepository.buscarPorPlaca(command.placaVeiculo())
@@ -57,6 +65,12 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
                 veiculo);
 
         ordemDeServicoRepository.salvar(ordemDeServico);
+        log.info(
+                "Ordem de servico criada com sucesso. numeroOrdemServico={}, clienteId={}, funcionarioId={}, placaVeiculo={}",
+                ordemDeServico.getNumeroOrdemServico(),
+                cliente.getId(),
+                funcionario.getId(),
+                veiculo.getPlaca());
     }
 
     private UUID paraUuid(String valor, String mensagemErro) {

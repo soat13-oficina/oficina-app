@@ -2,6 +2,8 @@ package br.com.oficina.ordemservico.application.service;
 
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -18,6 +20,8 @@ import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 
 @Service
 public class AlterarOrdemDeServicoService implements AlterarOrdemDeServicoUseCase {
+    private static final Logger log = LoggerFactory.getLogger(AlterarOrdemDeServicoService.class);
+
     private final ClienteRepository clienteRepository;
     private final VeiculoRepository veiculoRepository;
     private final FuncionarioRepository funcionarioRepository;
@@ -36,6 +40,12 @@ public class AlterarOrdemDeServicoService implements AlterarOrdemDeServicoUseCas
 
     @Override
     public void alterarOrdemDeServico(AlterarOrdemDeServicoCommand command) {
+        log.info(
+                "Iniciando alteracao de ordem de servico. numeroOrdemServico={}, clienteId={}, funcionarioId={}, placaVeiculo={}",
+                command.numeroOrdemServico(),
+                command.clienteId(),
+                command.funcionarioId(),
+                command.placaVeiculo());
         UUID funcionarioId = paraUuid(command.funcionarioId(), "Identificador do funcionario invalido.");
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
@@ -54,6 +64,12 @@ public class AlterarOrdemDeServicoService implements AlterarOrdemDeServicoUseCas
 
         ordemDeServico.alterar(cliente, veiculo);
         ordemDeServicoRepository.salvar(ordemDeServico);
+        log.info(
+                "Ordem de servico alterada com sucesso. numeroOrdemServico={}, clienteId={}, funcionarioId={}, placaVeiculo={}",
+                ordemDeServico.getNumeroOrdemServico(),
+                cliente.getId(),
+                funcionarioId,
+                veiculo.getPlaca());
     }
 
     private UUID paraUuid(String valor, String mensagemErro) {
