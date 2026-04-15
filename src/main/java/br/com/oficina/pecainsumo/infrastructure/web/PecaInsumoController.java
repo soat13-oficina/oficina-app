@@ -31,6 +31,7 @@ import br.com.oficina.pecainsumo.application.command.AdicionarEstoquePecaCommand
 import br.com.oficina.pecainsumo.application.command.AlterarPecaInsumoCommand;
 import br.com.oficina.pecainsumo.application.command.CadastrarPecaInsumoCommand;
 import br.com.oficina.pecainsumo.application.command.ExcluirPecaInsumoCommand;
+import br.com.oficina.pecainsumo.application.command.ConsumirPecaCommand;
 import br.com.oficina.pecainsumo.application.command.LiberarReservaPecaCommand;
 import br.com.oficina.pecainsumo.application.command.RemoverEstoquePecaCommand;
 import br.com.oficina.pecainsumo.application.command.ReservarPecaCommand;
@@ -38,6 +39,7 @@ import br.com.oficina.pecainsumo.application.query.ListarPecasInsumosQuery;
 import br.com.oficina.pecainsumo.infrastructure.web.request.AdicionarEstoquePecaRequest;
 import br.com.oficina.pecainsumo.infrastructure.web.request.AlterarPecaInsumoRequest;
 import br.com.oficina.pecainsumo.infrastructure.web.request.CadastrarPecaInsumoRequest;
+import br.com.oficina.pecainsumo.infrastructure.web.request.ConsumirPecaRequest;
 import br.com.oficina.pecainsumo.infrastructure.web.request.LiberarReservaPecaRequest;
 import br.com.oficina.pecainsumo.infrastructure.web.request.RemoverEstoquePecaRequest;
 import br.com.oficina.pecainsumo.infrastructure.web.request.ReservarPecaRequest;
@@ -57,6 +59,7 @@ public class PecaInsumoController {
     private final RemoverEstoquePecaUseCase removerEstoquePecaUseCase;
     private final ReservarPecaUseCase reservarPecaUseCase;
     private final LiberarReservaPecaUseCase liberarReservaPecaUseCase;
+    private final ConsumirPecaUseCase consumirPecaUseCase;
 
     public PecaInsumoController(
             AlterarPecaInsumoUseCase alterarPecaInsumoUseCase,
@@ -67,7 +70,8 @@ public class PecaInsumoController {
             AdicionarEstoquePecaUseCase adicionarEstoquePecaUseCase,
             RemoverEstoquePecaUseCase removerEstoquePecaUseCase,
             ReservarPecaUseCase reservarPecaUseCase,
-            LiberarReservaPecaUseCase liberarReservaPecaUseCase) {
+            LiberarReservaPecaUseCase liberarReservaPecaUseCase,
+            ConsumirPecaUseCase consumirPecaUseCase) {
         this.alterarPecaInsumoUseCase = alterarPecaInsumoUseCase;
         this.cadastrarPecaInsumoUseCase = cadastrarPecaInsumoUseCase;
         this.excluirPecaInsumoUseCase = excluirPecaInsumoUseCase;
@@ -77,6 +81,7 @@ public class PecaInsumoController {
         this.removerEstoquePecaUseCase = removerEstoquePecaUseCase;
         this.reservarPecaUseCase = reservarPecaUseCase;
         this.liberarReservaPecaUseCase = liberarReservaPecaUseCase;
+        this.consumirPecaUseCase = consumirPecaUseCase;
     }
 
     @PostMapping
@@ -232,6 +237,21 @@ public class PecaInsumoController {
             @PathVariable String id,
             @Valid @RequestBody LiberarReservaPecaRequest request) {
         liberarReservaPecaUseCase.liberarReserva(new LiberarReservaPecaCommand(id, request.quantidade()));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/consumir")
+    @Operation(summary = "Consumir peça reservada", description = "Consome uma quantidade de peças previamente reservadas, removendo-as definitivamente do estoque.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Peça consumida com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Quantidade inválida ou reserva insuficiente para consumo", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Peça/insumo não encontrada", content = @Content)
+    })
+    public ResponseEntity<Void> consumir(
+            @Parameter(description = "Identificador da peça/insumo", example = "8e221ff7-71b9-4c22-8a8d-f94b6fd897cd")
+            @PathVariable String id,
+            @Valid @RequestBody ConsumirPecaRequest request) {
+        consumirPecaUseCase.consumirPeca(new ConsumirPecaCommand(id, request.quantidade()));
         return ResponseEntity.noContent().build();
     }
 }

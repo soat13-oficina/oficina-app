@@ -521,4 +521,88 @@ class PecaInsumoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
     }
+
+    @Test
+    void deveConsumirPecaReservada() throws Exception {
+        cadastrarPeca("Sensor temperatura CTRL", "Bosch", "95.00", 10, "CTRL_CONS_001", "ELETRICA");
+
+        MvcResult listResult = mockMvc.perform(get("/pecas-insumos")
+                        .param("marca", "Bosch")
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String responseBody = listResult.getResponse().getContentAsString();
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        com.fasterxml.jackson.databind.JsonNode nodes = mapper.readTree(responseBody);
+        String idPeca = null;
+        for (com.fasterxml.jackson.databind.JsonNode node : nodes) {
+            if ("CTRL_CONS_001".equals(node.get("codigoReferencia").asText())) {
+                idPeca = node.get("id").asText();
+                break;
+            }
+        }
+
+        // Primeiro reservar 4 peças
+        mockMvc.perform(post("/pecas-insumos/" + idPeca + "/reservar")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"quantidade\": 4}"))
+                .andExpect(status().isNoContent());
+
+        // Consumir 2 peças reservadas
+        mockMvc.perform(post("/pecas-insumos/" + idPeca + "/consumir")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"quantidade\": 2}"))
+                .andExpect(status().isNoContent());
+
+        // Verificar que estoque e reserva foram decrementados
+        mockMvc.perform(get("/pecas-insumos/" + idPeca)
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quantidadeEstoque").value(8))
+                .andExpect(jsonPath("$.quantidadeReservada").value(2))
+                .andExpect(jsonPath("$.quantidadeDisponivel").value(6));
+    }
+
+    @Test
+    void deveFalharAoConsumirMaisDoQueReservado() throws Exception {
+        cadastrarPeca("Válvula EGR CTRL", "Delphi", "280.00", 8, "CTRL_CONS_002", "ELETRICA");
+
+        MvcResult listResult = mockMvc.perform(get("/pecas-insumos")
+                        .param("marca", "Delphi")
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String responseBody = listResult.getResponse().getContentAsString();
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        com.fasterxml.jackson.databind.JsonNode nodes = mapper.readTree(responseBody);
+        String idPeca = null;
+        for (com.fasterxml.jackson.databind.JsonNode node : nodes) {
+            if ("CTRL_CONS_002".equals(node.get("codigoReferencia").asText())) {
+                idPeca = node.get("id").asText();
+                break;
+            }
+        }
+
+        // Reservar 2 peças
+        mockMvc.perform(post("/pecas-insumos/" + idPeca + "/reservar")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"quantidade\": 2}"))
+                .andExpect(status().isNoContent());
+
+        // Tentar consumir 5 (mais do que reservado) - deve falhar
+        mockMvc.perform(post("/pecas-insumos/" + idPeca + "/consumir")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"quantidade\": 5}"))
+                .andExpect(status().isBadRequest());
+    }
 }
