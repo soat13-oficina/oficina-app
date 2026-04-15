@@ -36,13 +36,16 @@ public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseC
         if (orcamentoRepository.buscarPorNumeroOrcamento(command.numeroOrcamento()).isPresent()) {
             throw new RegraDeNegocioException("Ja existe orcamento cadastrado com o mesmo numero.");
         }
-        Cliente cliente = clienteRepository.buscarPorId(UUID.fromString(command.clienteId()))
+        UUID clienteId = paraUuid(command.clienteId(), "Identificador do cliente invalido.");
+        UUID ordemDeServicoId = paraUuid(command.ordemDeServicoId(), "Identificador da ordem de servico invalido.");
+        UUID funcionarioId = paraUuid(command.funcionarioId(), "Identificador do funcionario invalido.");
+        Cliente cliente = clienteRepository.buscarPorId(clienteId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado."));
         Orcamento orcamento = new Orcamento(
                 command.numeroOrcamento(),
                 cliente.getId(),
-                command.ordemDeServicoId(),
-                command.funcionarioId(),
+                ordemDeServicoId,
+                funcionarioId,
                 cliente.getNome(),
                 cliente.getCpfOuCnpj(),
                 command.placaVeiculo(),
@@ -60,5 +63,13 @@ public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseC
 
         orcamentoRepository.salvar(orcamento);
         log.info("Orcamento cadastrado com sucesso. numeroOrcamento={}", command.numeroOrcamento());
+    }
+
+    private UUID paraUuid(String valor, String mensagemErro) {
+        try {
+            return UUID.fromString(valor);
+        } catch (IllegalArgumentException exception) {
+            throw new RegraDeNegocioException(mensagemErro);
+        }
     }
 }

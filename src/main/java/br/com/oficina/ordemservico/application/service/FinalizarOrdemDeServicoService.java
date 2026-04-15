@@ -38,7 +38,7 @@ public class FinalizarOrdemDeServicoService implements FinalizarOrdemDeServicoUs
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
         Orcamento orcamento = orcamentoRepository.buscarPorOrdemDeServicoId(
-                        ordemDeServico.getId().toString())
+                        ordemDeServico.getId())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Orcamento nao encontrado para a ordem de servico informada."));
         ordemDeServico.finalizar();
         ordemDeServicoRepository.salvar(ordemDeServico);

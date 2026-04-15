@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -49,8 +50,8 @@ class ConsultarOrcamentoServiceTest {
     private Orcamento novoOrcamento(String numeroOrcamento, String clienteNome, String clienteCpf, String placaVeiculo) {
         return new Orcamento(
                 numeroOrcamento,
-                "os-1",
-                "func-1",
+                UUID.fromString("33333333-3333-3333-3333-333333333333"),
+                UUID.fromString("44444444-4444-4444-4444-444444444444"),
                 clienteNome,
                 clienteCpf,
                 placaVeiculo,

@@ -29,17 +29,11 @@ public class ConsultarOrdensDeServicoService implements ConsultarOrdensDeServico
                 query.nomeCliente(),
                 query.placaVeiculo(),
                 query.documentoCliente() != null);
-        List<OrdemDeServico> ordens = ordemDeServicoRepository.buscarTodas().stream()
-                .filter(ordem -> query.numeroOrdemServico() == null
-                        || ordem.getNumeroOrdemServico().equalsIgnoreCase(query.numeroOrdemServico()))
-                .filter(ordem -> query.nomeCliente() == null
-                        || ordem.getCliente().getNome().equalsIgnoreCase(query.nomeCliente()))
-                .filter(ordem -> query.placaVeiculo() == null
-                        || ordem.getVeiculo().getPlaca().equalsIgnoreCase(query.placaVeiculo()))
-                .filter(ordem -> query.documentoCliente() == null
-                        || (ordem.getCliente().getCpfOuCnpj() != null
-                                && ordem.getCliente().getCpfOuCnpj().equals(query.documentoCliente())))
-                .toList();
+        List<OrdemDeServico> ordens = ordemDeServicoRepository.buscarPorFiltros(
+                query.numeroOrdemServico(),
+                query.nomeCliente(),
+                query.placaVeiculo(),
+                query.documentoCliente());
         log.info("Consulta de ordens de servico finalizada. quantidadeOrdensDeServico={}", ordens.size());
         return ordens;
     }

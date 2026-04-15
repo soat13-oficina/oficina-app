@@ -32,10 +32,10 @@ public class Orcamento {
     private UUID clienteId;
 
     @Column(nullable = false)
-    private String ordemDeServicoId;
+    private UUID ordemDeServicoId;
 
     @Column(nullable = false)
-    private String funcionarioId;
+    private UUID funcionarioId;
 
     @Column(nullable = false)
     private String clienteNome;
@@ -96,8 +96,8 @@ public class Orcamento {
 
     public Orcamento(
             String numeroOrcamento,
-            String ordemDeServicoId,
-            String funcionarioId,
+            UUID ordemDeServicoId,
+            UUID funcionarioId,
             String clienteNome,
             String clienteCpf,
             String placaVeiculo,
@@ -136,8 +136,8 @@ public class Orcamento {
     public Orcamento(
             String numeroOrcamento,
             UUID clienteId,
-            String ordemDeServicoId,
-            String funcionarioId,
+            UUID ordemDeServicoId,
+            UUID funcionarioId,
             String clienteNome,
             String clienteCpf,
             String placaVeiculo,
@@ -176,8 +176,8 @@ public class Orcamento {
     public static Orcamento reconstituir(
             UUID id,
             String numeroOrcamento,
-            String ordemDeServicoId,
-            String funcionarioId,
+            UUID ordemDeServicoId,
+            UUID funcionarioId,
             String clienteNome,
             String clienteCpf,
             String placaVeiculo,
@@ -218,8 +218,8 @@ public class Orcamento {
             UUID id,
             String numeroOrcamento,
             UUID clienteId,
-            String ordemDeServicoId,
-            String funcionarioId,
+            UUID ordemDeServicoId,
+            UUID funcionarioId,
             String clienteNome,
             String clienteCpf,
             String placaVeiculo,
@@ -282,11 +282,11 @@ public class Orcamento {
         return clienteId;
     }
 
-    public String getOrdemDeServicoId() {
+    public UUID getOrdemDeServicoId() {
         return ordemDeServicoId;
     }
 
-    public String getFuncionarioId() {
+    public UUID getFuncionarioId() {
         return funcionarioId;
     }
 
@@ -367,8 +367,8 @@ public class Orcamento {
     private void definirDados(
             String numeroOrcamento,
             UUID clienteId,
-            String ordemDeServicoId,
-            String funcionarioId,
+            UUID ordemDeServicoId,
+            UUID funcionarioId,
             String clienteNome,
             String clienteCpf,
             String placaVeiculo,

@@ -39,8 +39,8 @@ class AlterarOrcamentoServiceTest {
         service.alterarOrcamento(new AlterarOrcamentoCommand(
                 "orc-1",
                 clienteAtualizadoId.toString(),
-                "os-2",
-                "func-2",
+                "77777777-7777-7777-7777-777777777777",
+                "88888888-8888-8888-8888-888888888888",
                 "XYZ9Z99",
                 "Honda",
                 "City",
@@ -54,8 +54,8 @@ class AlterarOrcamentoServiceTest {
 
         Orcamento atualizado = repository.buscarPorNumeroOrcamento("orc-1").orElseThrow();
         assertNotNull(atualizado.getId());
-        assertEquals("os-2", atualizado.getOrdemDeServicoId());
-        assertEquals("func-2", atualizado.getFuncionarioId());
+        assertEquals(UUID.fromString("77777777-7777-7777-7777-777777777777"), atualizado.getOrdemDeServicoId());
+        assertEquals(UUID.fromString("88888888-8888-8888-8888-888888888888"), atualizado.getFuncionarioId());
         assertEquals("Maria Souza", atualizado.getClienteNome());
         assertEquals("99999999999", atualizado.getClienteCpf());
         assertEquals(clienteAtualizadoId, atualizado.getClienteId());
@@ -80,8 +80,8 @@ class AlterarOrcamentoServiceTest {
                 () -> service.alterarOrcamento(new AlterarOrcamentoCommand(
                         "orc-404",
                         clienteId.toString(),
-                        "os-1",
-                        "func-1",
+                        "33333333-3333-3333-3333-333333333333",
+                        "44444444-4444-4444-4444-444444444444",
                         "ABC1D23",
                         "Toyota",
                         "Corolla",
@@ -110,8 +110,8 @@ class AlterarOrcamentoServiceTest {
         service.alterarOrcamento(new AlterarOrcamentoCommand(
                 "orc-1",
                 clienteId.toString(),
-                "os-1",
-                "func-1",
+                "33333333-3333-3333-3333-333333333333",
+                "44444444-4444-4444-4444-444444444444",
                 "ABC1D23",
                 "Toyota",
                 "Corolla",
@@ -140,8 +140,8 @@ class AlterarOrcamentoServiceTest {
         service.alterarOrcamento(new AlterarOrcamentoCommand(
                 "orc-1",
                 clienteId.toString(),
-                "os-1",
-                "func-1",
+                "33333333-3333-3333-3333-333333333333",
+                "44444444-4444-4444-4444-444444444444",
                 "ABC1D23",
                 "Toyota",
                 "Corolla",
@@ -160,8 +160,8 @@ class AlterarOrcamentoServiceTest {
         return new Orcamento(
                 "orc-1",
                 UUID.fromString("55555555-5555-5555-5555-555555555555"),
-                "os-1",
-                "func-1",
+                UUID.fromString("33333333-3333-3333-3333-333333333333"),
+                UUID.fromString("44444444-4444-4444-4444-444444444444"),
                 "Joao Silva",
                 "12345678901",
                 "ABC1D23",

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -44,8 +45,8 @@ class ExcluirOrcamentoServiceTest {
     private Orcamento novoOrcamento() {
         return new Orcamento(
                 "orc-1",
-                "os-1",
-                "func-1",
+                UUID.fromString("33333333-3333-3333-3333-333333333333"),
+                UUID.fromString("44444444-4444-4444-4444-444444444444"),
                 "Joao Silva",
                 "12345678901",
                 "ABC1D23",

@@ -66,10 +66,22 @@ public class TestOrcamentoRepository implements OrcamentoRepository {
     }
 
     @Override
-    public Optional<Orcamento> buscarPorOrdemDeServicoId(String ordemDeServicoId) {
+    public Optional<Orcamento> buscarPorOrdemDeServicoId(UUID ordemDeServicoId) {
         return orcamentos.values().stream()
                 .filter(orcamento -> orcamento.getOrdemDeServicoId().equals(ordemDeServicoId))
                 .findFirst();
+    }
+
+    @Override
+    public List<Orcamento> buscarPorFiltros(String numeroOrcamento, String cpfCliente, String placaVeiculo) {
+        return orcamentos.values().stream()
+                .filter(orcamento -> numeroOrcamento == null
+                        || orcamento.getNumeroOrcamento().equalsIgnoreCase(numeroOrcamento))
+                .filter(orcamento -> cpfCliente == null
+                        || orcamento.getClienteCpf().equalsIgnoreCase(cpfCliente))
+                .filter(orcamento -> placaVeiculo == null
+                        || orcamento.getPlacaVeiculo().equalsIgnoreCase(placaVeiculo))
+                .toList();
     }
 
     @Override

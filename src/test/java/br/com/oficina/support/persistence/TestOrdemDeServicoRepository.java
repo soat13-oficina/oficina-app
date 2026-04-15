@@ -34,6 +34,25 @@ public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
     }
 
     @Override
+    public List<OrdemDeServico> buscarPorFiltros(
+            String numeroOrdemServico,
+            String nomeCliente,
+            String placaVeiculo,
+            String documentoCliente) {
+        return ordens.values().stream()
+                .filter(ordem -> numeroOrdemServico == null
+                        || ordem.getNumeroOrdemServico().equalsIgnoreCase(numeroOrdemServico))
+                .filter(ordem -> nomeCliente == null
+                        || ordem.getCliente().getNome().equalsIgnoreCase(nomeCliente))
+                .filter(ordem -> placaVeiculo == null
+                        || ordem.getVeiculo().getPlaca().equalsIgnoreCase(placaVeiculo))
+                .filter(ordem -> documentoCliente == null
+                        || (ordem.getCliente().getCpfOuCnpj() != null
+                                && ordem.getCliente().getCpfOuCnpj().equals(documentoCliente)))
+                .toList();
+    }
+
+    @Override
     public List<OrdemDeServico> buscarTodas() {
         return ordens.values().stream().toList();
     }
