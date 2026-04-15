@@ -52,7 +52,7 @@ public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseC
                 command.servicosPropostos(),
                 command.pecasPrevistas(),
                 command.valorMaoDeObra(),
-                command.valorPecas(),
+                command.desconto(),
                 LocalDateTime.now(),
                 command.validade(),
                 command.observacoes(),

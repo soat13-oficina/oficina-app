@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.orcamento.domain.model.Orcamento;
+import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 
 class OrcamentoResponseTest {
 
@@ -28,9 +29,9 @@ class OrcamentoResponseTest {
                 "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
-                List.of("Pastilha dianteira"),
+                List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
                 new BigDecimal("150.00"),
-                new BigDecimal("250.00"),
+                BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 1, 10, 0),
                 LocalDateTime.of(2030, 1, 10, 10, 0),
                 "Prioridade alta",

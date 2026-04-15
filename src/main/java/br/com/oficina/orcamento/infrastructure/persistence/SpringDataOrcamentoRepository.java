@@ -9,5 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface SpringDataOrcamentoRepository extends JpaRepository<Orcamento, UUID> {
     Optional<Orcamento> findByNumeroOrcamento(String numeroOrcamento);
 
+    Optional<Orcamento> findByOrdemDeServicoId(String ordemDeServicoId);
+
     void deleteByNumeroOrcamento(String numeroOrcamento);
 }

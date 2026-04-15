@@ -62,8 +62,7 @@ public class Orcamento {
 
     @ElementCollection
     @CollectionTable(name = "orcamento_pecas_previstas", joinColumns = @JoinColumn(name = "orcamento_id"))
-    @Column(name = "peca", nullable = false)
-    private List<String> pecasPrevistas = new ArrayList<>();
+    private List<PecaOrcamento> pecasPrevistas = new ArrayList<>();
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal valorMaoDeObra;
@@ -82,6 +81,9 @@ public class Orcamento {
 
     @Column(length = 4000)
     private String observacoes;
+
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal desconto;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -103,9 +105,9 @@ public class Orcamento {
             String modeloVeiculo,
             String descricaoDiagnostico,
             List<String> servicosPropostos,
-            List<String> pecasPrevistas,
+            List<PecaOrcamento> pecasPrevistas,
             BigDecimal valorMaoDeObra,
-            BigDecimal valorPecas,
+            BigDecimal desconto,
             LocalDateTime criadoEm,
             LocalDateTime validade,
             String observacoes,
@@ -124,7 +126,7 @@ public class Orcamento {
                 servicosPropostos,
                 pecasPrevistas,
                 valorMaoDeObra,
-                valorPecas,
+                desconto,
                 criadoEm,
                 validade,
                 observacoes,
@@ -143,9 +145,9 @@ public class Orcamento {
             String modeloVeiculo,
             String descricaoDiagnostico,
             List<String> servicosPropostos,
-            List<String> pecasPrevistas,
+            List<PecaOrcamento> pecasPrevistas,
             BigDecimal valorMaoDeObra,
-            BigDecimal valorPecas,
+            BigDecimal desconto,
             LocalDateTime criadoEm,
             LocalDateTime validade,
             String observacoes,
@@ -164,7 +166,7 @@ public class Orcamento {
                 servicosPropostos,
                 pecasPrevistas,
                 valorMaoDeObra,
-                valorPecas,
+                desconto,
                 criadoEm,
                 validade,
                 observacoes,
@@ -183,9 +185,9 @@ public class Orcamento {
             String modeloVeiculo,
             String descricaoDiagnostico,
             List<String> servicosPropostos,
-            List<String> pecasPrevistas,
+            List<PecaOrcamento> pecasPrevistas,
             BigDecimal valorMaoDeObra,
-            BigDecimal valorPecas,
+            BigDecimal desconto,
             LocalDateTime criadoEm,
             LocalDateTime validade,
             String observacoes,
@@ -205,7 +207,7 @@ public class Orcamento {
                 servicosPropostos,
                 pecasPrevistas,
                 valorMaoDeObra,
-                valorPecas,
+                desconto,
                 criadoEm,
                 validade,
                 observacoes,
@@ -225,9 +227,9 @@ public class Orcamento {
             String modeloVeiculo,
             String descricaoDiagnostico,
             List<String> servicosPropostos,
-            List<String> pecasPrevistas,
+            List<PecaOrcamento> pecasPrevistas,
             BigDecimal valorMaoDeObra,
-            BigDecimal valorPecas,
+            BigDecimal desconto,
             LocalDateTime criadoEm,
             LocalDateTime validade,
             String observacoes,
@@ -246,7 +248,7 @@ public class Orcamento {
                 servicosPropostos,
                 pecasPrevistas,
                 valorMaoDeObra,
-                valorPecas,
+                desconto,
                 criadoEm,
                 validade,
                 observacoes,
@@ -317,6 +319,12 @@ public class Orcamento {
     }
 
     public List<String> getPecasPrevistas() {
+        return pecasPrevistas.stream()
+                .map(PecaOrcamento::getDescricao)
+                .toList();
+    }
+
+    public List<PecaOrcamento> getPecasOrcamento() {
         return List.copyOf(pecasPrevistas);
     }
 
@@ -330,6 +338,10 @@ public class Orcamento {
 
     public BigDecimal getValorTotal() {
         return valorTotal;
+    }
+
+    public BigDecimal getDesconto() {
+        return desconto;
     }
 
     public LocalDateTime getCriadoEm() {
@@ -364,9 +376,9 @@ public class Orcamento {
             String modeloVeiculo,
             String descricaoDiagnostico,
             List<String> servicosPropostos,
-            List<String> pecasPrevistas,
+            List<PecaOrcamento> pecasPrevistas,
             BigDecimal valorMaoDeObra,
-            BigDecimal valorPecas,
+            BigDecimal desconto,
             LocalDateTime criadoEm,
             LocalDateTime validade,
             String observacoes,
@@ -384,8 +396,11 @@ public class Orcamento {
         this.servicosPropostos = new ArrayList<>(servicosPropostos);
         this.pecasPrevistas = new ArrayList<>(pecasPrevistas);
         this.valorMaoDeObra = valorMaoDeObra;
-        this.valorPecas = valorPecas;
-        this.valorTotal = valorMaoDeObra.add(valorPecas);
+        this.valorPecas = pecasPrevistas.stream()
+                .map(PecaOrcamento::getPreco)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        this.desconto = desconto == null ? BigDecimal.ZERO : desconto;
+        this.valorTotal = valorMaoDeObra.add(this.valorPecas).subtract(this.desconto);
         this.criadoEm = criadoEm;
         this.validade = validade;
         this.observacoes = observacoes;

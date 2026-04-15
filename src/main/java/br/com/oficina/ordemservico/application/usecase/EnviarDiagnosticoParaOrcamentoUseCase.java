@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import br.com.oficina.orcamento.domain.model.PecaOrcamento;
+
 public interface EnviarDiagnosticoParaOrcamentoUseCase {
     void enviarDiagnosticoParaOrcamento(EnviarDiagnosticoParaOrcamentoRequest request);
 
@@ -11,9 +13,9 @@ public interface EnviarDiagnosticoParaOrcamentoUseCase {
             String numeroOrdemServico,
             String descricaoDiagnostico,
             List<String> servicosPropostos,
-            List<String> pecasPrevistas,
+            List<PecaOrcamento> pecasPrevistas,
             BigDecimal valorMaoDeObra,
-            BigDecimal valorPecas,
+            BigDecimal desconto,
             LocalDateTime validade,
             String observacoes) {
     }

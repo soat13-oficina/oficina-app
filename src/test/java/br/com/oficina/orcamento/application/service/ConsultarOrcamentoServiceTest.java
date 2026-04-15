@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.orcamento.application.query.ConsultarOrcamentoQuery;
 import br.com.oficina.orcamento.domain.model.Orcamento;
+import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
 
 class ConsultarOrcamentoServiceTest {
@@ -57,9 +58,9 @@ class ConsultarOrcamentoServiceTest {
                 "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
-                List.of("Pastilha dianteira"),
+                List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
                 new BigDecimal("150.00"),
-                new BigDecimal("250.00"),
+                BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 1, 10, 0),
                 LocalDateTime.of(2030, 1, 10, 10, 0),
                 "Prioridade alta",

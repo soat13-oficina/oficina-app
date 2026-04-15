@@ -16,6 +16,7 @@ import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
 import br.com.oficina.orcamento.domain.model.Orcamento;
+import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import br.com.oficina.support.persistence.TestClienteRepository;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
@@ -45,9 +46,9 @@ class AlterarOrcamentoServiceTest {
                 "City",
                 "Revisao de freios",
                 List.of("Revisao freios"),
-                List.of("Fluido de freio"),
+                List.of(new PecaOrcamento("Fluido de freio", new BigDecimal("100.00"))),
                 new BigDecimal("200.00"),
-                new BigDecimal("100.00"),
+                BigDecimal.ZERO,
                 LocalDateTime.of(2031, 1, 10, 10, 0),
                 "Aprovacao imediata"));
 
@@ -86,9 +87,9 @@ class AlterarOrcamentoServiceTest {
                         "Corolla",
                         "Troca de pastilhas",
                         List.of("Troca de pastilhas"),
-                        List.of("Pastilha dianteira"),
+                        List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
                         new BigDecimal("150.00"),
-                        new BigDecimal("250.00"),
+                        BigDecimal.ZERO,
                         LocalDateTime.of(2030, 1, 10, 10, 0),
                         "Prioridade alta")));
 
@@ -116,9 +117,9 @@ class AlterarOrcamentoServiceTest {
                 "Corolla",
                 "Diagnostico aprovado",
                 List.of("Servico"),
-                List.of("Peca"),
+                List.of(new PecaOrcamento("Peca", new BigDecimal("50.00"))),
                 new BigDecimal("100.00"),
-                new BigDecimal("50.00"),
+                BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 10, 10, 0),
                 "Observacao"));
 
@@ -146,9 +147,9 @@ class AlterarOrcamentoServiceTest {
                 "Corolla",
                 "Diagnostico rejeitado",
                 List.of("Servico"),
-                List.of("Peca"),
+                List.of(new PecaOrcamento("Peca", new BigDecimal("50.00"))),
                 new BigDecimal("100.00"),
-                new BigDecimal("50.00"),
+                BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 10, 10, 0),
                 "Observacao"));
 
@@ -168,9 +169,9 @@ class AlterarOrcamentoServiceTest {
                 "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
-                List.of("Pastilha dianteira"),
+                List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
                 new BigDecimal("150.00"),
-                new BigDecimal("250.00"),
+                BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 1, 10, 0),
                 LocalDateTime.of(2030, 1, 10, 10, 0),
                 "Prioridade alta",

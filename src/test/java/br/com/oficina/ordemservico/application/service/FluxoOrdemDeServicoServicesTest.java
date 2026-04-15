@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
+import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.application.service.CadastrarNovoOrcamentoService;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
@@ -37,6 +38,7 @@ class FluxoOrdemDeServicoServicesTest {
         UUID clienteId = UUID.fromString("61111111-1111-1111-1111-111111111111");
         TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
         TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
         repository.salvar(novaOrdem("OS-001"));
 
@@ -44,17 +46,18 @@ class FluxoOrdemDeServicoServicesTest {
         new ConcluirDiagnosticoService(repository).concluirDiagnostico(new ConcluirDiagnosticoCommand("OS-001"));
         new EnviarDiagnosticoParaOrcamentoService(
                 repository,
-                new CadastrarNovoOrcamentoService(new TestOrcamentoRepository(), clienteRepository))
+                new CadastrarNovoOrcamentoService(orcamentoRepository, clienteRepository))
                 .enviarDiagnosticoParaOrcamento(new EnviarDiagnosticoParaOrcamentoRequest(
                         "OS-001",
                         "Diagnostico completo do veiculo",
                         List.of("Troca de oleo"),
-                        List.of("Oleo 5W30"),
+                        List.of(new PecaOrcamento("Oleo 5W30", new BigDecimal("150.00"))),
                         new BigDecimal("200.00"),
-                        new BigDecimal("150.00"),
+                        BigDecimal.ZERO,
                         LocalDateTime.of(2030, 1, 1, 0, 0),
                         null));
-        new FinalizarOrdemDeServicoService(repository).finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand("OS-001"));
+        new FinalizarOrdemDeServicoService(repository, orcamentoRepository)
+                .finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand("OS-001"));
 
         OrdemDeServico ordemAtualizada = repository.buscarPorNumero("OS-001").orElseThrow();
         assertEquals(StatusOrdemDeServico.OS_FINALIZADA, ordemAtualizada.getStatus());
