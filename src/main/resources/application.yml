@@ -10,7 +10,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
     show-sql: true
     defer-datasource-initialization: false
     properties:
@@ -19,6 +19,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   flyway:
+    enabled: true
     baseline-on-migrate: true
     baseline-version: 0
 
