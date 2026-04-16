@@ -11,7 +11,7 @@ public class PecaInsumo {
     private final int quantidadeEstoque;
     private final int quantidadeReservada;
     private final String codigoReferencia;
-    private final String categoria;
+    private final CategoriaPeca categoria;
 
     public PecaInsumo(
             String id,
@@ -21,7 +21,7 @@ public class PecaInsumo {
             int quantidadeEstoque,
             int quantidadeReservada,
             String codigoReferencia,
-            String categoria) {
+            CategoriaPeca categoria) {
         this.id = id;
         this.descricao = descricao;
         this.marca = marca;
@@ -38,7 +38,7 @@ public class PecaInsumo {
             BigDecimal preco,
             int quantidadeEstoque,
             String codigoReferencia,
-            String categoria) {
+            CategoriaPeca categoria) {
         this(UUID.randomUUID().toString(), descricao, marca, preco, quantidadeEstoque, 0, codigoReferencia, categoria);
     }
 
@@ -74,7 +74,7 @@ public class PecaInsumo {
         return codigoReferencia;
     }
 
-    public String getCategoria() {
+    public CategoriaPeca getCategoria() {
         return categoria;
     }
 }

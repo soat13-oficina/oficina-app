@@ -1,7 +1,9 @@
 package br.com.oficina.pecainsumo.application.query;
 
+import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
+
 public record ListarPecasInsumosQuery(
         String marca,
-        String categoria,
+        CategoriaPeca categoria,
         Boolean possuiReserva) {
 }
