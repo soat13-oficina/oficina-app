@@ -144,12 +144,14 @@ flowchart TD
         REM["POST /remover-estoque\nRemoverEstoquePecaService"]
         RES["POST /reservar\nReservarPecaService"]
         LIB["POST /liberar-reserva\nLiberarReservaPecaService"]
+        CON["POST /consumir\nConsumirPecaService"]
     end
 
     ADD -->|incrementa estoque| PECA
     REM -->|decrementa estoque| PECA
     RES -->|incrementa reservada| PECA
     LIB -->|decrementa reservada| PECA
+    CON -->|decrementa estoque e reservada| PECA
 ```
 
 ---

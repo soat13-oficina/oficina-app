@@ -94,8 +94,11 @@ flowchart TD
         H3 --> H4["POST .../reservar\n{quantidade: 3}"]
         H4 --> H5["GET /pecas-insumos/{id}"]
         H5 --> H6{"quantidadeDisponivel\n= estoque - reservada\n= 10 - 3 = 7?"}
-        H6 -->|Sim| H7["POST .../liberar-reserva\n{quantidade: 3}"]
-        H7 --> H8["POST .../remover-estoque\n{quantidade: 5}"]
+        H6 -->|Sim| H7["POST .../liberar-reserva\n{quantidade: 1}"]
+        H7 --> H7B["POST .../consumir\n{quantidade: 2}"]
+        H7B --> H7C["GET /pecas-insumos/{id}"]
+        H7C --> H7D{"estoque = 8\nreservada = 0\ndisponivel = 8?"}
+        H7D -->|Sim| H8["POST .../remover-estoque\n{quantidade: 3}"]
         H8 --> H9{quantidadeDisponivel = 5?}
         H9 -->|Sim| H10([Estoque OK])
     end

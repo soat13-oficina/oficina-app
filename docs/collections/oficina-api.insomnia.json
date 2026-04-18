@@ -574,6 +574,22 @@
         { "name": "Content-Type", "value": "application/json" },
         { "name": "Authorization", "value": "Bearer {{ _.token }}" }
       ]
+    },
+    {
+      "_id": "req_peca_consumir",
+      "_type": "request",
+      "parentId": "fld_pecas",
+      "name": "Consumir peça reservada",
+      "method": "POST",
+      "url": "{{ _.base_url }}/pecas-insumos/{{ _.peca_id }}/consumir",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"quantidade\": 1\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
     }
   ]
 }
