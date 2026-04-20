@@ -122,6 +122,31 @@ O relatório HTML é gerado em `target/site/jacoco/index.html`.
 
 ---
 
+## Scan de Vulnerabilidades e Qualidade (SonarQube)
+
+O projeto está configurado para consolidar a cobertura de testes do JaCoCo e inspecionar a qualidade do código (code smells, bugs e vulnerabilidades) via **SonarQube**.
+
+**Como executar a varredura:**
+
+1. Certifique-se de que possui um servidor SonarQube rodando. Caso não possua, você pode subir um localmente usando Docker:
+   ```bash
+   docker run -d --name sonarqube -p 9000:9000 sonarqube:latest
+   ```
+
+2. Execute o build junto com os testes para que os relatórios do XML de cobertura do JaCoCo sejam criados (localizados na pasta do `target`):
+   ```bash
+   ./mvnw clean verify
+   ```
+
+3. Dispare a execução do *Sonar Scanner* passando a URL e as credenciais do seu servidor. **Atenção:** Se estiver usando o **PowerShell** no Windows, coloque os parâmetros com `-D` entre aspas para evitar erros de leitura, como no exemplo abaixo:
+   ```bash
+   ./mvnw sonar:sonar "-Dsonar.host.url=http://localhost:9000" "-Dsonar.token=SEU_TOKEN" "-Dsonar.projectKey=oficina"
+   ```
+
+Acesse o painel do seu SonarQube na URL do host para visualizar o nível de cobertura, a aba de "Security" e demais métricas de vulnerabilidade do projeto.
+
+---
+
 ## Autenticação JWT
 
 Todas as rotas exceto `/api/auth/register` e `/api/auth/login` exigem o header:
