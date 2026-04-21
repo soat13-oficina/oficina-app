@@ -17,7 +17,7 @@ class PecaInsumoTest {
                 new BigDecimal("39.90"),
                 10,
                 "FO-123",
-                "Lubrificacao");
+                CategoriaPeca.FILTROS);
 
         assertNotNull(peca.getId());
         assertEquals("Filtro de oleo", peca.getDescricao());
@@ -27,7 +27,7 @@ class PecaInsumoTest {
         assertEquals(0, peca.getQuantidadeReservada());
         assertEquals(10, peca.getQuantidadeDisponivel());
         assertEquals("FO-123", peca.getCodigoReferencia());
-        assertEquals("Lubrificacao", peca.getCategoria());
+        assertEquals(CategoriaPeca.FILTROS, peca.getCategoria());
     }
 
     @Test
@@ -40,7 +40,7 @@ class PecaInsumoTest {
                 12,
                 5,
                 "PF-987",
-                "Freio");
+                CategoriaPeca.FILTROS);
 
         assertEquals("peca-001", peca.getId());
         assertEquals(7, peca.getQuantidadeDisponivel());
