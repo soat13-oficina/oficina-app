@@ -40,7 +40,7 @@ class PecaInsumoTest {
                 12,
                 5,
                 "PF-987",
-                CategoriaPeca.FILTROS);
+                CategoriaPeca.FREIOS);
 
         assertEquals("peca-001", peca.getId());
         assertEquals(7, peca.getQuantidadeDisponivel());
