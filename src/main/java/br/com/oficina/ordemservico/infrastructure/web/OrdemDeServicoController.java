@@ -254,7 +254,7 @@ public class OrdemDeServicoController {
                         numeroOrdemServico,
                         request.descricaoDiagnostico(),
                         request.servicosPropostos(),
-                        request.toPecasOrcamento(),
+                        request.toPecasInput(),
                         request.valorMaoDeObra(),
                         request.desconto(),
                         request.validade(),

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.domain.model.Orcamento;
+import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
 import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase.FinalizacaoOrdemDeServico;
@@ -17,6 +18,8 @@ import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUs
 import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
+import br.com.oficina.pecainsumo.application.command.ConsumirPecaCommand;
+import br.com.oficina.pecainsumo.application.usecase.ConsumirPecaUseCase;
 
 @Service
 public class FinalizarOrdemDeServicoService implements FinalizarOrdemDeServicoUseCase {
@@ -24,12 +27,15 @@ public class FinalizarOrdemDeServicoService implements FinalizarOrdemDeServicoUs
 
     private final OrdemDeServicoRepository ordemDeServicoRepository;
     private final OrcamentoRepository orcamentoRepository;
+    private final ConsumirPecaUseCase consumirPecaUseCase;
 
     public FinalizarOrdemDeServicoService(
             OrdemDeServicoRepository ordemDeServicoRepository,
-            OrcamentoRepository orcamentoRepository) {
+            OrcamentoRepository orcamentoRepository,
+            ConsumirPecaUseCase consumirPecaUseCase) {
         this.ordemDeServicoRepository = ordemDeServicoRepository;
         this.orcamentoRepository = orcamentoRepository;
+        this.consumirPecaUseCase = consumirPecaUseCase;
     }
 
     @Override
@@ -40,13 +46,22 @@ public class FinalizarOrdemDeServicoService implements FinalizarOrdemDeServicoUs
         Orcamento orcamento = orcamentoRepository.buscarPorOrdemDeServicoId(
                         ordemDeServico.getId())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Orcamento nao encontrado para a ordem de servico informada."));
+
+        // Consumir peças do estoque (baixa definitiva)
+        for (PecaOrcamento peca : orcamento.getPecasOrcamento()) {
+            consumirPecaUseCase.consumirPeca(
+                    new ConsumirPecaCommand(peca.getPecaInsumoId(), peca.getQuantidade()));
+            log.debug("Peca consumida do estoque. pecaInsumoId={}, quantidade={}", peca.getPecaInsumoId(), peca.getQuantidade());
+        }
+
         ordemDeServico.finalizar();
         ordemDeServicoRepository.salvar(ordemDeServico);
         log.info(
-                "Ordem de servico finalizada com sucesso. numeroOrdemServico={}, statusAtual={}, valorTotalOrcamento={}",
+                "Ordem de servico finalizada com sucesso. numeroOrdemServico={}, statusAtual={}, valorTotalOrcamento={}, pecasConsumidas={}",
                 ordemDeServico.getNumeroOrdemServico(),
                 ordemDeServico.getStatus(),
-                orcamento.getValorTotal());
+                orcamento.getValorTotal(),
+                orcamento.getPecasOrcamento().size());
         return new FinalizacaoOrdemDeServico(
                 ordemDeServico.getNumeroOrdemServico(),
                 new ClienteFinalizacao(
@@ -64,7 +79,7 @@ public class FinalizarOrdemDeServicoService implements FinalizarOrdemDeServicoUs
                         : String.join(", ", orcamento.getServicosPropostos()),
                 orcamento.getValorMaoDeObra(),
                 orcamento.getPecasOrcamento().stream()
-                        .map(peca -> new PecaFinalizacao(peca.getDescricao(), peca.getPreco()))
+                        .map(peca -> new PecaFinalizacao(peca.getPecaInsumoId(), peca.getDescricao(), peca.getPreco(), peca.getQuantidade()))
                         .toList(),
                 orcamento.getValorTotal(),
                 orcamento.getDesconto());

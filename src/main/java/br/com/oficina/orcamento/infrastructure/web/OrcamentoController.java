@@ -28,13 +28,17 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
+import br.com.oficina.orcamento.application.command.AprovarOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.ExcluirOrcamentoCommand;
+import br.com.oficina.orcamento.application.command.RejeitarOrcamentoCommand;
 import br.com.oficina.orcamento.application.query.ConsultarOrcamentoQuery;
 import br.com.oficina.orcamento.application.usecase.AlterarOrcamentoUseCase;
+import br.com.oficina.orcamento.application.usecase.AprovarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ConsultarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ExcluirOrcamentoUseCase;
+import br.com.oficina.orcamento.application.usecase.RejeitarOrcamentoUseCase;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.infrastructure.web.request.AlterarOrcamentoRequest;
@@ -43,7 +47,7 @@ import br.com.oficina.orcamento.infrastructure.web.response.OrcamentoResponse;
 
 @RestController
 @RequestMapping("/orcamentos")
-@Tag(name = "Orcamentos", description = "Operações de cadastro, consulta, alteração e exclusão de orçamentos")
+@Tag(name = "Orcamentos", description = "Operações de cadastro, consulta, alteração, aprovação, rejeição e exclusão de orçamentos")
 @SecurityRequirement(name = "bearerAuth")
 public class OrcamentoController {
     private static final Logger log = LoggerFactory.getLogger(OrcamentoController.class);
@@ -52,26 +56,32 @@ public class OrcamentoController {
     private final ConsultarOrcamentoUseCase consultarOrcamentoUseCase;
     private final AlterarOrcamentoUseCase alterarOrcamentoUseCase;
     private final ExcluirOrcamentoUseCase excluirOrcamentoUseCase;
+    private final AprovarOrcamentoUseCase aprovarOrcamentoUseCase;
+    private final RejeitarOrcamentoUseCase rejeitarOrcamentoUseCase;
 
     public OrcamentoController(
             CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase,
             ConsultarOrcamentoUseCase consultarOrcamentoUseCase,
             AlterarOrcamentoUseCase alterarOrcamentoUseCase,
-            ExcluirOrcamentoUseCase excluirOrcamentoUseCase) {
+            ExcluirOrcamentoUseCase excluirOrcamentoUseCase,
+            AprovarOrcamentoUseCase aprovarOrcamentoUseCase,
+            RejeitarOrcamentoUseCase rejeitarOrcamentoUseCase) {
         this.cadastrarNovoOrcamentoUseCase = cadastrarNovoOrcamentoUseCase;
         this.consultarOrcamentoUseCase = consultarOrcamentoUseCase;
         this.alterarOrcamentoUseCase = alterarOrcamentoUseCase;
         this.excluirOrcamentoUseCase = excluirOrcamentoUseCase;
+        this.aprovarOrcamentoUseCase = aprovarOrcamentoUseCase;
+        this.rejeitarOrcamentoUseCase = rejeitarOrcamentoUseCase;
     }
 
     @PostMapping
     @Operation(
             summary = "Cadastrar orçamento",
-            description = "Cria um novo orçamento vinculado a um cliente existente. O número do orçamento deve ser único.")
+            description = "Cria um novo orçamento vinculado a um cliente existente. As peças previstas devem referenciar peças/insumos cadastrados no sistema.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Orçamento cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
+            @ApiResponse(responseCode = "404", description = "Cliente ou peça/insumo não encontrado", content = @Content)
     })
     public ResponseEntity<Void> cadastrar(@RequestBody CadastrarOrcamentoRequest request) {
         log.info("Recebida requisicao de cadastro de orcamento. numeroOrcamento={}, clienteId={}, ordemDeServicoId={}",
@@ -86,7 +96,7 @@ public class OrcamentoController {
                 request.modeloVeiculo(),
                 request.descricaoDiagnostico(),
                 request.servicosPropostos(),
-                request.toPecasOrcamento(),
+                request.toPecasInput(),
                 request.valorMaoDeObra(),
                 request.desconto(),
                 request.validade(),
@@ -151,7 +161,7 @@ public class OrcamentoController {
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Orçamento alterado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados inválidos para alteração", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Orçamento ou cliente não encontrado", content = @Content)
+            @ApiResponse(responseCode = "404", description = "Orçamento, cliente ou peça/insumo não encontrado", content = @Content)
     })
     public ResponseEntity<Void> alterar(
             @PathVariable String orcamentoId,
@@ -168,12 +178,46 @@ public class OrcamentoController {
                 request.modeloVeiculo(),
                 request.descricaoDiagnostico(),
                 request.servicosPropostos(),
-                request.toPecasOrcamento(),
+                request.toPecasInput(),
                 request.valorMaoDeObra(),
                 request.desconto(),
                 request.validade(),
                 request.observacoes()));
         log.info("Requisicao de alteracao de orcamento concluida. numeroOrcamento={}", orcamentoId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{orcamentoId}/aprovacao")
+    @Operation(
+            summary = "Aprovar orçamento",
+            description = "Aprova um orçamento aguardando aprovação. As peças previstas são reservadas automaticamente no estoque. Se alguma peça não tiver estoque suficiente, a resposta indicará status AGUARDANDO_PECA.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Orçamento aprovado com sucesso e peças reservadas",
+                    content = @Content(schema = @Schema(implementation = OrcamentoResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Status inválido para aprovação ou estoque insuficiente", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Orçamento não encontrado", content = @Content)
+    })
+    public ResponseEntity<OrcamentoResponse> aprovar(@PathVariable String orcamentoId) {
+        log.info("Recebida requisicao de aprovacao de orcamento. numeroOrcamento={}", orcamentoId);
+        OrcamentoResponse response = OrcamentoResponse.from(
+                aprovarOrcamentoUseCase.aprovarOrcamento(new AprovarOrcamentoCommand(orcamentoId)));
+        log.info("Requisicao de aprovacao de orcamento concluida. numeroOrcamento={}, status={}", orcamentoId, response.status());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{orcamentoId}/rejeicao")
+    @Operation(
+            summary = "Rejeitar orçamento",
+            description = "Rejeita um orçamento aguardando aprovação. Nenhuma reserva de estoque é afetada.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Orçamento rejeitado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Status inválido para rejeição", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Orçamento não encontrado", content = @Content)
+    })
+    public ResponseEntity<Void> rejeitar(@PathVariable String orcamentoId) {
+        log.info("Recebida requisicao de rejeicao de orcamento. numeroOrcamento={}", orcamentoId);
+        rejeitarOrcamentoUseCase.rejeitarOrcamento(new RejeitarOrcamentoCommand(orcamentoId));
+        log.info("Requisicao de rejeicao de orcamento concluida. numeroOrcamento={}", orcamentoId);
         return ResponseEntity.noContent().build();
     }
 
