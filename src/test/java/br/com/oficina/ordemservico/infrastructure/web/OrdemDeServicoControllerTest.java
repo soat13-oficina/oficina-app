@@ -33,6 +33,10 @@ import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataFuncionarioRepository;
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataOrdemDeServicoRepository;
+import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
+import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
+import br.com.oficina.pecainsumo.infrastructure.persistence.PecaInsumoJpaEntity;
+import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataPecaInsumoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
@@ -68,15 +72,19 @@ class OrdemDeServicoControllerTest {
     @Autowired
     private SpringDataOrcamentoRepository springDataOrcamentoRepository;
 
+    @Autowired
+    private SpringDataPecaInsumoRepository springDataPecaInsumoRepository;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        springDataOrcamentoRepository.deleteAll();
         springDataOrdemDeServicoRepository.deleteAll();
         springDataVeiculoRepository.deleteAll();
         springDataClienteRepository.deleteAll();
         springDataFuncionarioRepository.deleteAll();
-        springDataOrcamentoRepository.deleteAll();
+        springDataPecaInsumoRepository.deleteAll();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
@@ -359,6 +367,12 @@ class OrdemDeServicoControllerTest {
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
                 "JKL4M56", "Jeep", "Renegade", "Stellantis", 2024, 185, "AUTOMATICO", TipoCombustivel.DIESEL));
+
+        // Create a PecaInsumo in the database with reserved stock (simulating prior reservation from approval)
+        String pecaId = "filtro-oleo-001";
+        PecaInsumo pecaInsumo = new PecaInsumo(pecaId, "Filtro de oleo", "Bosch", new java.math.BigDecimal("80.00"), 10, 1, "REF-FILTRO", CategoriaPeca.FILTROS);
+        springDataPecaInsumoRepository.save(PecaInsumoJpaEntity.fromDomain(pecaInsumo));
+
         OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
                 null,
                 "os-finalizar-1",
@@ -381,7 +395,7 @@ class OrdemDeServicoControllerTest {
                 "Renegade",
                 "Troca de oleo",
                 java.util.List.of("Troca de oleo"),
-                java.util.List.of(new PecaOrcamento("Filtro de oleo", new java.math.BigDecimal("80.00"))),
+                java.util.List.of(new PecaOrcamento(pecaId, "Filtro de oleo", new java.math.BigDecimal("80.00"), 1)),
                 new java.math.BigDecimal("200.00"),
                 java.math.BigDecimal.ZERO,
                 java.time.LocalDateTime.of(2030, 1, 1, 10, 0),

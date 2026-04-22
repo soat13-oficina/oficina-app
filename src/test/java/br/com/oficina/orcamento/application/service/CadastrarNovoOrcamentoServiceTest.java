@@ -16,20 +16,29 @@ import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
+import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
+import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
+import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
+import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import br.com.oficina.support.persistence.TestClienteRepository;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
+import br.com.oficina.support.persistence.TestPecaInsumoRepository;
 
 class CadastrarNovoOrcamentoServiceTest {
+
+    private static final String PECA_ID = "peca-001";
 
     @Test
     void deveCadastrarNovoOrcamento() {
         TestOrcamentoRepository repository = new TestOrcamentoRepository();
         TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("44444444-4444-4444-4444-444444444444");
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
-        CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(repository, clienteRepository);
+        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
+        CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(repository, clienteRepository, pecaInsumoRepository);
 
         service.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
                 "orc-1",
@@ -41,7 +50,7 @@ class CadastrarNovoOrcamentoServiceTest {
                 "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
-                List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
+                List.of(new PecaOrcamentoInput(PECA_ID, 1)),
                 new BigDecimal("150.00"),
                 BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 10, 10, 0),
@@ -58,9 +67,11 @@ class CadastrarNovoOrcamentoServiceTest {
     void deveFalharQuandoNumeroOrcamentoJaExiste() {
         TestOrcamentoRepository repository = new TestOrcamentoRepository();
         TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("44444444-4444-4444-4444-444444444444");
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
-        repository.salvar(new br.com.oficina.orcamento.domain.model.Orcamento(
+        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
+        repository.salvar(new Orcamento(
                 "orc-1",
                 clienteId,
                 UUID.fromString("33333333-3333-3333-3333-333333333333"),
@@ -72,14 +83,14 @@ class CadastrarNovoOrcamentoServiceTest {
                 "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
-                List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
+                List.of(new PecaOrcamento(PECA_ID, "Pastilha dianteira", new BigDecimal("250.00"), 1)),
                 new BigDecimal("150.00"),
                 BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 1, 10, 0),
                 LocalDateTime.of(2030, 1, 10, 10, 0),
                 "Prioridade alta",
                 StatusOrcamento.AGUARDANDO_APROVACAO));
-        CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(repository, clienteRepository);
+        CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(repository, clienteRepository, pecaInsumoRepository);
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
@@ -93,7 +104,7 @@ class CadastrarNovoOrcamentoServiceTest {
                         "City",
                         "Revisao",
                         List.of("Revisao"),
-                        List.of(new PecaOrcamento("Fluido", new BigDecimal("50.00"))),
+                        List.of(new PecaOrcamentoInput(PECA_ID, 1)),
                         new BigDecimal("100.00"),
                         BigDecimal.ZERO,
                         LocalDateTime.of(2030, 2, 1, 10, 0),
@@ -104,9 +115,12 @@ class CadastrarNovoOrcamentoServiceTest {
 
     @Test
     void deveFalharQuandoClienteNaoExiste() {
+        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
+        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
         CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(
                 new TestOrcamentoRepository(),
-                new TestClienteRepository());
+                new TestClienteRepository(),
+                pecaInsumoRepository);
 
         RecursoNaoEncontradoException exception = assertThrows(
                 RecursoNaoEncontradoException.class,
@@ -120,7 +134,7 @@ class CadastrarNovoOrcamentoServiceTest {
                         "Corolla",
                         "Troca de pastilhas",
                         List.of("Troca de pastilhas"),
-                        List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
+                        List.of(new PecaOrcamentoInput(PECA_ID, 1)),
                         new BigDecimal("150.00"),
                         BigDecimal.ZERO,
                         LocalDateTime.of(2030, 1, 10, 10, 0),
