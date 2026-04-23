@@ -14,4 +14,6 @@ public interface SpringDataOrdemDeServicoRepository
     Optional<OrdemDeServico> findByNumeroOrdemServico(String numeroOrdemServico);
 
     void deleteByNumeroOrdemServico(String numeroOrdemServico);
+
+    boolean existsByFuncionarioId(UUID funcionarioId);
 }

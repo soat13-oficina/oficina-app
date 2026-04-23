@@ -49,10 +49,6 @@ public class JpaFuncionarioRepository implements FuncionarioRepository {
 
     @Override
     public Optional<Funcionario> buscarPorCpf(String cpf) {
-        String cpfNormalizado = cpf.replaceAll("\\D", "");
-        return repository.findAll().stream()
-                .filter(funcionario -> funcionario.getCpf() != null
-                        && funcionario.getCpf().replaceAll("\\D", "").equals(cpfNormalizado))
-                .findFirst();
+        return repository.findByCpf(cpf.replaceAll("\\D", ""));
     }
 }

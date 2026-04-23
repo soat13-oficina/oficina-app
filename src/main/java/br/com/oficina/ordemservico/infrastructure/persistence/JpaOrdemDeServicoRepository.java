@@ -2,6 +2,7 @@ package br.com.oficina.ordemservico.infrastructure.persistence;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
@@ -52,6 +53,11 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
     @Transactional
     public void excluirPorNumero(String numeroOrdemServico) {
         repository.deleteByNumeroOrdemServico(numeroOrdemServico);
+    }
+
+    @Override
+    public boolean existePorFuncionarioId(UUID funcionarioId) {
+        return repository.existsByFuncionarioId(funcionarioId);
     }
 
     private static <T> Specification<OrdemDeServico> campoIgual(String campo, T valor) {
