@@ -21,6 +21,7 @@
         "token": "",
         "cliente_id": "",
         "veiculo_placa": "ABC1D23",
+        "funcionario_id": "",
         "numero_os": "",
         "numero_orcamento": "",
         "peca_id": ""
@@ -220,6 +221,97 @@
       "name": "Excluir veículo",
       "method": "DELETE",
       "url": "{{ _.base_url }}/veiculos/{{ _.veiculo_placa }}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+
+    {
+      "_id": "fld_funcionarios",
+      "_type": "request_group",
+      "parentId": "wrk_oficina",
+      "name": "Funcionários"
+    },
+    {
+      "_id": "req_funcionario_cadastrar",
+      "_type": "request",
+      "parentId": "fld_funcionarios",
+      "name": "Cadastrar funcionário (com CPF)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/funcionarios",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"João da Silva\",\n  \"cpf\": \"12345678901\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_funcionario_cadastrar_sem_cpf",
+      "_type": "request",
+      "parentId": "fld_funcionarios",
+      "name": "Cadastrar funcionário (sem CPF)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/funcionarios",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Maria Oliveira\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_funcionario_listar",
+      "_type": "request",
+      "parentId": "fld_funcionarios",
+      "name": "Listar funcionários",
+      "method": "GET",
+      "url": "{{ _.base_url }}/funcionarios",
+      "parameters": [
+        { "name": "nome", "value": "João", "disabled": true }
+      ],
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_funcionario_consultar",
+      "_type": "request",
+      "parentId": "fld_funcionarios",
+      "name": "Consultar funcionário por ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/funcionarios/{{ _.funcionario_id }}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_funcionario_alterar",
+      "_type": "request",
+      "parentId": "fld_funcionarios",
+      "name": "Alterar funcionário",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/funcionarios/{{ _.funcionario_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"João da Silva Souza\",\n  \"cpf\": \"12345678901\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_funcionario_excluir",
+      "_type": "request",
+      "parentId": "fld_funcionarios",
+      "name": "Excluir funcionário",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/funcionarios/{{ _.funcionario_id }}",
       "headers": [
         { "name": "Authorization", "value": "Bearer {{ _.token }}" }
       ]
