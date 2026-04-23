@@ -2,6 +2,7 @@ package br.com.oficina.support.persistence;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,5 +61,12 @@ public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
     @Override
     public void excluirPorNumero(String numeroOrdemServico) {
         ordens.remove(numeroOrdemServico);
+    }
+
+    @Override
+    public boolean existePorFuncionarioId(UUID funcionarioId) {
+        return ordens.values().stream()
+                .anyMatch(os -> os.getFuncionario() != null
+                        && Objects.equals(funcionarioId, os.getFuncionario().getId()));
     }
 }

@@ -30,11 +30,11 @@ class FuncionarioTest {
     }
 
     @Test
-    void deveCriarFuncionarioComCpfFormatado() {
+    void deveCriarFuncionarioComCpfFormatadoNormalizandoParaDigitos() {
         Funcionario funcionario = new Funcionario("Ana", "123.456.789-01");
 
         assertEquals("Ana", funcionario.getNome());
-        assertEquals("123.456.789-01", funcionario.getCpf());
+        assertEquals("12345678901", funcionario.getCpf());
     }
 
     @Test

@@ -24,6 +24,7 @@ public class Funcionario {
     @Column(nullable = false)
     private String nome;
 
+    @Column(unique = true)
     private String cpf;
 
     protected Funcionario() {
@@ -59,9 +60,17 @@ public class Funcionario {
 
     private void definirDados(String nome, String cpf) {
         validarNome(nome);
-        validarCpf(cpf);
+        String cpfNormalizado = normalizarCpf(cpf);
+        validarCpf(cpfNormalizado);
         this.nome = nome;
-        this.cpf = cpf;
+        this.cpf = cpfNormalizado;
+    }
+
+    private static String normalizarCpf(String cpf) {
+        if (cpf == null || cpf.isBlank()) {
+            return null;
+        }
+        return cpf.replaceAll("\\D", "");
     }
 
     private static void validarNome(String nome) {
