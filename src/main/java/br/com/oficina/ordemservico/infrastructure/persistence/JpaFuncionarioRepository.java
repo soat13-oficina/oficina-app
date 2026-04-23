@@ -1,5 +1,6 @@
 package br.com.oficina.ordemservico.infrastructure.persistence;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,7 +26,33 @@ public class JpaFuncionarioRepository implements FuncionarioRepository {
     }
 
     @Override
+    @Transactional
+    public void atualizar(Funcionario funcionario) {
+        repository.save(funcionario);
+    }
+
+    @Override
+    @Transactional
+    public void excluirPorId(UUID id) {
+        repository.deleteById(id);
+    }
+
+    @Override
     public Optional<Funcionario> buscarPorId(UUID id) {
         return repository.findById(id);
+    }
+
+    @Override
+    public List<Funcionario> buscarTodos() {
+        return repository.findAll();
+    }
+
+    @Override
+    public Optional<Funcionario> buscarPorCpf(String cpf) {
+        String cpfNormalizado = cpf.replaceAll("\\D", "");
+        return repository.findAll().stream()
+                .filter(funcionario -> funcionario.getCpf() != null
+                        && funcionario.getCpf().replaceAll("\\D", "").equals(cpfNormalizado))
+                .findFirst();
     }
 }
