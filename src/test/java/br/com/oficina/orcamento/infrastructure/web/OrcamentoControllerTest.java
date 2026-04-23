@@ -11,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.math.BigDecimal;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +26,10 @@ import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
 import br.com.oficina.orcamento.infrastructure.persistence.SpringDataOrcamentoRepository;
+import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
+import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
+import br.com.oficina.pecainsumo.infrastructure.persistence.PecaInsumoJpaEntity;
+import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataPecaInsumoRepository;
 
 @SpringBootTest
 class OrcamentoControllerTest {
@@ -36,14 +42,28 @@ class OrcamentoControllerTest {
     @Autowired
     private SpringDataOrcamentoRepository orcamentoRepository;
 
+    @Autowired
+    private SpringDataPecaInsumoRepository pecaInsumoRepository;
+
     private MockMvc mockMvc;
     private String clienteId;
+    private String pecaId1;
+    private String pecaId2;
 
     @BeforeEach
     void setUp() {
         orcamentoRepository.deleteAll();
+        pecaInsumoRepository.deleteAll();
         clienteRepository.deleteAll();
         clienteId = clienteRepository.save(new Cliente("Joao Silva", "12345678901", TipoCliente.PF)).getId().toString();
+
+        PecaInsumo pastilha = new PecaInsumo("pastilha-001", "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-PAST", CategoriaPeca.FREIOS);
+        PecaInsumo fluido = new PecaInsumo("fluido-001", "Fluido de freio", "TRW", new BigDecimal("100.00"), 10, 0, "REF-FLUID", CategoriaPeca.FREIOS);
+        pecaInsumoRepository.save(PecaInsumoJpaEntity.fromDomain(pastilha));
+        pecaInsumoRepository.save(PecaInsumoJpaEntity.fromDomain(fluido));
+        pecaId1 = pastilha.getId();
+        pecaId2 = fluido.getId();
+
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
@@ -62,13 +82,13 @@ class OrcamentoControllerTest {
                   "modeloVeiculo": "Corolla",
                   "descricaoDiagnostico": "Troca de pastilhas",
                   "servicosPropostos": ["Troca de pastilhas"],
-                  "pecasPrevistas": [{"descricao": "Pastilha dianteira", "preco": 250.00}],
+                  "pecasPrevistas": [{"pecaInsumoId": "%s", "quantidade": 1}],
                   "valorMaoDeObra": 150.00,
                   "desconto": 0.00,
                   "validade": "2030-12-31T10:00:00",
                   "observacoes": "Prioridade alta"
                 }
-                """.formatted(clienteId);
+                """.formatted(clienteId, pecaId1);
 
         mockMvc.perform(post("/orcamentos")
                         .with(user("tester"))
@@ -100,13 +120,13 @@ class OrcamentoControllerTest {
                   "modeloVeiculo": "Corolla",
                   "descricaoDiagnostico": "Revisao de freios",
                   "servicosPropostos": ["Revisao freios"],
-                  "pecasPrevistas": [{"descricao": "Fluido de freio", "preco": 100.00}],
+                  "pecasPrevistas": [{"pecaInsumoId": "%s", "quantidade": 1}],
                   "valorMaoDeObra": 200.00,
                   "desconto": 0.00,
                   "validade": "2031-01-15T10:00:00",
                   "observacoes": "Aprovacao imediata"
                 }
-                """.formatted(clienteId);
+                """.formatted(clienteId, pecaId2);
 
         mockMvc.perform(put("/orcamentos/orc-1")
                         .with(user("tester"))
@@ -163,20 +183,20 @@ class OrcamentoControllerTest {
                 {
                   "numeroOrcamento": "orc-invalido",
                   "clienteId": "cliente-invalido",
-                  "ordemDeServicoId": "os-1",
-                  "funcionarioId": "func-1",
+                  "ordemDeServicoId": "00000000-0000-0000-0000-000000000001",
+                  "funcionarioId": "00000000-0000-0000-0000-000000000002",
                   "placaVeiculo": "ABC1D23",
                   "marcaVeiculo": "Toyota",
                   "modeloVeiculo": "Corolla",
                   "descricaoDiagnostico": "Troca de pastilhas",
                   "servicosPropostos": ["Troca de pastilhas"],
-                  "pecasPrevistas": [{"descricao": "Pastilha dianteira", "preco": 250.00}],
+                  "pecasPrevistas": [{"pecaInsumoId": "%s", "quantidade": 1}],
                   "valorMaoDeObra": 150.00,
                   "desconto": 0.00,
                   "validade": "2030-12-31T10:00:00",
                   "observacoes": "Prioridade alta"
                 }
-                """;
+                """.formatted(pecaId1);
 
         mockMvc.perform(post("/orcamentos")
                         .with(user("tester"))
@@ -193,20 +213,20 @@ class OrcamentoControllerTest {
                 {
                   "numeroOrcamento": "orc-payload-invalido",
                   "clienteId": "%s",
-                  "ordemDeServicoId": "os-1",
-                  "funcionarioId": "func-1",
+                  "ordemDeServicoId": "00000000-0000-0000-0000-000000000001",
+                  "funcionarioId": "00000000-0000-0000-0000-000000000002",
                   "placaVeiculo": "ABC1D23",
                   "marcaVeiculo": "Toyota",
                   "modeloVeiculo": "Corolla",
                   "descricaoDiagnostico": "Troca de pastilhas",
                   "servicosPropostos": ["Troca de pastilhas"],
-                  "pecasPrevistas": [{"descricao": "Pastilha dianteira", "preco": 250.00}],
+                  "pecasPrevistas": [{"pecaInsumoId": "%s", "quantidade": 1}],
                   "valorMaoDeObra": 150.00,
                   "desconto": 0.00,
                   "validade": "data-invalida",
                   "observacoes": "Prioridade alta"
                 }
-                """.formatted(clienteId);
+                """.formatted(clienteId, pecaId1);
 
         mockMvc.perform(post("/orcamentos")
                         .with(user("tester"))

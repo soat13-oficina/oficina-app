@@ -1,5 +1,6 @@
 package br.com.oficina.orcamento.infrastructure.web.response;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -49,7 +50,7 @@ public record OrcamentoResponse(
     }
 
     @Override
-    @Schema(description = "Status atual do orçamento", example = "RASCUNHO")
+    @Schema(description = "Status atual do orçamento", example = "AGUARDANDO_APROVACAO")
     public String status() {
         return status;
     }
@@ -128,10 +129,10 @@ public record OrcamentoResponse(
             String descricaoDiagnostico,
             List<String> servicosPropostos,
             List<PecaResponse> pecasPrevistas,
-            java.math.BigDecimal valorMaoDeObra,
-            java.math.BigDecimal valorPecas,
-            java.math.BigDecimal valorTotal,
-            java.math.BigDecimal desconto,
+            BigDecimal valorMaoDeObra,
+            BigDecimal valorPecas,
+            BigDecimal valorTotal,
+            BigDecimal desconto,
             LocalDateTime validade,
             String observacoes) {
         @Override
@@ -147,32 +148,32 @@ public record OrcamentoResponse(
         }
 
         @Override
-        @Schema(description = "Lista de peças previstas com descrição e preço unitário")
+        @Schema(description = "Lista de peças previstas com dados completos")
         public List<PecaResponse> pecasPrevistas() {
             return pecasPrevistas;
         }
 
         @Override
         @Schema(description = "Valor estimado da mão de obra", example = "200.00")
-        public java.math.BigDecimal valorMaoDeObra() {
+        public BigDecimal valorMaoDeObra() {
             return valorMaoDeObra;
         }
 
         @Override
         @Schema(description = "Valor estimado das peças", example = "150.00")
-        public java.math.BigDecimal valorPecas() {
+        public BigDecimal valorPecas() {
             return valorPecas;
         }
 
         @Override
         @Schema(description = "Valor total do orçamento", example = "350.00")
-        public java.math.BigDecimal valorTotal() {
+        public BigDecimal valorTotal() {
             return valorTotal;
         }
 
         @Override
         @Schema(description = "Valor de desconto aplicado ao orçamento", example = "25.00")
-        public java.math.BigDecimal desconto() {
+        public BigDecimal desconto() {
             return desconto;
         }
 
@@ -189,8 +190,14 @@ public record OrcamentoResponse(
         }
     }
 
-    @Schema(name = "PecaResponse", description = "Peça prevista no orçamento com preço unitário")
-    public record PecaResponse(String descricao, java.math.BigDecimal preco) {
+    @Schema(name = "PecaResponse", description = "Peça prevista no orçamento vinculada ao estoque")
+    public record PecaResponse(String pecaInsumoId, String descricao, BigDecimal precoUnitario, int quantidade) {
+        @Override
+        @Schema(description = "Identificador da peça/insumo no cadastro", example = "abc123")
+        public String pecaInsumoId() {
+            return pecaInsumoId;
+        }
+
         @Override
         @Schema(description = "Descrição da peça prevista", example = "Pastilha de freio dianteira")
         public String descricao() {
@@ -199,12 +206,18 @@ public record OrcamentoResponse(
 
         @Override
         @Schema(description = "Preço unitário da peça prevista", example = "189.90")
-        public java.math.BigDecimal preco() {
-            return preco;
+        public BigDecimal precoUnitario() {
+            return precoUnitario;
+        }
+
+        @Override
+        @Schema(description = "Quantidade prevista da peça", example = "2")
+        public int quantidade() {
+            return quantidade;
         }
 
         static PecaResponse from(PecaOrcamento peca) {
-            return new PecaResponse(peca.getDescricao(), peca.getPreco());
+            return new PecaResponse(peca.getPecaInsumoId(), peca.getDescricao(), peca.getPreco(), peca.getQuantidade());
         }
     }
 }

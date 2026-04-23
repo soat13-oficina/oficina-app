@@ -4,8 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import br.com.oficina.orcamento.domain.model.PecaOrcamento;
-
 public record CadastrarNovoOrcamentoCommand(
         String numeroOrcamento,
         String clienteId,
@@ -16,9 +14,10 @@ public record CadastrarNovoOrcamentoCommand(
         String modeloVeiculo,
         String descricaoDiagnostico,
         List<String> servicosPropostos,
-        List<PecaOrcamento> pecasPrevistas,
+        List<PecaOrcamentoInput> pecasPrevistas,
         BigDecimal valorMaoDeObra,
         BigDecimal desconto,
         LocalDateTime validade,
         String observacoes) {
 }
+

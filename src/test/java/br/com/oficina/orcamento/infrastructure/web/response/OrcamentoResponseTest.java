@@ -31,7 +31,7 @@ class OrcamentoResponseTest {
                 "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
-                List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
+                List.of(new PecaOrcamento("peca-001", "Pastilha dianteira", new BigDecimal("250.00"), 1)),
                 new BigDecimal("150.00"),
                 BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 1, 10, 0),

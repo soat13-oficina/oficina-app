@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
-import br.com.oficina.orcamento.domain.model.PecaOrcamento;
+import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
 import br.com.oficina.orcamento.application.service.CadastrarNovoOrcamentoService;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
@@ -25,13 +25,20 @@ import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrca
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
+import br.com.oficina.pecainsumo.application.command.ConsumirPecaCommand;
+import br.com.oficina.pecainsumo.application.usecase.ConsumirPecaUseCase;
+import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
+import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import br.com.oficina.support.persistence.TestClienteRepository;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
 import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
+import br.com.oficina.support.persistence.TestPecaInsumoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 
 class FluxoOrdemDeServicoServicesTest {
+
+    private static final String PECA_ID = "peca-oleo-001";
 
     @Test
     void deveIniciarConcluirFinalizarEExcluirOrdemDeServico() {
@@ -39,24 +46,29 @@ class FluxoOrdemDeServicoServicesTest {
         TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
+        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
+        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Oleo 5W30", "Castrol", new BigDecimal("150.00"), 10, 0, "REF-OLEO", CategoriaPeca.LUBRIFICANTES));
         repository.salvar(novaOrdem("OS-001"));
+
+        // No-op ConsumirPecaUseCase for unit testing (stock operations tested separately)
+        ConsumirPecaUseCase noOpConsumirPeca = command -> {};
 
         new IniciarDiagnosticoService(repository).iniciarDiagnostico(new IniciarDiagnosticoCommand("OS-001"));
         new ConcluirDiagnosticoService(repository).concluirDiagnostico(new ConcluirDiagnosticoCommand("OS-001"));
         new EnviarDiagnosticoParaOrcamentoService(
                 repository,
-                new CadastrarNovoOrcamentoService(orcamentoRepository, clienteRepository))
+                new CadastrarNovoOrcamentoService(orcamentoRepository, clienteRepository, pecaInsumoRepository))
                 .enviarDiagnosticoParaOrcamento(new EnviarDiagnosticoParaOrcamentoRequest(
                         "OS-001",
                         "Diagnostico completo do veiculo",
                         List.of("Troca de oleo"),
-                        List.of(new PecaOrcamento("Oleo 5W30", new BigDecimal("150.00"))),
+                        List.of(new PecaOrcamentoInput(PECA_ID, 1)),
                         new BigDecimal("200.00"),
                         BigDecimal.ZERO,
                         LocalDateTime.of(2030, 1, 1, 0, 0),
                         null));
-        new FinalizarOrdemDeServicoService(repository, orcamentoRepository)
+        new FinalizarOrdemDeServicoService(repository, orcamentoRepository, noOpConsumirPeca)
                 .finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand("OS-001"));
 
         OrdemDeServico ordemAtualizada = repository.buscarPorNumero("OS-001").orElseThrow();

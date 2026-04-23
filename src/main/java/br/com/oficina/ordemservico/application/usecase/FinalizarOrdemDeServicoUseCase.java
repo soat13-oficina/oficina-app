@@ -26,6 +26,6 @@ public interface FinalizarOrdemDeServicoUseCase {
     record VeiculoFinalizacao(String id, String placa, String marca, String modelo) {
     }
 
-    record PecaFinalizacao(String descricao, BigDecimal preco) {
+    record PecaFinalizacao(String pecaInsumoId, String descricao, BigDecimal preco, int quantidade) {
     }
 }

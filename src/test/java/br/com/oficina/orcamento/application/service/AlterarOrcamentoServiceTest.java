@@ -15,26 +15,36 @@ import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
+import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
+import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
+import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import br.com.oficina.support.persistence.TestClienteRepository;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
+import br.com.oficina.support.persistence.TestPecaInsumoRepository;
 
 class AlterarOrcamentoServiceTest {
+
+    private static final String PECA_ID = "peca-001";
+    private static final String PECA_ID_2 = "peca-002";
 
     @Test
     void deveAlterarOrcamentoPreservandoCriadoEmEEnvio() {
         TestOrcamentoRepository repository = new TestOrcamentoRepository();
         TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("55555555-5555-5555-5555-555555555555");
         UUID clienteAtualizadoId = UUID.fromString("66666666-6666-6666-6666-666666666666");
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
         clienteRepository.salvar(Cliente.reconstituir(clienteAtualizadoId, "Maria Souza", "99999999999", TipoCliente.PF));
+        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
+        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID_2, "Fluido de freio", "TRW", new BigDecimal("100.00"), 10, 0, "REF-002", CategoriaPeca.LUBRIFICANTES));
         Orcamento orcamento = novoOrcamento();
         orcamento.enviarParaAprovacao(LocalDateTime.of(2030, 1, 2, 9, 0));
         repository.salvar(orcamento);
-        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository);
+        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository, pecaInsumoRepository);
 
         service.alterarOrcamento(new AlterarOrcamentoCommand(
                 "orc-1",
@@ -46,7 +56,7 @@ class AlterarOrcamentoServiceTest {
                 "City",
                 "Revisao de freios",
                 List.of("Revisao freios"),
-                List.of(new PecaOrcamento("Fluido de freio", new BigDecimal("100.00"))),
+                List.of(new PecaOrcamentoInput(PECA_ID_2, 1)),
                 new BigDecimal("200.00"),
                 BigDecimal.ZERO,
                 LocalDateTime.of(2031, 1, 10, 10, 0),
@@ -71,9 +81,11 @@ class AlterarOrcamentoServiceTest {
     @Test
     void deveFalharAoAlterarOrcamentoInexistente() {
         TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("77777777-7777-7777-7777-777777777777");
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
-        AlterarOrcamentoService service = new AlterarOrcamentoService(new TestOrcamentoRepository(), clienteRepository);
+        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
+        AlterarOrcamentoService service = new AlterarOrcamentoService(new TestOrcamentoRepository(), clienteRepository, pecaInsumoRepository);
 
         RecursoNaoEncontradoException exception = assertThrows(
                 RecursoNaoEncontradoException.class,
@@ -87,7 +99,7 @@ class AlterarOrcamentoServiceTest {
                         "Corolla",
                         "Troca de pastilhas",
                         List.of("Troca de pastilhas"),
-                        List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
+                        List.of(new PecaOrcamentoInput(PECA_ID, 1)),
                         new BigDecimal("150.00"),
                         BigDecimal.ZERO,
                         LocalDateTime.of(2030, 1, 10, 10, 0),
@@ -100,12 +112,14 @@ class AlterarOrcamentoServiceTest {
     void devePreservarStatusAprovadoAoAlterarOrcamento() {
         TestOrcamentoRepository repository = new TestOrcamentoRepository();
         TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("55555555-5555-5555-5555-555555555555");
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Peca", "Marca", new BigDecimal("50.00"), 10, 0, "REF", CategoriaPeca.FREIOS));
         Orcamento orcamento = novoOrcamento();
         orcamento.aprovar();
         repository.salvar(orcamento);
-        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository);
+        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository, pecaInsumoRepository);
 
         service.alterarOrcamento(new AlterarOrcamentoCommand(
                 "orc-1",
@@ -117,7 +131,7 @@ class AlterarOrcamentoServiceTest {
                 "Corolla",
                 "Diagnostico aprovado",
                 List.of("Servico"),
-                List.of(new PecaOrcamento("Peca", new BigDecimal("50.00"))),
+                List.of(new PecaOrcamentoInput(PECA_ID, 1)),
                 new BigDecimal("100.00"),
                 BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 10, 10, 0),
@@ -130,12 +144,14 @@ class AlterarOrcamentoServiceTest {
     void devePreservarStatusRejeitadoAoAlterarOrcamento() {
         TestOrcamentoRepository repository = new TestOrcamentoRepository();
         TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("55555555-5555-5555-5555-555555555555");
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Peca", "Marca", new BigDecimal("50.00"), 10, 0, "REF", CategoriaPeca.FREIOS));
         Orcamento orcamento = novoOrcamento();
         orcamento.rejeitar();
         repository.salvar(orcamento);
-        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository);
+        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository, pecaInsumoRepository);
 
         service.alterarOrcamento(new AlterarOrcamentoCommand(
                 "orc-1",
@@ -147,7 +163,7 @@ class AlterarOrcamentoServiceTest {
                 "Corolla",
                 "Diagnostico rejeitado",
                 List.of("Servico"),
-                List.of(new PecaOrcamento("Peca", new BigDecimal("50.00"))),
+                List.of(new PecaOrcamentoInput(PECA_ID, 1)),
                 new BigDecimal("100.00"),
                 BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 10, 10, 0),
@@ -169,7 +185,7 @@ class AlterarOrcamentoServiceTest {
                 "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
-                List.of(new PecaOrcamento("Pastilha dianteira", new BigDecimal("250.00"))),
+                List.of(new PecaOrcamento(PECA_ID, "Pastilha dianteira", new BigDecimal("250.00"), 1)),
                 new BigDecimal("150.00"),
                 BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 1, 10, 0),

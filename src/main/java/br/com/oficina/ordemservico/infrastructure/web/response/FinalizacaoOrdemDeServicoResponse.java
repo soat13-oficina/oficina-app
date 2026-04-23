@@ -86,7 +86,7 @@ public record FinalizacaoOrdemDeServicoResponse(
                 finalizacao.tempoExecucao(),
                 finalizacao.servicoRealizado(),
                 finalizacao.valorServico(),
-                finalizacao.pecas().stream().map(peca -> new PecaResponse(peca.descricao(), peca.preco())).toList(),
+                finalizacao.pecas().stream().map(peca -> new PecaResponse(peca.pecaInsumoId(), peca.descricao(), peca.preco(), peca.quantidade())).toList(),
                 finalizacao.valorFinal(),
                 finalizacao.desconto());
     }
@@ -140,7 +140,13 @@ public record FinalizacaoOrdemDeServicoResponse(
     }
 
     @Schema(name = "FinalizacaoPecaResponse", description = "Peça utilizada no fechamento da OS")
-    public record PecaResponse(String descricao, BigDecimal preco) {
+    public record PecaResponse(String pecaInsumoId, String descricao, BigDecimal preco, int quantidade) {
+        @Override
+        @Schema(description = "Identificador da peça/insumo no cadastro", example = "abc123")
+        public String pecaInsumoId() {
+            return pecaInsumoId;
+        }
+
         @Override
         @Schema(description = "Descrição da peça utilizada", example = "Filtro de óleo")
         public String descricao() {
@@ -148,9 +154,15 @@ public record FinalizacaoOrdemDeServicoResponse(
         }
 
         @Override
-        @Schema(description = "Preço da peça utilizada", example = "45.90")
+        @Schema(description = "Preço unitário da peça utilizada", example = "45.90")
         public BigDecimal preco() {
             return preco;
+        }
+
+        @Override
+        @Schema(description = "Quantidade consumida da peça", example = "2")
+        public int quantidade() {
+            return quantidade;
         }
     }
 }

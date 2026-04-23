@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.math.BigDecimal;
 import java.util.List;
 
+import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
 import org.junit.jupiter.api.Test;
 
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
@@ -33,7 +34,7 @@ class FluxoPecaInsumoServicesTest {
                 new BigDecimal("45.90"),
                 8,
                 "FA-001",
-                "Admissao"));
+                CategoriaPeca.FILTROS));
 
         PecaInsumo cadastrada = repository.buscarTodos().get(0);
         assertEquals("Filtro de ar", cadastrada.getDescricao());
@@ -46,14 +47,14 @@ class FluxoPecaInsumoServicesTest {
                 6,
                 1,
                 "FA-002",
-                "Performance"));
+                CategoriaPeca.FILTROS));
 
         PecaInsumo alterada = repository.buscarPorId(cadastrada.getId()).orElseThrow();
         assertEquals("Filtro de ar esportivo", alterada.getDescricao());
         assertEquals("K&N", alterada.getMarca());
 
         List<PecaInsumo> filtradas = new ListarPecasInsumosService(repository)
-                .listarPecasInsumos(new ListarPecasInsumosQuery("K&N", "Performance", true));
+                .listarPecasInsumos(new ListarPecasInsumosQuery("K&N", CategoriaPeca.FILTROS, true));
         assertEquals(1, filtradas.size());
         assertEquals(alterada.getId(), filtradas.get(0).getId());
 
@@ -152,6 +153,6 @@ class FluxoPecaInsumoServicesTest {
                 quantidadeEstoque,
                 quantidadeReservada,
                 "PF-001",
-                "Freio");
+                CategoriaPeca.FREIOS);
     }
 }

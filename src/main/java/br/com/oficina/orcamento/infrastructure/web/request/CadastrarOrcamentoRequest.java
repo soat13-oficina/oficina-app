@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import br.com.oficina.orcamento.domain.model.PecaOrcamento;
+import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(name = "CadastrarOrcamentoRequest", description = "Dados necessários para cadastrar um orçamento")
@@ -78,7 +78,7 @@ public record CadastrarOrcamentoRequest(
     }
 
     @Override
-    @Schema(description = "Lista de peças previstas com descrição e preço unitário")
+    @Schema(description = "Lista de peças previstas referenciando o cadastro de peças/insumos")
     public List<PecaOrcamentoRequest> pecasPrevistas() {
         return pecasPrevistas;
     }
@@ -107,28 +107,27 @@ public record CadastrarOrcamentoRequest(
         return observacoes;
     }
 
-    public List<PecaOrcamento> toPecasOrcamento() {
+    public List<PecaOrcamentoInput> toPecasInput() {
+        if (pecasPrevistas == null) {
+            return List.of();
+        }
         return pecasPrevistas.stream()
-                .map(PecaOrcamentoRequest::toModel)
+                .map(p -> new PecaOrcamentoInput(p.pecaInsumoId(), p.quantidade()))
                 .toList();
     }
 
-    @Schema(name = "CadastrarOrcamentoPecaRequest", description = "Peça prevista para o orçamento com preço unitário")
-    public record PecaOrcamentoRequest(String descricao, BigDecimal preco) {
+    @Schema(name = "CadastrarOrcamentoPecaRequest", description = "Referência a uma peça/insumo cadastrada com quantidade desejada")
+    public record PecaOrcamentoRequest(String pecaInsumoId, int quantidade) {
         @Override
-        @Schema(description = "Descrição da peça prevista", example = "Pastilha de freio dianteira")
-        public String descricao() {
-            return descricao;
+        @Schema(description = "Identificador da peça/insumo no cadastro", example = "abc123")
+        public String pecaInsumoId() {
+            return pecaInsumoId;
         }
 
         @Override
-        @Schema(description = "Preço unitário da peça prevista", example = "189.90")
-        public BigDecimal preco() {
-            return preco;
-        }
-
-        public PecaOrcamento toModel() {
-            return new PecaOrcamento(descricao, preco);
+        @Schema(description = "Quantidade necessária da peça", example = "2")
+        public int quantidade() {
+            return quantidade;
         }
     }
 }

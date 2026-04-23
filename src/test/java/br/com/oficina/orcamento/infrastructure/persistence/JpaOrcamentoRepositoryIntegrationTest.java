@@ -45,8 +45,8 @@ class JpaOrcamentoRepositoryIntegrationTest {
                 "Troca de freios",
                 List.of("Troca de disco", "Alinhamento"),
                 List.of(
-                        new PecaOrcamento("Disco de freio", new BigDecimal("350.00")),
-                        new PecaOrcamento("Pastilha", new BigDecimal("180.00"))),
+                        new PecaOrcamento("peca-disco-001", "Disco de freio", new BigDecimal("350.00"), 1),
+                        new PecaOrcamento("peca-pastilha-001", "Pastilha", new BigDecimal("180.00"), 1)),
                 new BigDecimal("420.00"),
                 new BigDecimal("50.00"),
                 LocalDateTime.of(2026, 4, 14, 10, 0),

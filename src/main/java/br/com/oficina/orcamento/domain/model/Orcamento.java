@@ -397,7 +397,7 @@ public class Orcamento {
         this.pecasPrevistas = new ArrayList<>(pecasPrevistas);
         this.valorMaoDeObra = valorMaoDeObra;
         this.valorPecas = pecasPrevistas.stream()
-                .map(PecaOrcamento::getPreco)
+                .map(p -> p.getPreco().multiply(BigDecimal.valueOf(p.getQuantidade())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         this.desconto = desconto == null ? BigDecimal.ZERO : desconto;
         this.valorTotal = valorMaoDeObra.add(this.valorPecas).subtract(this.desconto);
