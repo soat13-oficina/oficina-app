@@ -21,7 +21,8 @@ public record OrdemDeServicoResponse(
         String placaVeiculo,
         StatusOrdemDeServico status,
         LocalDateTime iniciadaEm,
-        LocalDateTime finalizadaEm) {
+        LocalDateTime finalizadaEm,
+        LocalDateTime entregueEm) {
     @Override
     @Schema(description = "Identificador UUID da ordem de serviço", example = "33333333-3333-3333-3333-333333333333")
     public UUID id() {
@@ -94,6 +95,12 @@ public record OrdemDeServicoResponse(
         return finalizadaEm;
     }
 
+    @Override
+    @Schema(description = "Data e hora de entrega da ordem ao cliente", example = "2030-01-03T09:15:00")
+    public LocalDateTime entregueEm() {
+        return entregueEm;
+    }
+
     public static OrdemDeServicoResponse from(OrdemDeServico ordemDeServico) {
         return new OrdemDeServicoResponse(
                 ordemDeServico.getId(),
@@ -107,6 +114,7 @@ public record OrdemDeServicoResponse(
                 ordemDeServico.getVeiculo().getPlaca(),
                 ordemDeServico.getStatus(),
                 ordemDeServico.getIniciadaEm(),
-                ordemDeServico.getFinalizadaEm());
+                ordemDeServico.getFinalizadaEm(),
+                ordemDeServico.getEntregueEm());
     }
 }

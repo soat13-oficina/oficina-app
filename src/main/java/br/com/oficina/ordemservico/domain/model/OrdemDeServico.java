@@ -82,6 +82,8 @@ public class OrdemDeServico {
 
     private LocalDateTime finalizadaEm;
 
+    private LocalDateTime entregueEm;
+
     protected OrdemDeServico() {
     }
 
@@ -93,12 +95,14 @@ public class OrdemDeServico {
             Veiculo veiculo,
             StatusOrdemDeServico status,
             LocalDateTime iniciadaEm,
-            LocalDateTime finalizadaEm) {
+            LocalDateTime finalizadaEm,
+            LocalDateTime entregueEm) {
         this.id = id;
         this.numeroOrdemServico = numeroOrdemServico;
         this.status = status;
         this.iniciadaEm = iniciadaEm;
         this.finalizadaEm = finalizadaEm;
+        this.entregueEm = entregueEm;
         definirDados(funcionario, cliente, veiculo);
     }
 
@@ -116,6 +120,7 @@ public class OrdemDeServico {
                 veiculo,
                 StatusOrdemDeServico.OS_ABERTA,
                 null,
+                null,
                 null);
     }
 
@@ -127,8 +132,18 @@ public class OrdemDeServico {
             Veiculo veiculo,
             StatusOrdemDeServico status,
             LocalDateTime iniciadaEm,
-            LocalDateTime finalizadaEm) {
-        return new OrdemDeServico(id, numeroOrdemServico, funcionario, cliente, veiculo, status, iniciadaEm, finalizadaEm);
+            LocalDateTime finalizadaEm,
+            LocalDateTime entregueEm) {
+        return new OrdemDeServico(
+                id,
+                numeroOrdemServico,
+                funcionario,
+                cliente,
+                veiculo,
+                status,
+                iniciadaEm,
+                finalizadaEm,
+                entregueEm);
     }
 
     public void iniciarDiagnostico() {
@@ -166,6 +181,14 @@ public class OrdemDeServico {
         }
         status = StatusOrdemDeServico.OS_FINALIZADA;
         finalizadaEm = LocalDateTime.now();
+    }
+
+    public void entregarAoCliente() {
+        if (status != StatusOrdemDeServico.OS_FINALIZADA) {
+            throw new RegraDeNegocioException("Ordem de servico so pode ser entregue ao cliente quando estiver finalizada");
+        }
+        status = StatusOrdemDeServico.ENTREGUE;
+        entregueEm = LocalDateTime.now();
     }
 
     public UUID getId() {
@@ -212,6 +235,10 @@ public class OrdemDeServico {
 
     public LocalDateTime getFinalizadaEm() {
         return finalizadaEm;
+    }
+
+    public LocalDateTime getEntregueEm() {
+        return entregueEm;
     }
 
     private void definirDados(Funcionario funcionario, Cliente cliente, Veiculo veiculo) {

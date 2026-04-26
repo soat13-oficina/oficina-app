@@ -11,5 +11,6 @@ public enum StatusOrdemDeServico {
     SERVICO_EM_ANDAMENTO,
     AGUARDANDO_PECA,
     SERVICO_CONCLUIDO,
-    OS_FINALIZADA
+    OS_FINALIZADA,
+    ENTREGUE
 }

@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
+import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
@@ -37,6 +38,7 @@ import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseC
 import br.com.oficina.ordemservico.application.usecase.ConcluirDiagnosticoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarOrdensDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.CriarNovaOrdemDeServicoUseCase;
+import br.com.oficina.ordemservico.application.usecase.EntregarAoClienteUseCase;
 import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ExcluirOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase;
@@ -59,6 +61,7 @@ public class OrdemDeServicoController {
     private final CriarNovaOrdemDeServicoUseCase criarNovaOrdemDeServicoUseCase;
     private final IniciarDiagnosticoUseCase iniciarDiagnosticoUseCase;
     private final ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase;
+    private final EntregarAoClienteUseCase entregarAoClienteUseCase;
     private final EnviarDiagnosticoParaOrcamentoUseCase enviarDiagnosticoParaOrcamentoUseCase;
     private final ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase;
     private final FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase;
@@ -70,6 +73,7 @@ public class OrdemDeServicoController {
             CriarNovaOrdemDeServicoUseCase criarNovaOrdemDeServicoUseCase,
             IniciarDiagnosticoUseCase iniciarDiagnosticoUseCase,
             ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase,
+            EntregarAoClienteUseCase entregarAoClienteUseCase,
             EnviarDiagnosticoParaOrcamentoUseCase enviarDiagnosticoParaOrcamentoUseCase,
             ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase,
             FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase,
@@ -79,6 +83,7 @@ public class OrdemDeServicoController {
         this.criarNovaOrdemDeServicoUseCase = criarNovaOrdemDeServicoUseCase;
         this.iniciarDiagnosticoUseCase = iniciarDiagnosticoUseCase;
         this.concluirDiagnosticoUseCase = concluirDiagnosticoUseCase;
+        this.entregarAoClienteUseCase = entregarAoClienteUseCase;
         this.enviarDiagnosticoParaOrcamentoUseCase = enviarDiagnosticoParaOrcamentoUseCase;
         this.excluirOrdemDeServicoUseCase = excluirOrdemDeServicoUseCase;
         this.finalizarOrdemDeServicoUseCase = finalizarOrdemDeServicoUseCase;
@@ -277,5 +282,19 @@ public class OrdemDeServicoController {
                 finalizarOrdemDeServicoUseCase.finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand(numeroOrdemServico)));
         log.info("Requisicao de finalizacao de ordem de servico concluida. numeroOrdemServico={}", numeroOrdemServico);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{numeroOrdemServico}/entrega")
+    @Operation(summary = "Entregar ordem de serviço", description = "Conclui a entrega de uma ordem de serviço finalizada ao cliente.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Ordem de serviço entregue com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
+    })
+    public ResponseEntity<Void> entregarAoCliente(@PathVariable String numeroOrdemServico) {
+        log.info("Recebida requisicao de entrega ao cliente. numeroOrdemServico={}", numeroOrdemServico);
+        entregarAoClienteUseCase.entregarAoCliente(new EntregarAoClienteCommand(numeroOrdemServico));
+        log.info("Requisicao de entrega ao cliente concluida. numeroOrdemServico={}", numeroOrdemServico);
+        return ResponseEntity.noContent().build();
     }
 }
