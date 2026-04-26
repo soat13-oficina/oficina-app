@@ -68,6 +68,36 @@ class JpaOrdemDeServicoRepositoryIntegrationTest {
     }
 
     @Test
+    void devePersistirDataDeEntregaQuandoOrdemForEntregue() {
+        UUID clienteId = UUID.randomUUID();
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Larissa", "12312312399");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Claudio", "12312312399", TipoCliente.PF);
+        Veiculo veiculo = veiculoRepository.save(new Veiculo(
+                clienteId,
+                "ENT1R23",
+                "Volkswagen",
+                "Polo",
+                "Volkswagen",
+                2024,
+                116,
+                "AUTOMATICO",
+                TipoCombustivel.FLEX));
+        OrdemDeServico ordem = OrdemDeServico.abrir(null, "OS-2026-003", funcionario, cliente, veiculo);
+        ordem.iniciarDiagnostico();
+        ordem.concluirDiagnostico();
+        ordem.enviarParaOrcamento();
+        ordem.finalizar();
+        ordem.entregarAoCliente();
+
+        repository.salvar(ordem);
+
+        OrdemDeServico encontrada = repository.buscarPorNumero("OS-2026-003").orElseThrow();
+        assertEquals(StatusOrdemDeServico.ENTREGUE, encontrada.getStatus());
+        assertTrue(encontrada.getFinalizadaEm() != null);
+        assertTrue(encontrada.getEntregueEm() != null);
+    }
+
+    @Test
     void deveExcluirOrdemDeServicoPorNumero() {
         UUID clienteId = UUID.randomUUID();
         Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Julia", "10987654321");

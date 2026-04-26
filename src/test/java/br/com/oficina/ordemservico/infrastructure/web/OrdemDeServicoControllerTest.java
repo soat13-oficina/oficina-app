@@ -424,6 +424,37 @@ class OrdemDeServicoControllerTest {
     }
 
     @Test
+    void deveEntregarOrdemDeServicoAoCliente() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "55555555555", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "ENT4G56", "Jeep", "Renegade", "Stellantis", 2024, 185, "AUTOMATICO", TipoCombustivel.DIESEL));
+
+        OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
+                null,
+                "os-entregar-1",
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculoRepository.buscarPorPlaca("ENT4G56").orElseThrow());
+        ordemDeServico.iniciarDiagnostico();
+        ordemDeServico.concluirDiagnostico();
+        ordemDeServico.enviarParaOrcamento();
+        ordemDeServico.finalizar();
+        ordemDeServicoRepository.salvar(ordemDeServico);
+
+        mockMvc.perform(post("/ordens-servico/os-entregar-1/entrega")
+                        .with(user("tester"))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorNumero("os-entregar-1")
+                .orElseThrow();
+        assert ordemAtualizada.getStatus() == StatusOrdemDeServico.ENTREGUE;
+        assert ordemAtualizada.getEntregueEm() != null;
+    }
+
+    @Test
     void deveRetornarNotFoundQuandoOrdemNaoExistirAoExcluir() throws Exception {
         mockMvc.perform(delete("/ordens-servico/OS-404")
                         .with(user("tester"))
