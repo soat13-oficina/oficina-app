@@ -50,6 +50,11 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
     }
 
     @Override
+    public List<OrdemDeServico> buscarOrdensComExecucaoFinalizada() {
+        return repository.findByIniciadaEmIsNotNullAndFinalizadaEmIsNotNull();
+    }
+
+    @Override
     @Transactional
     public void excluirPorNumero(String numeroOrdemServico) {
         repository.deleteByNumeroOrdemServico(numeroOrdemServico);

@@ -41,6 +41,7 @@ import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 import br.com.oficina.veiculo.infrastructure.persistence.SpringDataVeiculoRepository;
+import java.time.LocalDateTime;
 
 @SpringBootTest
 class OrdemDeServicoControllerTest {
@@ -264,6 +265,46 @@ class OrdemDeServicoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].placaVeiculo").value("QRY1A23"))
                 .andExpect(jsonPath("$[0].veiculoId").isNotEmpty());
+    }
+
+    @Test
+    void deveConsultarTempoMedioDeExecucao() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
+        Veiculo veiculo1 = springDataVeiculoRepository.save(new Veiculo(
+                cliente.getId(),
+                "MED1A23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        Veiculo veiculo2 = springDataVeiculoRepository.save(new Veiculo(
+                cliente.getId(),
+                "MED2B34", "Honda", "City", "Honda Motor Co.", 2023, 126, "AUTOMATICO", TipoCombustivel.FLEX));
+
+        ordemDeServicoRepository.salvar(OrdemDeServico.reconstituir(
+                null,
+                "OS-MEDIA-001",
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculo1,
+                StatusOrdemDeServico.OS_FINALIZADA,
+                LocalDateTime.of(2030, 1, 1, 8, 0),
+                LocalDateTime.of(2030, 1, 1, 10, 0),
+                null));
+        ordemDeServicoRepository.salvar(OrdemDeServico.reconstituir(
+                null,
+                "OS-MEDIA-002",
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculo2,
+                StatusOrdemDeServico.ENTREGUE,
+                LocalDateTime.of(2030, 1, 1, 9, 0),
+                LocalDateTime.of(2030, 1, 1, 12, 0),
+                LocalDateTime.of(2030, 1, 1, 13, 0)));
+
+        mockMvc.perform(get("/ordens-servico/metricas/tempo-medio")
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tempoMedioExecucaoEmSegundos").value(9000))
+                .andExpect(jsonPath("$.tempoMedioExecucaoFormatado").value("2 horas e 30 minutos"))
+                .andExpect(jsonPath("$.quantidadeOrdensConsideradas").value(2));
     }
 
     @Test

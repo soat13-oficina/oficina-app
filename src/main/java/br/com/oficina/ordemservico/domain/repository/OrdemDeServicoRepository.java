@@ -19,6 +19,8 @@ public interface OrdemDeServicoRepository {
 
     List<OrdemDeServico> buscarTodas();
 
+    List<OrdemDeServico> buscarOrdensComExecucaoFinalizada();
+
     void excluirPorNumero(String numeroOrdemServico);
 
     boolean existePorFuncionarioId(UUID funcionarioId);

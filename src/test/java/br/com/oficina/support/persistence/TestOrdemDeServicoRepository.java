@@ -60,6 +60,13 @@ public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
     }
 
     @Override
+    public List<OrdemDeServico> buscarOrdensComExecucaoFinalizada() {
+        return ordens.values().stream()
+                .filter(ordem -> ordem.getIniciadaEm() != null && ordem.getFinalizadaEm() != null)
+                .toList();
+    }
+
+    @Override
     public void excluirPorNumero(String numeroOrdemServico) {
         ordens.remove(numeroOrdemServico);
     }

@@ -37,6 +37,7 @@ import br.com.oficina.ordemservico.application.usecase.AcompanharOrdemDeServicoU
 import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConcluirDiagnosticoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarOrdensDeServicoUseCase;
+import br.com.oficina.ordemservico.application.usecase.ConsultarTempoMedioExecucaoUseCase;
 import br.com.oficina.ordemservico.application.usecase.CriarNovaOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.EntregarAoClienteUseCase;
 import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase;
@@ -49,6 +50,7 @@ import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoP
 import br.com.oficina.ordemservico.infrastructure.web.response.AcompanhamentoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.FinalizacaoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.OrdemDeServicoResponse;
+import br.com.oficina.ordemservico.infrastructure.web.response.TempoMedioExecucaoResponse;
 
 @RestController
 @RequestMapping("/ordens-servico")
@@ -66,6 +68,7 @@ public class OrdemDeServicoController {
     private final ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase;
     private final FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase;
     private final ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase;
+    private final ConsultarTempoMedioExecucaoUseCase consultarTempoMedioExecucaoUseCase;
     private final AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase;
 
     public OrdemDeServicoController(
@@ -78,6 +81,7 @@ public class OrdemDeServicoController {
             ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase,
             FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase,
             ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase,
+            ConsultarTempoMedioExecucaoUseCase consultarTempoMedioExecucaoUseCase,
             AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase) {
         this.alterarOrdemDeServicoUseCase = alterarOrdemDeServicoUseCase;
         this.criarNovaOrdemDeServicoUseCase = criarNovaOrdemDeServicoUseCase;
@@ -88,6 +92,7 @@ public class OrdemDeServicoController {
         this.excluirOrdemDeServicoUseCase = excluirOrdemDeServicoUseCase;
         this.finalizarOrdemDeServicoUseCase = finalizarOrdemDeServicoUseCase;
         this.consultarOrdensDeServicoUseCase = consultarOrdensDeServicoUseCase;
+        this.consultarTempoMedioExecucaoUseCase = consultarTempoMedioExecucaoUseCase;
         this.acompanharOrdemDeServicoUseCase = acompanharOrdemDeServicoUseCase;
     }
 
@@ -183,6 +188,23 @@ public class OrdemDeServicoController {
                 .map(OrdemDeServicoResponse::from)
                 .toList();
         log.info("Requisicao de consulta de ordens de servico concluida. quantidadeOrdensDeServico={}", response.size());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/metricas/tempo-medio")
+    @Operation(
+            summary = "Consultar tempo médio de execução",
+            description = "Retorna a média geral de execução calculada a partir de iniciadaEm e finalizadaEm das ordens finalizadas.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Métrica retornada com sucesso",
+                    content = @Content(schema = @Schema(implementation = TempoMedioExecucaoResponse.class)))
+    })
+    public ResponseEntity<TempoMedioExecucaoResponse> consultarTempoMedioExecucao() {
+        log.info("Recebida requisicao de consulta da metrica de tempo medio de execucao.");
+        TempoMedioExecucaoResponse response = TempoMedioExecucaoResponse.from(
+                consultarTempoMedioExecucaoUseCase.consultarTempoMedioExecucao());
+        log.info("Requisicao de consulta da metrica de tempo medio concluida. quantidadeOrdensConsideradas={}",
+                response.quantidadeOrdensConsideradas());
         return ResponseEntity.ok(response);
     }
 
