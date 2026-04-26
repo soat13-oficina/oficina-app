@@ -3,7 +3,7 @@ package br.com.oficina.ordemservico.infrastructure.web.response;
 import br.com.oficina.ordemservico.application.usecase.ConsultarTempoMedioExecucaoUseCase.TempoMedioExecucao;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(name = "TempoMedioExecucaoResponse", description = "Métrica de tempo médio de execução das ordens de serviço finalizadas")
+@Schema(name = "TempoMedioExecucaoResponse", description = "Métrica de tempo médio de execução das ordens de serviço com execução finalizada")
 public record TempoMedioExecucaoResponse(
         long tempoMedioExecucaoEmSegundos,
         String tempoMedioExecucaoFormatado,
@@ -15,7 +15,7 @@ public record TempoMedioExecucaoResponse(
     }
 
     @Override
-    @Schema(description = "Tempo médio geral formatado para leitura humana", example = "2 horas")
+    @Schema(description = "Tempo médio geral formatado para leitura humana", example = "2 horas e 30 minutos")
     public String tempoMedioExecucaoFormatado() {
         return tempoMedioExecucaoFormatado;
     }

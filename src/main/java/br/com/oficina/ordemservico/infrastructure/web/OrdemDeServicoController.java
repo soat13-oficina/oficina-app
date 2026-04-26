@@ -54,7 +54,7 @@ import br.com.oficina.ordemservico.infrastructure.web.response.TempoMedioExecuca
 
 @RestController
 @RequestMapping("/ordens-servico")
-@Tag(name = "Ordens de Servico", description = "Operações de abertura, acompanhamento, atualização e finalização de ordens de serviço")
+@Tag(name = "Ordens de Servico", description = "Operações de abertura, acompanhamento, execução, entrega e métricas de ordens de serviço")
 @SecurityRequirement(name = "bearerAuth")
 public class OrdemDeServicoController {
     private static final Logger log = LoggerFactory.getLogger(OrdemDeServicoController.class);
@@ -194,7 +194,7 @@ public class OrdemDeServicoController {
     @GetMapping("/metricas/tempo-medio")
     @Operation(
             summary = "Consultar tempo médio de execução",
-            description = "Retorna a média geral de execução calculada a partir de iniciadaEm e finalizadaEm das ordens finalizadas.")
+            description = "Retorna a média geral de execução calculada a partir de iniciadaEm e finalizadaEm das ordens com execução concluída, incluindo ordens já entregues ao cliente.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Métrica retornada com sucesso",
                     content = @Content(schema = @Schema(implementation = TempoMedioExecucaoResponse.class)))
@@ -291,7 +291,7 @@ public class OrdemDeServicoController {
     }
 
     @PostMapping("/{numeroOrdemServico}/finalizacao")
-    @Operation(summary = "Finalizar ordem de serviço", description = "Finaliza uma ordem de serviço com orçamento já gerado.")
+    @Operation(summary = "Finalizar ordem de serviço", description = "Finaliza uma ordem de serviço com orçamento já gerado, registrando o timestamp de finalização.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Ordem de serviço finalizada com sucesso",
                     content = @Content(schema = @Schema(implementation = FinalizacaoOrdemDeServicoResponse.class))),
@@ -307,7 +307,7 @@ public class OrdemDeServicoController {
     }
 
     @PostMapping("/{numeroOrdemServico}/entrega")
-    @Operation(summary = "Entregar ordem de serviço", description = "Conclui a entrega de uma ordem de serviço finalizada ao cliente.")
+    @Operation(summary = "Entregar ordem de serviço", description = "Conclui a entrega de uma ordem de serviço finalizada ao cliente, alterando o status para ENTREGUE e registrando o timestamp de entrega.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Ordem de serviço entregue com sucesso"),
             @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),

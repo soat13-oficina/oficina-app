@@ -78,7 +78,7 @@ public record OrdemDeServicoResponse(
     }
 
     @Override
-    @Schema(description = "Status atual da ordem de serviço", example = "ABERTA")
+    @Schema(description = "Status atual da ordem de serviço", example = "ENTREGUE")
     public StatusOrdemDeServico status() {
         return status;
     }
