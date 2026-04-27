@@ -41,6 +41,7 @@ import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 import br.com.oficina.veiculo.infrastructure.persistence.SpringDataVeiculoRepository;
+import java.time.LocalDateTime;
 
 @SpringBootTest
 class OrdemDeServicoControllerTest {
@@ -267,6 +268,46 @@ class OrdemDeServicoControllerTest {
     }
 
     @Test
+    void deveConsultarTempoMedioDeExecucao() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
+        Veiculo veiculo1 = springDataVeiculoRepository.save(new Veiculo(
+                cliente.getId(),
+                "MED1A23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        Veiculo veiculo2 = springDataVeiculoRepository.save(new Veiculo(
+                cliente.getId(),
+                "MED2B34", "Honda", "City", "Honda Motor Co.", 2023, 126, "AUTOMATICO", TipoCombustivel.FLEX));
+
+        ordemDeServicoRepository.salvar(OrdemDeServico.reconstituir(
+                null,
+                "OS-MEDIA-001",
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculo1,
+                StatusOrdemDeServico.OS_FINALIZADA,
+                LocalDateTime.of(2030, 1, 1, 8, 0),
+                LocalDateTime.of(2030, 1, 1, 10, 0),
+                null));
+        ordemDeServicoRepository.salvar(OrdemDeServico.reconstituir(
+                null,
+                "OS-MEDIA-002",
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculo2,
+                StatusOrdemDeServico.ENTREGUE,
+                LocalDateTime.of(2030, 1, 1, 9, 0),
+                LocalDateTime.of(2030, 1, 1, 12, 0),
+                LocalDateTime.of(2030, 1, 1, 13, 0)));
+
+        mockMvc.perform(get("/ordens-servico/metricas/tempo-medio")
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tempoMedioExecucaoEmSegundos").value(9000))
+                .andExpect(jsonPath("$.tempoMedioExecucaoFormatado").value("2 horas e 30 minutos"))
+                .andExpect(jsonPath("$.quantidadeOrdensConsideradas").value(2));
+    }
+
+    @Test
     void devePermitirClienteAcompanharAndamentoDaOrdem() throws Exception {
         Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
@@ -421,6 +462,37 @@ class OrdemDeServicoControllerTest {
                 .orElseThrow();
         assert ordemAtualizada.getStatus() == StatusOrdemDeServico.OS_FINALIZADA;
         assert ordemAtualizada.getFinalizadaEm() != null;
+    }
+
+    @Test
+    void deveEntregarOrdemDeServicoAoCliente() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "55555555555", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "ENT4G56", "Jeep", "Renegade", "Stellantis", 2024, 185, "AUTOMATICO", TipoCombustivel.DIESEL));
+
+        OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
+                null,
+                "os-entregar-1",
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculoRepository.buscarPorPlaca("ENT4G56").orElseThrow());
+        ordemDeServico.iniciarDiagnostico();
+        ordemDeServico.concluirDiagnostico();
+        ordemDeServico.enviarParaOrcamento();
+        ordemDeServico.finalizar();
+        ordemDeServicoRepository.salvar(ordemDeServico);
+
+        mockMvc.perform(post("/ordens-servico/os-entregar-1/entrega")
+                        .with(user("tester"))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorNumero("os-entregar-1")
+                .orElseThrow();
+        assert ordemAtualizada.getStatus() == StatusOrdemDeServico.ENTREGUE;
+        assert ordemAtualizada.getEntregueEm() != null;
     }
 
     @Test

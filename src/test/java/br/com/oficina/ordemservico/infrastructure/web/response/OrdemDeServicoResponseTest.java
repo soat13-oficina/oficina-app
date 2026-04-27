@@ -54,5 +54,6 @@ class OrdemDeServicoResponseTest {
         assertEquals(StatusOrdemDeServico.OS_ABERTA, response.status());
         assertNull(response.iniciadaEm());
         assertNull(response.finalizadaEm());
+        assertNull(response.entregueEm());
     }
 }

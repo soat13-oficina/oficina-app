@@ -86,33 +86,66 @@ flowchart TD
     OS_ABERTA -->|"POST .../diagnostico/iniciar"| DIAG_AND([DIAGNOSTICO_EM_ANDAMENTO])
 
     DIAG_AND -->|"POST .../diagnostico/concluir"| DIAG_CONC([DIAGNOSTICO_CONCLUIDO])
-
-    DIAG_CONC -->|"POST .../enviar-para-orcamento"| AGUA_ORC([AGUARDANDO_ORCAMENTO])
-
-    AGUA_ORC --> ORC_GER([ORCAMENTO_GERADO])
-    ORC_GER --> AGUA_APR([AGUARDANDO_APROVACAO])
-    AGUA_APR -->|Aprovado| ORC_APR([ORCAMENTO_APROVADO])
-    AGUA_APR -->|Rejeitado| REJEITADO([Rejeitado])
-    ORC_APR --> SERV_AND([SERVICO_EM_ANDAMENTO])
-    SERV_AND --> AGUA_PECA([AGUARDANDO_PECA])
-    AGUA_PECA --> SERV_AND
-    SERV_AND --> SERV_CONC([SERVICO_CONCLUIDO])
-    SERV_CONC -->|"POST .../finalizacao"| OS_FIN([OS_FINALIZADA])
+    DIAG_CONC -->|"POST .../diagnostico/enviar-para-orcamento"| ORC_GER([ORCAMENTO_GERADO])
+    ORC_GER -->|"POST .../finalizacao"| OS_FIN([OS_FINALIZADA])
+    OS_FIN -->|"POST .../entrega"| ENTREGUE([ENTREGUE])
 
     style OS_ABERTA fill:#4CAF50,color:#fff
     style OS_FIN fill:#2196F3,color:#fff
+    style ENTREGUE fill:#1565C0,color:#fff
     style EXCLUIDA fill:#f44336,color:#fff
-    style REJEITADO fill:#f44336,color:#fff
     style DIAG_AND fill:#FF9800,color:#fff
     style DIAG_CONC fill:#FF9800,color:#fff
-    style AGUA_ORC fill:#9C27B0,color:#fff
     style ORC_GER fill:#9C27B0,color:#fff
-    style AGUA_APR fill:#9C27B0,color:#fff
-    style ORC_APR fill:#009688,color:#fff
-    style SERV_AND fill:#009688,color:#fff
-    style AGUA_PECA fill:#FF5722,color:#fff
-    style SERV_CONC fill:#009688,color:#fff
 ```
+
+---
+
+## 3.1 Status previstos vs fluxo implementado hoje
+
+O enum `StatusOrdemDeServico` contém os estados abaixo:
+
+- `OS_ABERTA`
+- `DIAGNOSTICO_EM_ANDAMENTO`
+- `DIAGNOSTICO_CONCLUIDO`
+- `AGUARDANDO_ORCAMENTO`
+- `ORCAMENTO_GERADO`
+- `AGUARDANDO_APROVACAO`
+- `ORCAMENTO_APROVADO`
+- `SERVICO_EM_ANDAMENTO`
+- `AGUARDANDO_PECA`
+- `SERVICO_CONCLUIDO`
+- `OS_FINALIZADA`
+- `ENTREGUE`
+
+As transições efetivamente implementadas no agregado `OrdemDeServico` nesta versão do projeto são:
+
+- `OS_ABERTA -> DIAGNOSTICO_EM_ANDAMENTO`
+- `DIAGNOSTICO_EM_ANDAMENTO -> DIAGNOSTICO_CONCLUIDO`
+- `DIAGNOSTICO_CONCLUIDO -> ORCAMENTO_GERADO`
+- `ORCAMENTO_GERADO -> OS_FINALIZADA`
+- `OS_FINALIZADA -> ENTREGUE`
+
+Os estados `AGUARDANDO_ORCAMENTO`, `AGUARDANDO_APROVACAO`, `ORCAMENTO_APROVADO`, `SERVICO_EM_ANDAMENTO`, `AGUARDANDO_PECA` e `SERVICO_CONCLUIDO` continuam previstos no enum, mas não possuem transições próprias implementadas no domínio de `OrdemDeServico` nesta revisão.
+
+---
+
+## 3.2 Timestamps e Métrica de Execução
+
+```mermaid
+flowchart LR
+    INI["iniciadaEm"] --> DUR["Duration.between(iniciadaEm, finalizadaEm)"]
+    FIM["finalizadaEm"] --> DUR
+    DUR --> MEDIA["GET /ordens-servico/metricas/tempo-medio"]
+    MEDIA --> RESP["tempoMedioExecucaoEmSegundos\n tempoMedioExecucaoFormatado\n quantidadeOrdensConsideradas"]
+    ENTREGA["entregueEm"] -.->|"nao entra no calculo"| MEDIA
+```
+
+Regras atuais da métrica:
+
+- Considera ordens com `iniciadaEm` e `finalizadaEm` preenchidos.
+- Ordens em `OS_FINALIZADA` e `ENTREGUE` entram no cálculo.
+- `entregueEm` é apenas informativo para rastrear a entrega ao cliente e não altera a duração de execução.
 
 ---
 
@@ -121,8 +154,8 @@ flowchart TD
 ```mermaid
 flowchart LR
     A(["Criacao via EnviarDiagnostico\nou POST /orcamentos"]) --> AGUA([AGUARDANDO_APROVACAO])
-    AGUA -->|aprovar| APR([APROVADO])
-    AGUA -->|rejeitar| REJ([REJEITADO])
+    AGUA -->|"POST /orcamentos/{id}/aprovacao"| APR([APROVADO])
+    AGUA -->|"POST /orcamentos/{id}/rejeicao"| REJ([REJEITADO])
 
     style AGUA fill:#FF9800,color:#fff
     style APR fill:#4CAF50,color:#fff
@@ -191,8 +224,10 @@ flowchart TD
     CLI["cliente\nCRUD CPF/CNPJ"] -->|clienteId| OS
     CLI -->|clienteId| VEI
     VEI["veiculo\nCRUD placa"] -->|veiculoId| OS
-    OS["ordemservico\nfluxo principal"] -->|cria| ORC
-    PEC["pecainsumo\nestoque"] -.->|reserva para| OS
+    OS["ordemservico\nfluxo principal"] -->|gera orçamento| ORC
+    ORC -->|aprovação reserva peças| PEC
+    OS -->|finalização consome peças reservadas| PEC
+    OS -->|expõe métrica| METRIC["GET /ordens-servico/metricas/tempo-medio"]
 
     COMMON["common\nExceptions + Handler"] -.->|trata erros| CLI
     COMMON -.->|trata erros| VEI
@@ -200,3 +235,15 @@ flowchart TD
     COMMON -.->|trata erros| ORC
     COMMON -.->|trata erros| PEC
 ```
+
+---
+
+## 8. Mudanças Recentes Registradas no Fluxo
+
+Últimas mudanças incorporadas ao projeto e refletidas neste documento:
+
+- Inclusão da transição `OS_FINALIZADA -> ENTREGUE` com endpoint `POST /ordens-servico/{numeroOrdemServico}/entrega`.
+- Persistência do timestamp `entregueEm` na ordem de serviço.
+- Inclusão do endpoint `GET /ordens-servico/metricas/tempo-medio`.
+- Cálculo da média geral de execução com base em `iniciadaEm` e `finalizadaEm`.
+- Atualização do Swagger para documentar entrega ao cliente, métrica de tempo médio e exemplos compatíveis com o fluxo atual.

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,6 +66,89 @@ class JpaOrdemDeServicoRepositoryIntegrationTest {
 
         assertEquals(1, filtradas.size());
         assertEquals(1, repository.buscarTodas().size());
+    }
+
+    @Test
+    void devePersistirDataDeEntregaQuandoOrdemForEntregue() {
+        UUID clienteId = UUID.randomUUID();
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Larissa", "12312312399");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Claudio", "12312312399", TipoCliente.PF);
+        Veiculo veiculo = veiculoRepository.save(new Veiculo(
+                clienteId,
+                "ENT1R23",
+                "Volkswagen",
+                "Polo",
+                "Volkswagen",
+                2024,
+                116,
+                "AUTOMATICO",
+                TipoCombustivel.FLEX));
+        OrdemDeServico ordem = OrdemDeServico.abrir(null, "OS-2026-003", funcionario, cliente, veiculo);
+        ordem.iniciarDiagnostico();
+        ordem.concluirDiagnostico();
+        ordem.enviarParaOrcamento();
+        ordem.finalizar();
+        ordem.entregarAoCliente();
+
+        repository.salvar(ordem);
+
+        OrdemDeServico encontrada = repository.buscarPorNumero("OS-2026-003").orElseThrow();
+        assertEquals(StatusOrdemDeServico.ENTREGUE, encontrada.getStatus());
+        assertTrue(encontrada.getFinalizadaEm() != null);
+        assertTrue(encontrada.getEntregueEm() != null);
+    }
+
+    @Test
+    void deveBuscarOrdensComExecucaoFinalizada() {
+        UUID clienteId = UUID.randomUUID();
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Larissa", "12312312399");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Claudio", "12312312399", TipoCliente.PF);
+        Veiculo veiculo1 = veiculoRepository.save(new Veiculo(
+                clienteId,
+                "MET1R23",
+                "Volkswagen",
+                "Polo",
+                "Volkswagen",
+                2024,
+                116,
+                "AUTOMATICO",
+                TipoCombustivel.FLEX));
+        Veiculo veiculo2 = veiculoRepository.save(new Veiculo(
+                clienteId,
+                "MET2R23",
+                "Volkswagen",
+                "Virtus",
+                "Volkswagen",
+                2024,
+                128,
+                "AUTOMATICO",
+                TipoCombustivel.FLEX));
+
+        repository.salvar(OrdemDeServico.reconstituir(
+                null,
+                "OS-2026-004",
+                funcionario,
+                cliente,
+                veiculo1,
+                StatusOrdemDeServico.OS_FINALIZADA,
+                LocalDateTime.of(2030, 1, 1, 8, 0),
+                LocalDateTime.of(2030, 1, 1, 10, 0),
+                null));
+        repository.salvar(OrdemDeServico.reconstituir(
+                null,
+                "OS-2026-005",
+                funcionario,
+                cliente,
+                veiculo2,
+                StatusOrdemDeServico.ENTREGUE,
+                LocalDateTime.of(2030, 1, 1, 9, 0),
+                LocalDateTime.of(2030, 1, 1, 12, 0),
+                LocalDateTime.of(2030, 1, 1, 13, 0)));
+        repository.salvar(OrdemDeServico.abrir(null, "OS-2026-006", funcionario, cliente, veiculo2));
+
+        List<OrdemDeServico> ordensFinalizadas = repository.buscarOrdensComExecucaoFinalizada();
+
+        assertEquals(2, ordensFinalizadas.size());
     }
 
     @Test

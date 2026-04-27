@@ -13,7 +13,8 @@ public record AcompanhamentoOrdemDeServicoResponse(
         String placaVeiculo,
         StatusOrdemDeServico status,
         LocalDateTime iniciadaEm,
-        LocalDateTime finalizadaEm) {
+        LocalDateTime finalizadaEm,
+        LocalDateTime entregueEm) {
     @Override
     @Schema(description = "Número da ordem de serviço", example = "OS-1A2B3C4D")
     public String numeroOrdemServico() {
@@ -50,6 +51,12 @@ public record AcompanhamentoOrdemDeServicoResponse(
         return finalizadaEm;
     }
 
+    @Override
+    @Schema(description = "Data e hora de entrega da ordem ao cliente", example = "2030-01-03T09:15:00")
+    public LocalDateTime entregueEm() {
+        return entregueEm;
+    }
+
     public static AcompanhamentoOrdemDeServicoResponse from(OrdemDeServico ordemDeServico) {
         return new AcompanhamentoOrdemDeServicoResponse(
                 ordemDeServico.getNumeroOrdemServico(),
@@ -57,6 +64,7 @@ public record AcompanhamentoOrdemDeServicoResponse(
                 ordemDeServico.getVeiculo().getPlaca(),
                 ordemDeServico.getStatus(),
                 ordemDeServico.getIniciadaEm(),
-                ordemDeServico.getFinalizadaEm());
+                ordemDeServico.getFinalizadaEm(),
+                ordemDeServico.getEntregueEm());
     }
 }

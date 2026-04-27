@@ -24,7 +24,8 @@ public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
                         ordemDeServico.getVeiculo(),
                         ordemDeServico.getStatus(),
                         ordemDeServico.getIniciadaEm(),
-                        ordemDeServico.getFinalizadaEm())
+                        ordemDeServico.getFinalizadaEm(),
+                        ordemDeServico.getEntregueEm())
                 : ordemDeServico;
         ordens.put(ordemPersistida.getNumeroOrdemServico(), ordemPersistida);
     }
@@ -56,6 +57,13 @@ public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
     @Override
     public List<OrdemDeServico> buscarTodas() {
         return ordens.values().stream().toList();
+    }
+
+    @Override
+    public List<OrdemDeServico> buscarOrdensComExecucaoFinalizada() {
+        return ordens.values().stream()
+                .filter(ordem -> ordem.getIniciadaEm() != null && ordem.getFinalizadaEm() != null)
+                .toList();
     }
 
     @Override

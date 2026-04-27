@@ -2,15 +2,6 @@ package br.com.oficina.ordemservico.infrastructure.web;
 
 import java.util.List;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
+import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
@@ -36,7 +28,9 @@ import br.com.oficina.ordemservico.application.usecase.AcompanharOrdemDeServicoU
 import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConcluirDiagnosticoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarOrdensDeServicoUseCase;
+import br.com.oficina.ordemservico.application.usecase.ConsultarTempoMedioExecucaoUseCase;
 import br.com.oficina.ordemservico.application.usecase.CriarNovaOrdemDeServicoUseCase;
+import br.com.oficina.ordemservico.application.usecase.EntregarAoClienteUseCase;
 import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ExcluirOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase;
@@ -47,22 +41,23 @@ import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoP
 import br.com.oficina.ordemservico.infrastructure.web.response.AcompanhamentoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.FinalizacaoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.OrdemDeServicoResponse;
+import br.com.oficina.ordemservico.infrastructure.web.response.TempoMedioExecucaoResponse;
 
 @RestController
 @RequestMapping("/ordens-servico")
-@Tag(name = "Ordens de Servico", description = "Operações de abertura, acompanhamento, atualização e finalização de ordens de serviço")
-@SecurityRequirement(name = "bearerAuth")
-public class OrdemDeServicoController {
+public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger {
     private static final Logger log = LoggerFactory.getLogger(OrdemDeServicoController.class);
 
     private final AlterarOrdemDeServicoUseCase alterarOrdemDeServicoUseCase;
     private final CriarNovaOrdemDeServicoUseCase criarNovaOrdemDeServicoUseCase;
     private final IniciarDiagnosticoUseCase iniciarDiagnosticoUseCase;
     private final ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase;
+    private final EntregarAoClienteUseCase entregarAoClienteUseCase;
     private final EnviarDiagnosticoParaOrcamentoUseCase enviarDiagnosticoParaOrcamentoUseCase;
     private final ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase;
     private final FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase;
     private final ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase;
+    private final ConsultarTempoMedioExecucaoUseCase consultarTempoMedioExecucaoUseCase;
     private final AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase;
 
     public OrdemDeServicoController(
@@ -70,31 +65,27 @@ public class OrdemDeServicoController {
             CriarNovaOrdemDeServicoUseCase criarNovaOrdemDeServicoUseCase,
             IniciarDiagnosticoUseCase iniciarDiagnosticoUseCase,
             ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase,
+            EntregarAoClienteUseCase entregarAoClienteUseCase,
             EnviarDiagnosticoParaOrcamentoUseCase enviarDiagnosticoParaOrcamentoUseCase,
             ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase,
             FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase,
             ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase,
+            ConsultarTempoMedioExecucaoUseCase consultarTempoMedioExecucaoUseCase,
             AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase) {
         this.alterarOrdemDeServicoUseCase = alterarOrdemDeServicoUseCase;
         this.criarNovaOrdemDeServicoUseCase = criarNovaOrdemDeServicoUseCase;
         this.iniciarDiagnosticoUseCase = iniciarDiagnosticoUseCase;
         this.concluirDiagnosticoUseCase = concluirDiagnosticoUseCase;
+        this.entregarAoClienteUseCase = entregarAoClienteUseCase;
         this.enviarDiagnosticoParaOrcamentoUseCase = enviarDiagnosticoParaOrcamentoUseCase;
         this.excluirOrdemDeServicoUseCase = excluirOrdemDeServicoUseCase;
         this.finalizarOrdemDeServicoUseCase = finalizarOrdemDeServicoUseCase;
         this.consultarOrdensDeServicoUseCase = consultarOrdensDeServicoUseCase;
+        this.consultarTempoMedioExecucaoUseCase = consultarTempoMedioExecucaoUseCase;
         this.acompanharOrdemDeServicoUseCase = acompanharOrdemDeServicoUseCase;
     }
 
     @PostMapping
-    @Operation(
-            summary = "Criar ordem de serviço",
-            description = "Abre uma nova ordem de serviço vinculando cliente, funcionário responsável e veículo existente.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "202", description = "Ordem de serviço criada com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Identificador inválido ou dados inconsistentes", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Cliente, funcionário ou veículo não encontrado", content = @Content)
-    })
     public ResponseEntity<Void> criar(@RequestBody CriarOrdemDeServicoRequest request) {
         log.info("Recebida requisicao de criacao de ordem de servico. clienteId={}, funcionarioId={}, placaVeiculo={}",
                 request.clienteId(),
@@ -110,14 +101,6 @@ public class OrdemDeServicoController {
     }
 
     @PutMapping("/{numeroOrdemServico}")
-    @Operation(
-            summary = "Alterar ordem de serviço",
-            description = "Atualiza cliente e veículo de uma ordem aberta, mantendo o funcionário criador original.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Ordem de serviço alterada com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Identificador inválido ou regra de negócio violada", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Ordem, cliente, funcionário ou veículo não encontrado", content = @Content)
-    })
     public ResponseEntity<Void> alterar(
             @PathVariable String numeroOrdemServico,
             @RequestBody AlterarOrdemDeServicoRequest request) {
@@ -137,11 +120,6 @@ public class OrdemDeServicoController {
     }
 
     @DeleteMapping("/{numeroOrdemServico}")
-    @Operation(summary = "Excluir ordem de serviço", description = "Remove uma ordem de serviço pelo número informado.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Ordem de serviço excluída com sucesso"),
-            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
-    })
     public ResponseEntity<Void> excluir(@PathVariable String numeroOrdemServico) {
         log.info("Recebida requisicao de exclusao de ordem de servico. numeroOrdemServico={}", numeroOrdemServico);
         excluirOrdemDeServicoUseCase.excluirOrdemDeServico(new ExcluirOrdemDeServicoCommand(numeroOrdemServico));
@@ -150,18 +128,11 @@ public class OrdemDeServicoController {
     }
 
     @GetMapping
-    @Operation(
-            summary = "Consultar ordens de serviço",
-            description = "Consulta ordens de serviço por número, nome do cliente, documento do cliente e/ou placa do veículo.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Ordens de serviço retornadas com sucesso",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = OrdemDeServicoResponse.class))))
-    })
     public ResponseEntity<List<OrdemDeServicoResponse>> consultar(
-            @Parameter(description = "Número da ordem de serviço para filtro exato.") @RequestParam(required = false) String numeroOrdemServico,
-            @Parameter(description = "Nome completo ou parcial do cliente vinculado.") @RequestParam(required = false) String nomeCliente,
-            @Parameter(description = "Placa do veículo vinculada à ordem de serviço.") @RequestParam(required = false) String placaVeiculo,
-            @Parameter(description = "CPF ou CNPJ do cliente vinculado.") @RequestParam(required = false) String documentoCliente) {
+            @RequestParam(required = false) String numeroOrdemServico,
+            @RequestParam(required = false) String nomeCliente,
+            @RequestParam(required = false) String placaVeiculo,
+            @RequestParam(required = false) String documentoCliente) {
         log.info(
                 "Recebida requisicao de consulta de ordens de servico. numeroOrdemServico={}, nomeCliente={}, placaVeiculo={}, documentoClienteInformado={}",
                 numeroOrdemServico,
@@ -181,18 +152,20 @@ public class OrdemDeServicoController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/metricas/tempo-medio")
+    public ResponseEntity<TempoMedioExecucaoResponse> consultarTempoMedioExecucao() {
+        log.info("Recebida requisicao de consulta da metrica de tempo medio de execucao.");
+        TempoMedioExecucaoResponse response = TempoMedioExecucaoResponse.from(
+                consultarTempoMedioExecucaoUseCase.consultarTempoMedioExecucao());
+        log.info("Requisicao de consulta da metrica de tempo medio concluida. quantidadeOrdensConsideradas={}",
+                response.quantidadeOrdensConsideradas());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{numeroOrdemServico}/acompanhamento")
-    @Operation(
-            summary = "Acompanhar ordem de serviço",
-            description = "Permite ao cliente consultar o andamento da ordem de serviço informando o número da ordem e o documento do cliente.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Acompanhamento retornado com sucesso",
-                    content = @Content(schema = @Schema(implementation = AcompanhamentoOrdemDeServicoResponse.class))),
-            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
-    })
     public ResponseEntity<AcompanhamentoOrdemDeServicoResponse> acompanhar(
             @PathVariable String numeroOrdemServico,
-            @Parameter(description = "CPF ou CNPJ do cliente vinculado à ordem de serviço.") @RequestParam String documentoCliente) {
+            @RequestParam String documentoCliente) {
         log.info(
                 "Recebida requisicao de acompanhamento de ordem de servico. numeroOrdemServico={}, documentoClienteInformado={}",
                 numeroOrdemServico,
@@ -205,12 +178,6 @@ public class OrdemDeServicoController {
     }
 
     @PostMapping("/{numeroOrdemServico}/diagnostico/iniciar")
-    @Operation(summary = "Iniciar diagnóstico", description = "Inicia o diagnóstico de uma ordem de serviço aberta.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Diagnóstico iniciado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
-    })
     public ResponseEntity<Void> iniciarDiagnostico(@PathVariable String numeroOrdemServico) {
         log.info("Recebida requisicao para iniciar diagnostico. numeroOrdemServico={}", numeroOrdemServico);
         iniciarDiagnosticoUseCase.iniciarDiagnostico(new IniciarDiagnosticoCommand(numeroOrdemServico));
@@ -219,12 +186,6 @@ public class OrdemDeServicoController {
     }
 
     @PostMapping("/{numeroOrdemServico}/diagnostico/concluir")
-    @Operation(summary = "Concluir diagnóstico", description = "Conclui o diagnóstico de uma ordem de serviço em andamento.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Diagnóstico concluído com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
-    })
     public ResponseEntity<Void> concluirDiagnostico(@PathVariable String numeroOrdemServico) {
         log.info("Recebida requisicao para concluir diagnostico. numeroOrdemServico={}", numeroOrdemServico);
         concluirDiagnosticoUseCase.concluirDiagnostico(new ConcluirDiagnosticoCommand(numeroOrdemServico));
@@ -233,14 +194,6 @@ public class OrdemDeServicoController {
     }
 
     @PostMapping("/{numeroOrdemServico}/diagnostico/enviar-para-orcamento")
-    @Operation(
-            summary = "Enviar diagnóstico para orçamento",
-            description = "Gera um orçamento a partir do diagnóstico concluído e move a ordem de serviço para o status de orçamento gerado.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Diagnóstico enviado para orçamento com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos ou transição de status inválida", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
-    })
     public ResponseEntity<Void> enviarDiagnosticoParaOrcamento(
             @PathVariable String numeroOrdemServico,
             @RequestBody EnviarDiagnosticoParaOrcamentoRequest request) {
@@ -264,18 +217,19 @@ public class OrdemDeServicoController {
     }
 
     @PostMapping("/{numeroOrdemServico}/finalizacao")
-    @Operation(summary = "Finalizar ordem de serviço", description = "Finaliza uma ordem de serviço com orçamento já gerado.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Ordem de serviço finalizada com sucesso",
-                    content = @Content(schema = @Schema(implementation = FinalizacaoOrdemDeServicoResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Ordem de serviço ou orçamento não encontrado", content = @Content)
-    })
     public ResponseEntity<FinalizacaoOrdemDeServicoResponse> finalizar(@PathVariable String numeroOrdemServico) {
         log.info("Recebida requisicao de finalizacao de ordem de servico. numeroOrdemServico={}", numeroOrdemServico);
         FinalizacaoOrdemDeServicoResponse response = FinalizacaoOrdemDeServicoResponse.from(
                 finalizarOrdemDeServicoUseCase.finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand(numeroOrdemServico)));
         log.info("Requisicao de finalizacao de ordem de servico concluida. numeroOrdemServico={}", numeroOrdemServico);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{numeroOrdemServico}/entrega")
+    public ResponseEntity<Void> entregarAoCliente(@PathVariable String numeroOrdemServico) {
+        log.info("Recebida requisicao de entrega ao cliente. numeroOrdemServico={}", numeroOrdemServico);
+        entregarAoClienteUseCase.entregarAoCliente(new EntregarAoClienteCommand(numeroOrdemServico));
+        log.info("Requisicao de entrega ao cliente concluida. numeroOrdemServico={}", numeroOrdemServico);
+        return ResponseEntity.noContent().build();
     }
 }

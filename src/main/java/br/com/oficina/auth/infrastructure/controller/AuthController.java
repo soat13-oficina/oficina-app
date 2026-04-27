@@ -5,8 +5,6 @@ import br.com.oficina.auth.infrastructure.controller.dto.LoginRequest;
 import br.com.oficina.auth.infrastructure.controller.dto.LoginResponse;
 import br.com.oficina.auth.infrastructure.repository.UsuarioRepository;
 import br.com.oficina.auth.infrastructure.security.JwtUtil;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,8 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@Tag(name = "Autenticação", description = "Geração de token JWT para acesso administrativo")
-public class AuthController {
+public class AuthController implements AuthControllerSwagger {
 
     private final AuthenticationManager authenticationManager;
     private final UsuarioRepository usuarioRepository;
@@ -32,7 +29,6 @@ public class AuthController {
     private final JwtUtil jwtUtil;
 
     @PostMapping("/login")
-    @Operation(summary = "Realizar login", description = "Autentica um usuário e retorna um token JWT")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         try {
             Authentication authentication = authenticationManager.authenticate(
@@ -46,7 +42,6 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @Operation(summary = "Registrar usuário", description = "Cria um novo usuário")
     public ResponseEntity<LoginResponse> register(@RequestBody LoginRequest request) {
         try {
             // 1. Verifica se já existe

@@ -18,6 +18,7 @@ import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
 import br.com.oficina.orcamento.application.service.CadastrarNovoOrcamentoService;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
+import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
@@ -41,7 +42,7 @@ class FluxoOrdemDeServicoServicesTest {
     private static final String PECA_ID = "peca-oleo-001";
 
     @Test
-    void deveIniciarConcluirFinalizarEExcluirOrdemDeServico() {
+    void deveIniciarConcluirFinalizarEntregarEExcluirOrdemDeServico() {
         UUID clienteId = UUID.fromString("61111111-1111-1111-1111-111111111111");
         TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
         TestClienteRepository clienteRepository = new TestClienteRepository();
@@ -70,11 +71,14 @@ class FluxoOrdemDeServicoServicesTest {
                         null));
         new FinalizarOrdemDeServicoService(repository, orcamentoRepository, noOpConsumirPeca)
                 .finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand("OS-001"));
+        new EntregarAoClienteService(repository)
+                .entregarAoCliente(new EntregarAoClienteCommand("OS-001"));
 
         OrdemDeServico ordemAtualizada = repository.buscarPorNumero("OS-001").orElseThrow();
-        assertEquals(StatusOrdemDeServico.OS_FINALIZADA, ordemAtualizada.getStatus());
+        assertEquals(StatusOrdemDeServico.ENTREGUE, ordemAtualizada.getStatus());
         assertNotNull(ordemAtualizada.getIniciadaEm());
         assertNotNull(ordemAtualizada.getFinalizadaEm());
+        assertNotNull(ordemAtualizada.getEntregueEm());
 
         new ExcluirOrdemDeServicoService(repository).excluirOrdemDeServico(new ExcluirOrdemDeServicoCommand("OS-001"));
 

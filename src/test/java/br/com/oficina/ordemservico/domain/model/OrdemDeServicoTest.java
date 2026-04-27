@@ -53,10 +53,12 @@ class OrdemDeServicoTest {
         ordemDeServico.concluirDiagnostico();
         ordemDeServico.enviarParaOrcamento();
         ordemDeServico.finalizar();
+        ordemDeServico.entregarAoCliente();
 
-        assertEquals(StatusOrdemDeServico.OS_FINALIZADA, ordemDeServico.getStatus());
+        assertEquals(StatusOrdemDeServico.ENTREGUE, ordemDeServico.getStatus());
         assertNotNull(ordemDeServico.getIniciadaEm());
         assertNotNull(ordemDeServico.getFinalizadaEm());
+        assertNotNull(ordemDeServico.getEntregueEm());
     }
 
     @Test
@@ -91,6 +93,17 @@ class OrdemDeServicoTest {
                 ordemDeServico::finalizar);
 
         assertEquals("Ordem de servico so pode ser finalizada com orcamento gerado", exception.getMessage());
+    }
+
+    @Test
+    void naoDeveEntregarAoClienteQuandoOrdemNaoEstiverFinalizada() {
+        OrdemDeServico ordemDeServico = novaOrdem("OS-005A");
+
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
+                ordemDeServico::entregarAoCliente);
+
+        assertEquals("Ordem de servico so pode ser entregue ao cliente quando estiver finalizada", exception.getMessage());
     }
 
     @Test
