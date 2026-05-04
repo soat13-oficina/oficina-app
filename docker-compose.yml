@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: oficina_db
+    environment:
+      POSTGRES_USER: oficina_user
+      POSTGRES_PASSWORD: oficina_123
+      POSTGRES_DB: oficina_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: .
+    container_name: oficina_api
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_URL=jdbc:postgresql://db:5432/oficina_db
+      - DB_USER=oficina_user
+      - DB_PASS=oficina_123
+      - JWT_SECRET=ASjhd8213u41jksaJD7HS8AJDkjsaDH871A2132KJDQ293N12BDKS
+    depends_on:
+      - db
+
+volumes:
+  pgdata:

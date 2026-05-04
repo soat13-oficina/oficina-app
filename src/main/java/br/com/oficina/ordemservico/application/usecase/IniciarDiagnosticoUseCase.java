@@ -1,8 +1,7 @@
 package br.com.oficina.ordemservico.application.usecase;
 
-public interface IniciarDiagnosticoUseCase {
-    void iniciarDiagnostico(IniciarDiagnosticoRequest request);
+import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
 
-    record IniciarDiagnosticoRequest(String ordemDeServicoId) {
-    }
+public interface IniciarDiagnosticoUseCase {
+    void iniciarDiagnostico(IniciarDiagnosticoCommand command);
 }

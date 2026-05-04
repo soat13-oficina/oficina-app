@@ -1,8 +1,7 @@
 package br.com.oficina.ordemservico.application.usecase;
 
-public interface ConcluirDiagnosticoUseCase {
-    void concluirDiagnostico(ConcluirDiagnosticoRequest request);
+import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
 
-    record ConcluirDiagnosticoRequest(String ordemDeServicoId) {
-    }
+public interface ConcluirDiagnosticoUseCase {
+    void concluirDiagnostico(ConcluirDiagnosticoCommand command);
 }
