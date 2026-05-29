@@ -15,7 +15,7 @@ public record AlterarClienteRequest(String nome, String cpfOuCnpj, TipoCliente t
     }
 
     @Override
-    @Schema(description = "CPF ou CNPJ do cliente", example = "12345678901")
+    @Schema(description = "CPF ou CNPJ do cliente", example = "12345678909")
     public String cpfOuCnpj() {
         return cpfOuCnpj;
     }

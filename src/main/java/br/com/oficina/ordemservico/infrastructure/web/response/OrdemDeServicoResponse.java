@@ -60,7 +60,7 @@ public record OrdemDeServicoResponse(
     }
 
     @Override
-    @Schema(description = "CPF ou CNPJ do cliente vinculado", example = "12345678901")
+    @Schema(description = "CPF ou CNPJ do cliente vinculado", example = "12345678909")
     public String documentoCliente() {
         return documentoCliente;
     }

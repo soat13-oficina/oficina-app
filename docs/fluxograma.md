@@ -87,7 +87,9 @@ flowchart TD
 
     DIAG_AND -->|"POST .../diagnostico/concluir"| DIAG_CONC([DIAGNOSTICO_CONCLUIDO])
     DIAG_CONC -->|"POST .../diagnostico/enviar-para-orcamento"| ORC_GER([ORCAMENTO_GERADO])
-    ORC_GER -->|"POST .../finalizacao"| OS_FIN([OS_FINALIZADA])
+    ORC_GER -->|"POST .../aguardar-aprovacao"| AGU_APR([AGUARDANDO_APROVACAO])
+    AGU_APR -->|"POST .../execucao/iniciar"| SERV_AND([SERVICO_EM_ANDAMENTO])
+    SERV_AND -->|"POST .../finalizacao"| OS_FIN([OS_FINALIZADA])
     OS_FIN -->|"POST .../entrega"| ENTREGUE([ENTREGUE])
 
     style OS_ABERTA fill:#4CAF50,color:#fff
@@ -97,6 +99,8 @@ flowchart TD
     style DIAG_AND fill:#FF9800,color:#fff
     style DIAG_CONC fill:#FF9800,color:#fff
     style ORC_GER fill:#9C27B0,color:#fff
+    style AGU_APR fill:#FF9800,color:#fff
+    style SERV_AND fill:#FF9800,color:#fff
 ```
 
 ---
@@ -123,10 +127,14 @@ As transições efetivamente implementadas no agregado `OrdemDeServico` nesta ve
 - `OS_ABERTA -> DIAGNOSTICO_EM_ANDAMENTO`
 - `DIAGNOSTICO_EM_ANDAMENTO -> DIAGNOSTICO_CONCLUIDO`
 - `DIAGNOSTICO_CONCLUIDO -> ORCAMENTO_GERADO`
-- `ORCAMENTO_GERADO -> OS_FINALIZADA`
+- `ORCAMENTO_GERADO -> AGUARDANDO_APROVACAO` (novo passo: cliente precisa aprovar o orçamento)
+- `AGUARDANDO_APROVACAO -> SERVICO_EM_ANDAMENTO` (novo passo: orçamento aprovado, execução iniciada)
+- `SERVICO_EM_ANDAMENTO -> OS_FINALIZADA`
 - `OS_FINALIZADA -> ENTREGUE`
 
-Os estados `AGUARDANDO_ORCAMENTO`, `AGUARDANDO_APROVACAO`, `ORCAMENTO_APROVADO`, `SERVICO_EM_ANDAMENTO`, `AGUARDANDO_PECA` e `SERVICO_CONCLUIDO` continuam previstos no enum, mas não possuem transições próprias implementadas no domínio de `OrdemDeServico` nesta revisão.
+Com isso o fluxo principal passa explicitamente por `AGUARDANDO_APROVACAO` e `SERVICO_EM_ANDAMENTO`, que antes existiam apenas no enum. A finalização agora exige que a ordem esteja em `SERVICO_EM_ANDAMENTO` (não mais diretamente a partir de `ORCAMENTO_GERADO`).
+
+Os estados auxiliares `AGUARDANDO_ORCAMENTO`, `ORCAMENTO_APROVADO`, `AGUARDANDO_PECA` e `SERVICO_CONCLUIDO` continuam previstos no enum para evoluções futuras, mas ainda não possuem transições próprias implementadas no domínio de `OrdemDeServico` nesta revisão.
 
 ---
 
@@ -242,6 +250,10 @@ flowchart TD
 
 Últimas mudanças incorporadas ao projeto e refletidas neste documento:
 
+- Fechamento do fluxo principal da ordem de serviço com os passos `AGUARDANDO_APROVACAO` e `SERVICO_EM_ANDAMENTO`, expostos pelos endpoints `POST /ordens-servico/{numeroOrdemServico}/aguardar-aprovacao` e `POST /ordens-servico/{numeroOrdemServico}/execucao/iniciar`. A finalização passou a exigir o status `SERVICO_EM_ANDAMENTO`.
+- Correção do rollback de reservas na aprovação de orçamento: quando falta estoque para alguma peça, as reservas já feitas são efetivamente liberadas via `LiberarReservaPecaUseCase`, e não mais deixadas presas.
+- Validação de CPF/CNPJ do cliente passou a conferir o dígito verificador (biblioteca `caelum-stella`), em vez de apenas contar dígitos.
+- Testes de integração de persistência migrados para Testcontainers (PostgreSQL), removendo a dependência de um banco em `localhost`.
 - Inclusão da transição `OS_FINALIZADA -> ENTREGUE` com endpoint `POST /ordens-servico/{numeroOrdemServico}/entrega`.
 - Persistência do timestamp `entregueEm` na ordem de serviço.
 - Inclusão do endpoint `GET /ordens-servico/metricas/tempo-medio`.

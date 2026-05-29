@@ -20,7 +20,7 @@ class ExcluirClienteServiceTest {
     void deveExcluirClienteExistente() {
         TestClienteRepository repository = new TestClienteRepository();
         UUID clienteId = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
-        repository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678909", TipoCliente.PF));
         ExcluirClienteService service = new ExcluirClienteService(repository);
 
         service.excluirCliente(new ExcluirClienteCommand(clienteId));

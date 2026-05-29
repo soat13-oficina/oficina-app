@@ -93,8 +93,8 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveCriarOrdemDeServico() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11111111111", TipoCliente.PF));
-        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", "12345678901"));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11144477735", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", "12345678909"));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
                 "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
@@ -121,7 +121,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveRetornarBadRequestQuandoFuncionarioIdForInvalidoAoCriarOrdem() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11111111111", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11144477735", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
                 "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
@@ -145,8 +145,8 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveAlterarOrdemDeServico() throws Exception {
-        Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
-        Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberta", "99999999999", TipoCliente.PF));
+        Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678909", TipoCliente.PF));
+        Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberta", "52998224725", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente1.getId(),
@@ -190,7 +190,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveExcluirOrdemDeServico() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678909", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
@@ -213,8 +213,8 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveConsultarOrdemDeServicoPorFiltros() throws Exception {
-        Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
-        Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberto", "99999999999", TipoCliente.PF));
+        Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678909", TipoCliente.PF));
+        Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberto", "52998224725", TipoCliente.PF));
         Funcionario funcionario1 = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         Funcionario funcionario2 = springDataFuncionarioRepository.save(new Funcionario("Paulo", null));
         veiculoRepository.salvar(new Veiculo(
@@ -251,7 +251,7 @@ class OrdemDeServicoControllerTest {
                         .with(user("tester"))
                         .param("nomeCliente", "Marina"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].documentoCliente").value("12345678901"));
+                .andExpect(jsonPath("$[0].documentoCliente").value("12345678909"));
 
         mockMvc.perform(get("/ordens-servico")
                         .with(user("tester"))
@@ -261,7 +261,7 @@ class OrdemDeServicoControllerTest {
 
         mockMvc.perform(get("/ordens-servico")
                         .with(user("tester"))
-                        .param("documentoCliente", "12345678901"))
+                        .param("documentoCliente", "12345678909"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].placaVeiculo").value("QRY1A23"))
                 .andExpect(jsonPath("$[0].veiculoId").isNotEmpty());
@@ -269,7 +269,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveConsultarTempoMedioDeExecucao() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678909", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         Veiculo veiculo1 = springDataVeiculoRepository.save(new Veiculo(
                 cliente.getId(),
@@ -309,7 +309,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void devePermitirClienteAcompanharAndamentoDaOrdem() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678909", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
@@ -325,7 +325,7 @@ class OrdemDeServicoControllerTest {
 
         mockMvc.perform(get("/ordens-servico/OS-CLIENTE-001/acompanhamento")
                         .with(user("tester"))
-                        .param("documentoCliente", "12345678901"))
+                        .param("documentoCliente", "12345678909"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.numeroOrdemServico").value("OS-CLIENTE-001"))
                 .andExpect(jsonPath("$.nomeCliente").value("Marina"))
@@ -336,7 +336,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveRetornarNotFoundQuandoClienteNaoPuderAcompanharOrdem() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678909", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
@@ -403,7 +403,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveFinalizarOrdemDeServico() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "55555555555", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "55544433380", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
@@ -423,6 +423,8 @@ class OrdemDeServicoControllerTest {
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();
         ordemDeServico.enviarParaOrcamento();
+        ordemDeServico.aguardarAprovacao();
+        ordemDeServico.iniciarExecucao();
         ordemDeServicoRepository.salvar(ordemDeServico);
         springDataOrcamentoRepository.save(new Orcamento(
                 "ORC-001",
@@ -466,7 +468,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveEntregarOrdemDeServicoAoCliente() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "55555555555", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "55544433380", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
@@ -481,6 +483,8 @@ class OrdemDeServicoControllerTest {
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();
         ordemDeServico.enviarParaOrcamento();
+        ordemDeServico.aguardarAprovacao();
+        ordemDeServico.iniciarExecucao();
         ordemDeServico.finalizar();
         ordemDeServicoRepository.salvar(ordemDeServico);
 
@@ -496,6 +500,40 @@ class OrdemDeServicoControllerTest {
     }
 
     @Test
+    void deveAguardarAprovacaoEIniciarExecucao() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "55544433380", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "EXE4M56", "Jeep", "Renegade", "Stellantis", 2024, 185, "AUTOMATICO", TipoCombustivel.DIESEL));
+
+        OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
+                null,
+                "os-execucao-1",
+                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
+                cliente,
+                veiculoRepository.buscarPorPlaca("EXE4M56").orElseThrow());
+        ordemDeServico.iniciarDiagnostico();
+        ordemDeServico.concluirDiagnostico();
+        ordemDeServico.enviarParaOrcamento();
+        ordemDeServicoRepository.salvar(ordemDeServico);
+
+        mockMvc.perform(post("/ordens-servico/os-execucao-1/aguardar-aprovacao")
+                        .with(user("tester"))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+        assert ordemDeServicoRepository.buscarPorNumero("os-execucao-1").orElseThrow().getStatus()
+                == StatusOrdemDeServico.AGUARDANDO_APROVACAO;
+
+        mockMvc.perform(post("/ordens-servico/os-execucao-1/execucao/iniciar")
+                        .with(user("tester"))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+        assert ordemDeServicoRepository.buscarPorNumero("os-execucao-1").orElseThrow().getStatus()
+                == StatusOrdemDeServico.SERVICO_EM_ANDAMENTO;
+    }
+
+    @Test
     void deveRetornarNotFoundQuandoOrdemNaoExistirAoExcluir() throws Exception {
         mockMvc.perform(delete("/ordens-servico/OS-404")
                         .with(user("tester"))
@@ -506,7 +544,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveRetornarNotFoundQuandoFuncionarioNaoExistirAoAlterarOrdem() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678901", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Marina", "12345678909", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),

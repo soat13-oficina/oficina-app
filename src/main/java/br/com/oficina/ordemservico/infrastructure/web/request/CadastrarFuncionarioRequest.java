@@ -12,7 +12,7 @@ public record CadastrarFuncionarioRequest(String nome, String cpf) {
     }
 
     @Override
-    @Schema(description = "CPF do funcionário (somente dígitos ou formatado). Opcional, mas quando informado deve conter 11 dígitos.", example = "12345678901")
+    @Schema(description = "CPF do funcionário (somente dígitos ou formatado). Opcional, mas quando informado deve conter 11 dígitos.", example = "12345678909")
     public String cpf() {
         return cpf;
     }

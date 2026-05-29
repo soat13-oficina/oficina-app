@@ -21,12 +21,12 @@ class CadastrarFuncionarioServiceTest {
         TestFuncionarioRepository repository = new TestFuncionarioRepository();
         CadastrarFuncionarioService service = new CadastrarFuncionarioService(repository);
 
-        UUID funcionarioId = service.cadastrarFuncionario(new CadastrarFuncionarioCommand("Joao Silva", "12345678901"));
+        UUID funcionarioId = service.cadastrarFuncionario(new CadastrarFuncionarioCommand("Joao Silva", "12345678909"));
 
         assertNotNull(funcionarioId);
         Funcionario salvo = repository.buscarPorId(funcionarioId).orElseThrow();
         assertEquals("Joao Silva", salvo.getNome());
-        assertEquals("12345678901", salvo.getCpf());
+        assertEquals("12345678909", salvo.getCpf());
     }
 
     @Test
@@ -48,7 +48,7 @@ class CadastrarFuncionarioServiceTest {
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                () -> service.cadastrarFuncionario(new CadastrarFuncionarioCommand(" ", "12345678901")));
+                () -> service.cadastrarFuncionario(new CadastrarFuncionarioCommand(" ", "12345678909")));
 
         assertEquals("Nome do funcionario e obrigatorio", exception.getMessage());
     }
@@ -67,12 +67,12 @@ class CadastrarFuncionarioServiceTest {
     @Test
     void deveFalharAoCadastrarComCpfJaUtilizadoPorOutroFuncionario() {
         TestFuncionarioRepository repository = new TestFuncionarioRepository();
-        repository.salvar(Funcionario.reconstituir(UUID.randomUUID(), "Joao Existente", "12345678901"));
+        repository.salvar(Funcionario.reconstituir(UUID.randomUUID(), "Joao Existente", "12345678909"));
         CadastrarFuncionarioService service = new CadastrarFuncionarioService(repository);
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                () -> service.cadastrarFuncionario(new CadastrarFuncionarioCommand("Carlos Novo", "123.456.789-01")));
+                () -> service.cadastrarFuncionario(new CadastrarFuncionarioCommand("Carlos Novo", "123.456.789-09")));
 
         assertEquals("Ja existe funcionario cadastrado com o mesmo CPF.", exception.getMessage());
     }

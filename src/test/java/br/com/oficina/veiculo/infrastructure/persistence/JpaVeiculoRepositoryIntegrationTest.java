@@ -9,17 +9,14 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import br.com.oficina.support.PostgresIntegrationTest;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 
-@SpringBootTest
-@ActiveProfiles("integration")
 @Transactional
-class JpaVeiculoRepositoryIntegrationTest {
+class JpaVeiculoRepositoryIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     private JpaVeiculoRepository repository;

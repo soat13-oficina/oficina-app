@@ -27,7 +27,7 @@ class AcompanhamentoOrdemDeServicoResponseTest {
                 id,
                 "OS-001",
                 Funcionario.reconstituir(funcionarioId, "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(clienteId, "Maria", "11144477735", TipoCliente.PF),
                 Veiculo.reconstituir(
                         veiculoId,
                         clienteId,

@@ -11,18 +11,15 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
+import br.com.oficina.support.PostgresIntegrationTest;
 
-@SpringBootTest
-@ActiveProfiles("integration")
 @Transactional
-class JpaOrcamentoRepositoryIntegrationTest {
+class JpaOrcamentoRepositoryIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     private JpaOrcamentoRepository repository;
@@ -38,7 +35,7 @@ class JpaOrcamentoRepositoryIntegrationTest {
                 ordemId,
                 funcionarioId,
                 "Maria Silva",
-                "12345678901",
+                "12345678909",
                 "ABC1D23",
                 "Toyota",
                 "Corolla",
@@ -68,7 +65,7 @@ class JpaOrcamentoRepositoryIntegrationTest {
         assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, atualizado.getStatus());
         assertEquals(2, atualizado.getPecasOrcamento().size());
 
-        List<Orcamento> filtrados = repository.buscarPorFiltros("ORC-2026-0001", "12345678901", "ABC1D23");
+        List<Orcamento> filtrados = repository.buscarPorFiltros("ORC-2026-0001", "12345678909", "ABC1D23");
         assertEquals(1, filtrados.size());
     }
 
