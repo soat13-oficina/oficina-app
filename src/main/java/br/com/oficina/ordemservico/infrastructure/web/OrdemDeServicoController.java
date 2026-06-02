@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.com.oficina.ordemservico.application.command.AguardarAprovacaoCommand;
 import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
@@ -22,9 +23,11 @@ import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
+import br.com.oficina.ordemservico.application.command.IniciarExecucaoCommand;
 import br.com.oficina.ordemservico.application.query.AcompanharOrdemDeServicoQuery;
 import br.com.oficina.ordemservico.application.query.ConsultarOrdensDeServicoQuery;
 import br.com.oficina.ordemservico.application.usecase.AcompanharOrdemDeServicoUseCase;
+import br.com.oficina.ordemservico.application.usecase.AguardarAprovacaoUseCase;
 import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConcluirDiagnosticoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarOrdensDeServicoUseCase;
@@ -35,6 +38,7 @@ import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrca
 import br.com.oficina.ordemservico.application.usecase.ExcluirOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.IniciarDiagnosticoUseCase;
+import br.com.oficina.ordemservico.application.usecase.IniciarExecucaoUseCase;
 import br.com.oficina.ordemservico.infrastructure.web.request.AlterarOrdemDeServicoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.CriarOrdemDeServicoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoParaOrcamentoRequest;
@@ -54,6 +58,8 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
     private final ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase;
     private final EntregarAoClienteUseCase entregarAoClienteUseCase;
     private final EnviarDiagnosticoParaOrcamentoUseCase enviarDiagnosticoParaOrcamentoUseCase;
+    private final AguardarAprovacaoUseCase aguardarAprovacaoUseCase;
+    private final IniciarExecucaoUseCase iniciarExecucaoUseCase;
     private final ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase;
     private final FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase;
     private final ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase;
@@ -67,6 +73,8 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
             ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase,
             EntregarAoClienteUseCase entregarAoClienteUseCase,
             EnviarDiagnosticoParaOrcamentoUseCase enviarDiagnosticoParaOrcamentoUseCase,
+            AguardarAprovacaoUseCase aguardarAprovacaoUseCase,
+            IniciarExecucaoUseCase iniciarExecucaoUseCase,
             ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase,
             FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase,
             ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase,
@@ -78,6 +86,8 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
         this.concluirDiagnosticoUseCase = concluirDiagnosticoUseCase;
         this.entregarAoClienteUseCase = entregarAoClienteUseCase;
         this.enviarDiagnosticoParaOrcamentoUseCase = enviarDiagnosticoParaOrcamentoUseCase;
+        this.aguardarAprovacaoUseCase = aguardarAprovacaoUseCase;
+        this.iniciarExecucaoUseCase = iniciarExecucaoUseCase;
         this.excluirOrdemDeServicoUseCase = excluirOrdemDeServicoUseCase;
         this.finalizarOrdemDeServicoUseCase = finalizarOrdemDeServicoUseCase;
         this.consultarOrdensDeServicoUseCase = consultarOrdensDeServicoUseCase;
@@ -213,6 +223,22 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
                         request.validade(),
                         request.observacoes()));
         log.info("Requisicao para enviar diagnostico para orcamento concluida. numeroOrdemServico={}", numeroOrdemServico);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{numeroOrdemServico}/aguardar-aprovacao")
+    public ResponseEntity<Void> aguardarAprovacao(@PathVariable String numeroOrdemServico) {
+        log.info("Recebida requisicao para enviar ordem de servico para aprovacao. numeroOrdemServico={}", numeroOrdemServico);
+        aguardarAprovacaoUseCase.aguardarAprovacao(new AguardarAprovacaoCommand(numeroOrdemServico));
+        log.info("Requisicao para enviar ordem de servico para aprovacao concluida. numeroOrdemServico={}", numeroOrdemServico);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{numeroOrdemServico}/execucao/iniciar")
+    public ResponseEntity<Void> iniciarExecucao(@PathVariable String numeroOrdemServico) {
+        log.info("Recebida requisicao para iniciar execucao do servico. numeroOrdemServico={}", numeroOrdemServico);
+        iniciarExecucaoUseCase.iniciarExecucao(new IniciarExecucaoCommand(numeroOrdemServico));
+        log.info("Requisicao para iniciar execucao do servico concluida. numeroOrdemServico={}", numeroOrdemServico);
         return ResponseEntity.noContent().build();
     }
 

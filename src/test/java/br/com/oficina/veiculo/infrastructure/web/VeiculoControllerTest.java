@@ -46,10 +46,10 @@ class VeiculoControllerTest {
     void setUp() {
         clienteRepository.deleteAll();
         veiculoRepository.deleteAll();
-        clienteId1 = clienteRepository.save(new Cliente("Maria", "11111111111", TipoCliente.PF)).getId().toString();
-        clienteId2 = clienteRepository.save(new Cliente("Joao", "22222222222", TipoCliente.PF)).getId().toString();
-        clienteId3 = clienteRepository.save(new Cliente("Bianca", "33333333333", TipoCliente.PF)).getId().toString();
-        clienteId4 = clienteRepository.save(new Cliente("Carlos", "44444444444", TipoCliente.PF)).getId().toString();
+        clienteId1 = clienteRepository.save(new Cliente("Maria", "11144477735", TipoCliente.PF)).getId().toString();
+        clienteId2 = clienteRepository.save(new Cliente("Joao", "39053344705", TipoCliente.PF)).getId().toString();
+        clienteId3 = clienteRepository.save(new Cliente("Bianca", "16899966689", TipoCliente.PF)).getId().toString();
+        clienteId4 = clienteRepository.save(new Cliente("Carlos", "24681357928", TipoCliente.PF)).getId().toString();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();

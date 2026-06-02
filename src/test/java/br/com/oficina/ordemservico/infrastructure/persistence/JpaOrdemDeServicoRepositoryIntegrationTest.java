@@ -10,8 +10,6 @@ import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -19,14 +17,13 @@ import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
+import br.com.oficina.support.PostgresIntegrationTest;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.infrastructure.persistence.SpringDataVeiculoRepository;
 
-@SpringBootTest
-@ActiveProfiles("integration")
 @Transactional
-class JpaOrdemDeServicoRepositoryIntegrationTest {
+class JpaOrdemDeServicoRepositoryIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     private JpaOrdemDeServicoRepository repository;
@@ -37,8 +34,8 @@ class JpaOrdemDeServicoRepositoryIntegrationTest {
     @Test
     void devePersistirBuscarPorNumeroEFiltros() {
         UUID clienteId = UUID.randomUUID();
-        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Marcos", "12345678901");
-        Cliente cliente = Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF);
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Marcos", "12345678909");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Maria", "12345678909", TipoCliente.PF);
         Veiculo veiculo = veiculoRepository.save(new Veiculo(
                 clienteId,
                 "ABC1D23",
@@ -62,7 +59,7 @@ class JpaOrdemDeServicoRepositoryIntegrationTest {
                 "OS-2026-001",
                 "Maria",
                 "ABC1D23",
-                "12345678901");
+                "12345678909");
 
         assertEquals(1, filtradas.size());
         assertEquals(1, repository.buscarTodas().size());
@@ -71,8 +68,8 @@ class JpaOrdemDeServicoRepositoryIntegrationTest {
     @Test
     void devePersistirDataDeEntregaQuandoOrdemForEntregue() {
         UUID clienteId = UUID.randomUUID();
-        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Larissa", "12312312399");
-        Cliente cliente = Cliente.reconstituir(clienteId, "Claudio", "12312312399", TipoCliente.PF);
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Larissa", "12312312387");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Claudio", "12312312387", TipoCliente.PF);
         Veiculo veiculo = veiculoRepository.save(new Veiculo(
                 clienteId,
                 "ENT1R23",
@@ -87,6 +84,8 @@ class JpaOrdemDeServicoRepositoryIntegrationTest {
         ordem.iniciarDiagnostico();
         ordem.concluirDiagnostico();
         ordem.enviarParaOrcamento();
+        ordem.aguardarAprovacao();
+        ordem.iniciarExecucao();
         ordem.finalizar();
         ordem.entregarAoCliente();
 
@@ -101,8 +100,8 @@ class JpaOrdemDeServicoRepositoryIntegrationTest {
     @Test
     void deveBuscarOrdensComExecucaoFinalizada() {
         UUID clienteId = UUID.randomUUID();
-        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Larissa", "12312312399");
-        Cliente cliente = Cliente.reconstituir(clienteId, "Claudio", "12312312399", TipoCliente.PF);
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Larissa", "12312312387");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Claudio", "12312312387", TipoCliente.PF);
         Veiculo veiculo1 = veiculoRepository.save(new Veiculo(
                 clienteId,
                 "MET1R23",
@@ -154,8 +153,8 @@ class JpaOrdemDeServicoRepositoryIntegrationTest {
     @Test
     void deveExcluirOrdemDeServicoPorNumero() {
         UUID clienteId = UUID.randomUUID();
-        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Julia", "10987654321");
-        Cliente cliente = Cliente.reconstituir(clienteId, "Carlos", "10987654321", TipoCliente.PF);
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Julia", "10987654357");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Carlos", "10987654357", TipoCliente.PF);
         Veiculo veiculo = veiculoRepository.save(new Veiculo(
                 clienteId,
                 "DEF2G34",

@@ -48,7 +48,7 @@ class ClienteControllerTest {
         String requestBody = """
                 {
                   "nome": "Maria",
-                  "cpfOuCnpj": "12345678901",
+                  "cpfOuCnpj": "12345678909",
                   "tipoCliente": "PF"
                 }
                 """;
@@ -70,7 +70,7 @@ class ClienteControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(clienteId))
                 .andExpect(jsonPath("$.nome").value("Maria"))
-                .andExpect(jsonPath("$.cpfOuCnpj").value("12345678901"))
+                .andExpect(jsonPath("$.cpfOuCnpj").value("12345678909"))
                 .andExpect(jsonPath("$.tipoCliente").value("PF"));
     }
 
@@ -86,7 +86,7 @@ class ClienteControllerTest {
                         .content("""
                                 {
                                   "nome": "%s",
-                                  "cpfOuCnpj": "12345678901",
+                                  "cpfOuCnpj": "12345678909",
                                   "tipoCliente": "PF"
                                 }
                                 """.formatted(nomeMaria)))
@@ -99,7 +99,7 @@ class ClienteControllerTest {
                         .content("""
                                 {
                                   "nome": "%s",
-                                  "cpfOuCnpj": "99999999999",
+                                  "cpfOuCnpj": "52998224725",
                                   "tipoCliente": "PF"
                                 }
                                 """.formatted(nomeJoao)))
@@ -107,17 +107,17 @@ class ClienteControllerTest {
 
         mockMvc.perform(get("/clientes")
                         .with(user("tester"))
-                        .param("termo", "123.456.789-01"))
+                        .param("termo", "123.456.789-09"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].nome", hasItem(nomeMaria)))
-                .andExpect(jsonPath("$[*].cpfOuCnpj", hasItem("12345678901")));
+                .andExpect(jsonPath("$[*].cpfOuCnpj", hasItem("12345678909")));
 
         mockMvc.perform(get("/clientes")
                         .with(user("tester"))
                         .param("termo", "Pereira"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].nome", hasItem(nomeJoao)))
-                .andExpect(jsonPath("$[*].cpfOuCnpj", hasItem("99999999999")));
+                .andExpect(jsonPath("$[*].cpfOuCnpj", hasItem("52998224725")));
     }
 
     @Test
@@ -141,7 +141,7 @@ class ClienteControllerTest {
         String requestBody = """
                 {
                   "nome": "Maria",
-                  "cpfOuCnpj": "12345678901",
+                  "cpfOuCnpj": "12345678909",
                   "tipoCliente": "TIPO_INVALIDO"
                 }
                 """;

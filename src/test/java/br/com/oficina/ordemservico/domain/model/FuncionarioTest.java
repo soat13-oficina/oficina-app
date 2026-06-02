@@ -15,10 +15,10 @@ class FuncionarioTest {
 
     @Test
     void deveCriarFuncionarioComNomeECpfInformados() {
-        Funcionario funcionario = new Funcionario("Joao", "12345678901");
+        Funcionario funcionario = new Funcionario("Joao", "12345678909");
 
         assertEquals("Joao", funcionario.getNome());
-        assertEquals("12345678901", funcionario.getCpf());
+        assertEquals("12345678909", funcionario.getCpf());
     }
 
     @Test
@@ -31,10 +31,10 @@ class FuncionarioTest {
 
     @Test
     void deveCriarFuncionarioComCpfFormatadoNormalizandoParaDigitos() {
-        Funcionario funcionario = new Funcionario("Ana", "123.456.789-01");
+        Funcionario funcionario = new Funcionario("Ana", "123.456.789-09");
 
         assertEquals("Ana", funcionario.getNome());
-        assertEquals("12345678901", funcionario.getCpf());
+        assertEquals("12345678909", funcionario.getCpf());
     }
 
     @Test
@@ -53,7 +53,7 @@ class FuncionarioTest {
     void deveFalharQuandoNomeNaoForInformado() {
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                () -> new Funcionario(null, "12345678901"));
+                () -> new Funcionario(null, "12345678909"));
 
         assertEquals("Nome do funcionario e obrigatorio", exception.getMessage());
     }
@@ -62,7 +62,7 @@ class FuncionarioTest {
     void deveFalharQuandoNomeForVazio() {
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                () -> new Funcionario("   ", "12345678901"));
+                () -> new Funcionario("   ", "12345678909"));
 
         assertEquals("Nome do funcionario e obrigatorio", exception.getMessage());
     }
@@ -78,7 +78,7 @@ class FuncionarioTest {
 
     @Test
     void deveAlterarNomeECpfDoFuncionario() {
-        Funcionario funcionario = new Funcionario("Joao", "12345678901");
+        Funcionario funcionario = new Funcionario("Joao", "12345678909");
 
         funcionario.alterar("Joao Atualizado", "98765432100");
 
@@ -88,7 +88,7 @@ class FuncionarioTest {
 
     @Test
     void deveAlterarRemovindoCpf() {
-        Funcionario funcionario = new Funcionario("Joao", "12345678901");
+        Funcionario funcionario = new Funcionario("Joao", "12345678909");
 
         funcionario.alterar("Joao", null);
 
@@ -98,18 +98,18 @@ class FuncionarioTest {
 
     @Test
     void deveFalharAoAlterarQuandoNomeForVazio() {
-        Funcionario funcionario = new Funcionario("Joao", "12345678901");
+        Funcionario funcionario = new Funcionario("Joao", "12345678909");
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                () -> funcionario.alterar(" ", "12345678901"));
+                () -> funcionario.alterar(" ", "12345678909"));
 
         assertEquals("Nome do funcionario e obrigatorio", exception.getMessage());
     }
 
     @Test
     void deveFalharAoAlterarQuandoCpfForInvalido() {
-        Funcionario funcionario = new Funcionario("Joao", "12345678901");
+        Funcionario funcionario = new Funcionario("Joao", "12345678909");
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,

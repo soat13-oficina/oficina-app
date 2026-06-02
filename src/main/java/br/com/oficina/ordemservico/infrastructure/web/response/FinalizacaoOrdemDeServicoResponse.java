@@ -106,7 +106,7 @@ public record FinalizacaoOrdemDeServicoResponse(
         }
 
         @Override
-        @Schema(description = "Documento do cliente", example = "12345678901")
+        @Schema(description = "Documento do cliente", example = "12345678909")
         public String documento() {
             return documento;
         }

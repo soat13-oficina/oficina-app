@@ -1,10 +1,6 @@
+# Perfil de integração: o datasource (url/usuário/senha) é provido em tempo de execução
+# pelo container PostgreSQL do Testcontainers via @ServiceConnection (ver PostgresIntegrationTest).
 spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/oficina_db
-    username: oficina_user
-    password: oficina_123
-    driver-class-name: org.postgresql.Driver
-
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -12,3 +8,6 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: false

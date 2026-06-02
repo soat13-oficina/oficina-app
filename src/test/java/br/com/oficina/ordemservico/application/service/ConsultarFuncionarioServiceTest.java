@@ -17,13 +17,13 @@ class ConsultarFuncionarioServiceTest {
     void deveConsultarFuncionarioPorId() {
         TestFuncionarioRepository repository = new TestFuncionarioRepository();
         UUID funcionarioId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-        repository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678901"));
+        repository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678909"));
         ConsultarFuncionarioService service = new ConsultarFuncionarioService(repository);
 
         Funcionario encontrado = service.consultarFuncionario(new ConsultarFuncionarioQuery(funcionarioId)).orElseThrow();
 
         assertEquals("Joao", encontrado.getNome());
-        assertEquals("12345678901", encontrado.getCpf());
+        assertEquals("12345678909", encontrado.getCpf());
     }
 
     @Test
