@@ -1,11 +1,20 @@
 HELP.md
 CLAUDE.md
+AGENTS.md
 settings.local.json
 **/settings.local.json
+.DS_Store
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+
+### Specify / Speckit ###
+.specify/
+.agents/
+.claude/
+specs/
+docs/contexto-tecnico.md
 
 ### STS ###
 .apt_generated
