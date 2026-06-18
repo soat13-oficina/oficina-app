@@ -5,6 +5,7 @@ import java.util.List;
 import br.com.oficina.ordemservico.infrastructure.web.request.AlterarOrdemDeServicoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.CriarOrdemDeServicoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoParaOrcamentoRequest;
+import br.com.oficina.ordemservico.infrastructure.web.response.AberturaOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.AcompanhamentoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.FinalizacaoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.OrdemDeServicoResponse;
@@ -28,11 +29,11 @@ public interface OrdemDeServicoControllerSwagger {
             summary = "Criar ordem de serviço",
             description = "Abre uma nova ordem de serviço vinculando cliente, funcionário responsável e veículo existente.")
     @ApiResponses({
-            @ApiResponse(responseCode = "202", description = "Ordem de serviço criada com sucesso"),
+            @ApiResponse(responseCode = "201", description = "Ordem de serviço criada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Identificador inválido ou dados inconsistentes", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Cliente, funcionário ou veículo não encontrado", content = @Content)
+            @ApiResponse(responseCode = "404", description = "Cliente, funcionário, veículo ou peça não encontrado", content = @Content)
     })
-    ResponseEntity<Void> criar(CriarOrdemDeServicoRequest request);
+    ResponseEntity<AberturaOrdemDeServicoResponse> criar(CriarOrdemDeServicoRequest request);
 
     @Operation(
             summary = "Alterar ordem de serviço",

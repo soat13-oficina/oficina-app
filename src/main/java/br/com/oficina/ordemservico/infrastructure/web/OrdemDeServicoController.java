@@ -1,10 +1,12 @@
 package br.com.oficina.ordemservico.infrastructure.web;
 
+import java.net.URI;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,30 +19,40 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
+import br.com.oficina.ordemservico.application.command.ConcluirServicoCommand;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;
+import br.com.oficina.ordemservico.application.command.EnviarParaAprovacaoCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
+import br.com.oficina.ordemservico.application.command.IniciarExecucaoCommand;
 import br.com.oficina.ordemservico.application.query.AcompanharOrdemDeServicoQuery;
 import br.com.oficina.ordemservico.application.query.ConsultarOrdensDeServicoQuery;
+import br.com.oficina.ordemservico.application.query.ConsultarStatusOrdemDeServicoQuery;
 import br.com.oficina.ordemservico.application.usecase.AcompanharOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConcluirDiagnosticoUseCase;
+import br.com.oficina.ordemservico.application.usecase.ConcluirServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarOrdensDeServicoUseCase;
+import br.com.oficina.ordemservico.application.usecase.ConsultarStatusOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarTempoMedioExecucaoUseCase;
 import br.com.oficina.ordemservico.application.usecase.CriarNovaOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.EntregarAoClienteUseCase;
 import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase;
+import br.com.oficina.ordemservico.application.usecase.EnviarParaAprovacaoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ExcluirOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.IniciarDiagnosticoUseCase;
+import br.com.oficina.ordemservico.application.usecase.IniciarExecucaoUseCase;
 import br.com.oficina.ordemservico.infrastructure.web.request.AlterarOrdemDeServicoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.CriarOrdemDeServicoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoParaOrcamentoRequest;
+import br.com.oficina.ordemservico.infrastructure.web.response.AberturaOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.AcompanhamentoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.FinalizacaoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.OrdemDeServicoResponse;
+import br.com.oficina.ordemservico.infrastructure.web.response.StatusOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.TempoMedioExecucaoResponse;
 
 @RestController
@@ -59,6 +71,10 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
     private final ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase;
     private final ConsultarTempoMedioExecucaoUseCase consultarTempoMedioExecucaoUseCase;
     private final AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase;
+    private final EnviarParaAprovacaoUseCase enviarParaAprovacaoUseCase;
+    private final IniciarExecucaoUseCase iniciarExecucaoUseCase;
+    private final ConcluirServicoUseCase concluirServicoUseCase;
+    private final ConsultarStatusOrdemDeServicoUseCase consultarStatusOrdemDeServicoUseCase;
 
     public OrdemDeServicoController(
             AlterarOrdemDeServicoUseCase alterarOrdemDeServicoUseCase,
@@ -71,7 +87,11 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
             FinalizarOrdemDeServicoUseCase finalizarOrdemDeServicoUseCase,
             ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase,
             ConsultarTempoMedioExecucaoUseCase consultarTempoMedioExecucaoUseCase,
-            AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase) {
+            AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase,
+            EnviarParaAprovacaoUseCase enviarParaAprovacaoUseCase,
+            IniciarExecucaoUseCase iniciarExecucaoUseCase,
+            ConcluirServicoUseCase concluirServicoUseCase,
+            ConsultarStatusOrdemDeServicoUseCase consultarStatusOrdemDeServicoUseCase) {
         this.alterarOrdemDeServicoUseCase = alterarOrdemDeServicoUseCase;
         this.criarNovaOrdemDeServicoUseCase = criarNovaOrdemDeServicoUseCase;
         this.iniciarDiagnosticoUseCase = iniciarDiagnosticoUseCase;
@@ -83,21 +103,41 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
         this.consultarOrdensDeServicoUseCase = consultarOrdensDeServicoUseCase;
         this.consultarTempoMedioExecucaoUseCase = consultarTempoMedioExecucaoUseCase;
         this.acompanharOrdemDeServicoUseCase = acompanharOrdemDeServicoUseCase;
+        this.enviarParaAprovacaoUseCase = enviarParaAprovacaoUseCase;
+        this.iniciarExecucaoUseCase = iniciarExecucaoUseCase;
+        this.concluirServicoUseCase = concluirServicoUseCase;
+        this.consultarStatusOrdemDeServicoUseCase = consultarStatusOrdemDeServicoUseCase;
     }
 
     @PostMapping
-    public ResponseEntity<Void> criar(@RequestBody CriarOrdemDeServicoRequest request) {
+    public ResponseEntity<AberturaOrdemDeServicoResponse> criar(@RequestBody CriarOrdemDeServicoRequest request) {
         log.info("Recebida requisicao de criacao de ordem de servico. clienteId={}, funcionarioId={}, placaVeiculo={}",
                 request.clienteId(),
                 request.funcionarioId(),
                 request.placaVeiculo());
-        criarNovaOrdemDeServicoUseCase.criarNovaOrdemDeServico(
-                new CriarOrdemDeServicoCommand(request.clienteId(), request.funcionarioId(), request.placaVeiculo()));
-        log.info("Requisicao de criacao de ordem de servico concluida. clienteId={}, funcionarioId={}, placaVeiculo={}",
-                request.clienteId(),
-                request.funcionarioId(),
-                request.placaVeiculo());
-        return ResponseEntity.accepted().build();
+        String numeroOrdemServico = criarNovaOrdemDeServicoUseCase.criarNovaOrdemDeServico(toCommand(request));
+        log.info("Requisicao de criacao de ordem de servico concluida. numeroOrdemServico={}", numeroOrdemServico);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{numeroOrdemServico}")
+                .buildAndExpand(numeroOrdemServico)
+                .toUri();
+        return ResponseEntity.created(location)
+                .body(new AberturaOrdemDeServicoResponse(numeroOrdemServico, "Recebida"));
+    }
+
+    private static CriarOrdemDeServicoCommand toCommand(CriarOrdemDeServicoRequest request) {
+        List<CriarOrdemDeServicoCommand.ServicoItem> servicos = request.servicos() == null
+                ? List.of()
+                : request.servicos().stream()
+                        .map(servico -> new CriarOrdemDeServicoCommand.ServicoItem(servico.descricao(), servico.valorMaoDeObra()))
+                        .toList();
+        List<CriarOrdemDeServicoCommand.PecaItem> pecas = request.pecasPrevistas() == null
+                ? List.of()
+                : request.pecasPrevistas().stream()
+                        .map(peca -> new CriarOrdemDeServicoCommand.PecaItem(peca.pecaInsumoId(), peca.quantidade()))
+                        .toList();
+        return new CriarOrdemDeServicoCommand(
+                request.clienteId(), request.funcionarioId(), request.placaVeiculo(), servicos, pecas);
     }
 
     @PutMapping("/{numeroOrdemServico}")
@@ -190,6 +230,41 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
         log.info("Recebida requisicao para concluir diagnostico. numeroOrdemServico={}", numeroOrdemServico);
         concluirDiagnosticoUseCase.concluirDiagnostico(new ConcluirDiagnosticoCommand(numeroOrdemServico));
         log.info("Requisicao para concluir diagnostico concluida. numeroOrdemServico={}", numeroOrdemServico);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{numeroOrdemServico}")
+    public ResponseEntity<StatusOrdemDeServicoResponse> consultarStatus(@PathVariable String numeroOrdemServico) {
+        log.info("Recebida requisicao de consulta de status. numeroOrdemServico={}", numeroOrdemServico);
+        StatusOrdemDeServicoResponse response = StatusOrdemDeServicoResponse.from(
+                consultarStatusOrdemDeServicoUseCase.consultarStatus(
+                        new ConsultarStatusOrdemDeServicoQuery(numeroOrdemServico)));
+        log.info("Requisicao de consulta de status concluida. numeroOrdemServico={}, situacao={}",
+                numeroOrdemServico, response.situacao());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{numeroOrdemServico}/orcamento/enviar-aprovacao")
+    public ResponseEntity<Void> enviarParaAprovacao(@PathVariable String numeroOrdemServico) {
+        log.info("Recebida requisicao para enviar ordem de servico para aprovacao. numeroOrdemServico={}", numeroOrdemServico);
+        enviarParaAprovacaoUseCase.enviarParaAprovacao(new EnviarParaAprovacaoCommand(numeroOrdemServico));
+        log.info("Requisicao para enviar para aprovacao concluida. numeroOrdemServico={}", numeroOrdemServico);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{numeroOrdemServico}/execucao/iniciar")
+    public ResponseEntity<Void> iniciarExecucao(@PathVariable String numeroOrdemServico) {
+        log.info("Recebida requisicao para iniciar execucao. numeroOrdemServico={}", numeroOrdemServico);
+        iniciarExecucaoUseCase.iniciarExecucao(new IniciarExecucaoCommand(numeroOrdemServico));
+        log.info("Requisicao para iniciar execucao concluida. numeroOrdemServico={}", numeroOrdemServico);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{numeroOrdemServico}/servico/concluir")
+    public ResponseEntity<Void> concluirServico(@PathVariable String numeroOrdemServico) {
+        log.info("Recebida requisicao para concluir servico. numeroOrdemServico={}", numeroOrdemServico);
+        concluirServicoUseCase.concluirServico(new ConcluirServicoCommand(numeroOrdemServico));
+        log.info("Requisicao para concluir servico concluida. numeroOrdemServico={}", numeroOrdemServico);
         return ResponseEntity.noContent().build();
     }
 

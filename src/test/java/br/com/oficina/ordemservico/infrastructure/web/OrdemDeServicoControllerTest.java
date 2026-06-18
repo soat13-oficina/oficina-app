@@ -112,11 +112,71 @@ class OrdemDeServicoControllerTest {
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
-                .andExpect(status().isAccepted());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.numeroOrdemServico").exists())
+                .andExpect(jsonPath("$.situacao").value("Recebida"));
 
         OrdemDeServico ordemCriada = ordemDeServicoRepository.buscarTodas().get(0);
         assert ordemCriada.getFuncionario().getId().equals(funcionario.getId());
         assert ordemCriada.getVeiculoId() != null;
+    }
+
+    @Test
+    void deveConduzirCicloDeVidaEConsultarSituacao() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11111111111", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", "12345678901"));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "CIC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        String requestBody = """
+                { "clienteId": "%s", "funcionarioId": "%s", "placaVeiculo": "CIC1D23" }
+                """.formatted(cliente.getId(), funcionario.getId());
+        mockMvc.perform(post("/ordens-servico").with(user("tester")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(requestBody))
+                .andExpect(status().isCreated());
+        String numero = ordemDeServicoRepository.buscarTodas().get(0).getNumeroOrdemServico();
+
+        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situacao").value("Recebida"));
+
+        transicao(numero, "/diagnostico/iniciar");
+        transicao(numero, "/diagnostico/concluir");
+        transicao(numero, "/orcamento/enviar-aprovacao");
+        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situacao").value("Aguardando Aprovação"));
+
+        transicao(numero, "/execucao/iniciar");
+        transicao(numero, "/servico/concluir");
+        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situacao").value("Finalizada"))
+                .andExpect(jsonPath("$.motivoEncerramento").value("SERVICO_CONCLUIDO"));
+    }
+
+    @Test
+    void deveRetornarBadRequestEmTransicaoInvalida() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11111111111", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", "12345678901"));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "INV1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        String requestBody = """
+                { "clienteId": "%s", "funcionarioId": "%s", "placaVeiculo": "INV1D23" }
+                """.formatted(cliente.getId(), funcionario.getId());
+        mockMvc.perform(post("/ordens-servico").with(user("tester")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(requestBody))
+                .andExpect(status().isCreated());
+        String numero = ordemDeServicoRepository.buscarTodas().get(0).getNumeroOrdemServico();
+
+        mockMvc.perform(post("/ordens-servico/" + numero + "/execucao/iniciar").with(user("tester")).with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
+    private void transicao(String numero, String caminho) throws Exception {
+        mockMvc.perform(post("/ordens-servico/" + numero + caminho).with(user("tester")).with(csrf()))
+                .andExpect(status().isNoContent());
     }
 
     @Test
