@@ -23,6 +23,22 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
 
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:false}
+          starttls:
+            enable: ${SMTP_STARTTLS:false}
+
 jwt:
   secret: ${JWT_SECRET:SUA_CHAVE_SECRETA_MUITO_SEGURA_E_LONGA_PARA_O_JWT_DA_OFICINA_2026}
   expiration: 86400000 # 1 dia em milissegundos
+
+orcamento:
+  webhook:
+    secret: ${ORCAMENTO_WEBHOOK_SECRET:segredo-desenvolvimento}

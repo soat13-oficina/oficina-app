@@ -18,16 +18,15 @@ import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
 import br.com.oficina.orcamento.application.service.CadastrarNovoOrcamentoService;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
+import br.com.oficina.ordemservico.application.command.ConcluirServicoCommand;
 import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
-import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
+import br.com.oficina.ordemservico.application.command.IniciarExecucaoCommand;
 import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase.EnviarDiagnosticoParaOrcamentoRequest;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
-import br.com.oficina.pecainsumo.application.command.ConsumirPecaCommand;
-import br.com.oficina.pecainsumo.application.usecase.ConsumirPecaUseCase;
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
 import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import br.com.oficina.support.persistence.TestClienteRepository;
@@ -52,14 +51,12 @@ class FluxoOrdemDeServicoServicesTest {
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Oleo 5W30", "Castrol", new BigDecimal("150.00"), 10, 0, "REF-OLEO", CategoriaPeca.LUBRIFICANTES));
         repository.salvar(novaOrdem("OS-001"));
 
-        // No-op ConsumirPecaUseCase for unit testing (stock operations tested separately)
-        ConsumirPecaUseCase noOpConsumirPeca = command -> {};
-
         new IniciarDiagnosticoService(repository).iniciarDiagnostico(new IniciarDiagnosticoCommand("OS-001"));
         new ConcluirDiagnosticoService(repository).concluirDiagnostico(new ConcluirDiagnosticoCommand("OS-001"));
         new EnviarDiagnosticoParaOrcamentoService(
                 repository,
-                new CadastrarNovoOrcamentoService(orcamentoRepository, clienteRepository, pecaInsumoRepository))
+                new CadastrarNovoOrcamentoService(orcamentoRepository, clienteRepository, pecaInsumoRepository),
+                event -> {})
                 .enviarDiagnosticoParaOrcamento(new EnviarDiagnosticoParaOrcamentoRequest(
                         "OS-001",
                         "Diagnostico completo do veiculo",
@@ -69,8 +66,10 @@ class FluxoOrdemDeServicoServicesTest {
                         BigDecimal.ZERO,
                         LocalDateTime.of(2030, 1, 1, 0, 0),
                         null));
-        new FinalizarOrdemDeServicoService(repository, orcamentoRepository, noOpConsumirPeca)
-                .finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand("OS-001"));
+        new IniciarExecucaoService(repository, event -> {})
+                .iniciarExecucao(new IniciarExecucaoCommand("OS-001"));
+        new ConcluirServicoService(repository, event -> {})
+                .concluirServico(new ConcluirServicoCommand("OS-001"));
         new EntregarAoClienteService(repository)
                 .entregarAoCliente(new EntregarAoClienteCommand("OS-001"));
 

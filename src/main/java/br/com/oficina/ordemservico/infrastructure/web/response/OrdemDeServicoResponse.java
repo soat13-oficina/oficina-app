@@ -20,6 +20,7 @@ public record OrdemDeServicoResponse(
         TipoCliente tipoCliente,
         String placaVeiculo,
         StatusOrdemDeServico status,
+        String situacao,
         LocalDateTime iniciadaEm,
         LocalDateTime finalizadaEm,
         LocalDateTime entregueEm) {
@@ -84,6 +85,12 @@ public record OrdemDeServicoResponse(
     }
 
     @Override
+    @Schema(description = "Situação de negócio da ordem de serviço", example = "Execução")
+    public String situacao() {
+        return situacao;
+    }
+
+    @Override
     @Schema(description = "Data e hora de início do diagnóstico", example = "2030-01-01T10:00:00")
     public LocalDateTime iniciadaEm() {
         return iniciadaEm;
@@ -113,6 +120,7 @@ public record OrdemDeServicoResponse(
                 ordemDeServico.getCliente().getTipoCliente(),
                 ordemDeServico.getVeiculo().getPlaca(),
                 ordemDeServico.getStatus(),
+                ordemDeServico.getSituacao().getDescricao(),
                 ordemDeServico.getIniciadaEm(),
                 ordemDeServico.getFinalizadaEm(),
                 ordemDeServico.getEntregueEm());

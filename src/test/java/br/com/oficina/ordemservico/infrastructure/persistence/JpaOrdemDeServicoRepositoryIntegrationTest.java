@@ -18,6 +18,8 @@ import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.PecaPrevistaOrdem;
+import br.com.oficina.ordemservico.domain.model.ServicoOrdem;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
@@ -149,6 +151,29 @@ class JpaOrdemDeServicoRepositoryIntegrationTest {
         List<OrdemDeServico> ordensFinalizadas = repository.buscarOrdensComExecucaoFinalizada();
 
         assertEquals(2, ordensFinalizadas.size());
+    }
+
+    @Test
+    void devePersistirServicosEPecasNaOrdemDeServico() {
+        UUID clienteId = UUID.randomUUID();
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Pedro", "55566677788");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Lucia", "55566677788", TipoCliente.PF);
+        Veiculo veiculo = veiculoRepository.save(new Veiculo(
+                clienteId, "SVC1A23", "Honda", "Fit", "Honda", 2022, 120, "AUTOMATICO", TipoCombustivel.FLEX));
+
+        OrdemDeServico ordem = OrdemDeServico.abrir(
+                null, "OS-SERVICOS-001", funcionario, cliente, veiculo,
+                List.of(new ServicoOrdem("Troca de filtro", new java.math.BigDecimal("80.00"))),
+                List.of(new PecaPrevistaOrdem("peca-insumo-filtro-001", 2)));
+
+        repository.salvar(ordem);
+
+        OrdemDeServico encontrada = repository.buscarPorNumero("OS-SERVICOS-001").orElseThrow();
+        assertEquals(1, encontrada.getServicos().size());
+        assertEquals("Troca de filtro", encontrada.getServicos().get(0).getDescricao());
+        assertEquals(1, encontrada.getPecasPrevistas().size());
+        assertEquals("peca-insumo-filtro-001", encontrada.getPecasPrevistas().get(0).getPecaInsumoId());
+        assertEquals(2, encontrada.getPecasPrevistas().get(0).getQuantidade());
     }
 
     @Test

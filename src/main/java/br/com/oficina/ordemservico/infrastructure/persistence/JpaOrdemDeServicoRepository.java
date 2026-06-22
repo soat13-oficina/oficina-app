@@ -27,6 +27,11 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
     }
 
     @Override
+    public Optional<OrdemDeServico> buscarPorId(UUID ordemDeServicoId) {
+        return repository.findById(ordemDeServicoId);
+    }
+
+    @Override
     public Optional<OrdemDeServico> buscarPorNumero(String numeroOrdemServico) {
         return repository.findByNumeroOrdemServico(numeroOrdemServico);
     }
@@ -42,6 +47,19 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
                 .and(campoIgual("veiculoPlaca", placaVeiculo))
                 .and(campoIgual("clienteDocumento", documentoCliente));
         return repository.findAll(specification);
+    }
+
+    @Override
+    public List<OrdemDeServico> buscarAtivasPriorizadasPorFiltros(
+            String numeroOrdemServico,
+            String nomeCliente,
+            String placaVeiculo,
+            String documentoCliente) {
+        return repository.buscarAtivasPriorizadasPorFiltros(
+                numeroOrdemServico,
+                nomeCliente,
+                placaVeiculo,
+                documentoCliente);
     }
 
     @Override

@@ -12,3 +12,13 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+
+orcamento:
+  webhook:
+    secret: ${ORCAMENTO_WEBHOOK_SECRET:segredo-teste-integracao}

@@ -9,6 +9,7 @@ import br.com.oficina.ordemservico.infrastructure.web.response.AberturaOrdemDeSe
 import br.com.oficina.ordemservico.infrastructure.web.response.AcompanhamentoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.FinalizacaoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.OrdemDeServicoResponse;
+import br.com.oficina.ordemservico.infrastructure.web.response.StatusOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.TempoMedioExecucaoResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -53,8 +54,10 @@ public interface OrdemDeServicoControllerSwagger {
     ResponseEntity<Void> excluir(String numeroOrdemServico);
 
     @Operation(
-            summary = "Consultar ordens de serviço",
-            description = "Consulta ordens de serviço por número, nome do cliente, documento do cliente e/ou placa do veículo.")
+            summary = "Consultar ordens de serviço (fila priorizada)",
+            description = "Retorna ordens de serviço ativas ordenadas por prioridade de situação "
+                    + "(Execução > Aguardando Aprovação > Diagnóstico > Recebida) e, dentro de cada situação, "
+                    + "pela antiguidade (iniciadaEm asc). Ordens Finalizadas e Entregues são excluídas.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Ordens de serviço retornadas com sucesso",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = OrdemDeServicoResponse.class))))
@@ -86,6 +89,17 @@ public interface OrdemDeServicoControllerSwagger {
             String numeroOrdemServico,
             @Parameter(description = "CPF ou CNPJ do cliente vinculado à ordem de serviço.") String documentoCliente);
 
+    @Operation(summary = "Consultar status da ordem de serviço",
+            description = "Retorna a situação de negócio canônica atual da ordem de serviço "
+                    + "(Recebida, Diagnóstico, Aguardando Aprovação, Execução, Finalizada ou Entregue), "
+                    + "com motivo de encerramento quando aplicável.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Status retornado com sucesso",
+                    content = @Content(schema = @Schema(implementation = StatusOrdemDeServicoResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
+    })
+    ResponseEntity<StatusOrdemDeServicoResponse> consultarStatus(String numeroOrdemServico);
+
     @Operation(summary = "Iniciar diagnóstico", description = "Inicia o diagnóstico de uma ordem de serviço aberta.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Diagnóstico iniciado com sucesso"),
@@ -103,10 +117,13 @@ public interface OrdemDeServicoControllerSwagger {
     ResponseEntity<Void> concluirDiagnostico(String numeroOrdemServico);
 
     @Operation(
-            summary = "Enviar diagnóstico para orçamento",
-            description = "Gera um orçamento a partir do diagnóstico concluído e move a ordem de serviço para o status de orçamento gerado.")
+            summary = "Enviar diagnóstico para aprovação (legado)",
+            description = "**Deprecated** — prefer usar o fluxo canônico: `POST /diagnostico/concluir` + "
+                    + "`POST /orcamento/enviar-aprovacao` + webhook `POST /integracoes/orcamentos/{n}/decisao`. "
+                    + "Gera o orçamento a partir do diagnóstico concluído e move a OS para 'Aguardando Aprovação'. "
+                    + "O orçamento é criado já em status AGUARDANDO_APROVACAO.")
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Diagnóstico enviado para orçamento com sucesso"),
+            @ApiResponse(responseCode = "204", description = "Diagnóstico enviado e OS em Aguardando Aprovação"),
             @ApiResponse(responseCode = "400", description = "Dados inválidos ou transição de status inválida", content = @Content),
             @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
     })
@@ -114,7 +131,39 @@ public interface OrdemDeServicoControllerSwagger {
             String numeroOrdemServico,
             EnviarDiagnosticoParaOrcamentoRequest request);
 
-    @Operation(summary = "Finalizar ordem de serviço", description = "Finaliza uma ordem de serviço com orçamento já gerado, registrando o timestamp de finalização.")
+    @Operation(
+            summary = "Enviar para aprovação",
+            description = "Move a ordem de serviço com diagnóstico concluído para o estado 'Aguardando Aprovação'. "
+                    + "Use este endpoint após `POST /diagnostico/concluir` e antes do webhook de decisão.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Ordem de serviço em Aguardando Aprovação"),
+            @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
+    })
+    ResponseEntity<Void> enviarParaAprovacao(String numeroOrdemServico);
+
+    @Operation(
+            summary = "Iniciar execução",
+            description = "Move a ordem de serviço de 'Aguardando Aprovação' para 'Execução'. "
+                    + "Normalmente acionado via webhook de aprovação; este endpoint é para uso interno ou testes.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Execução iniciada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
+    })
+    ResponseEntity<Void> iniciarExecucao(String numeroOrdemServico);
+
+    @Operation(
+            summary = "Concluir serviço",
+            description = "Move a ordem de serviço de 'Execução' para 'Finalizada', registrando o motivo SERVICO_CONCLUIDO.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Serviço concluído com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
+    })
+    ResponseEntity<Void> concluirServico(String numeroOrdemServico);
+
+    @Operation(summary = "Finalizar ordem de serviço (legado)", description = "Finaliza uma ordem de serviço com orçamento já gerado, registrando o timestamp de finalização.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Ordem de serviço finalizada com sucesso",
                     content = @Content(schema = @Schema(implementation = FinalizacaoOrdemDeServicoResponse.class))),

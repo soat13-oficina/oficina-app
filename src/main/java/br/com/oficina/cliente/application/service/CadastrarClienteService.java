@@ -31,7 +31,8 @@ public class CadastrarClienteService implements CadastrarClienteUseCase {
         Cliente clienteSalvo = clienteRepository.salvar(new Cliente(
                 command.nome(),
                 command.cpfOuCnpj(),
-                command.tipoCliente()));
+                command.tipoCliente(),
+                command.email()));
         log.info("Cliente cadastrado com sucesso. clienteId={}", clienteSalvo.getId());
         return clienteSalvo.getId();
     }

@@ -187,6 +187,39 @@ public class OrdemDeServico {
                 entregueEm);
     }
 
+    public static OrdemDeServico reconstituir(
+            UUID id,
+            String numeroOrdemServico,
+            Funcionario funcionario,
+            Cliente cliente,
+            Veiculo veiculo,
+            StatusOrdemDeServico status,
+            LocalDateTime iniciadaEm,
+            LocalDateTime finalizadaEm,
+            LocalDateTime entregueEm,
+            MotivoEncerramento motivoEncerramento,
+            List<ServicoOrdem> servicos,
+            List<PecaPrevistaOrdem> pecasPrevistas) {
+        OrdemDeServico ordemDeServico = reconstituir(
+                id,
+                numeroOrdemServico,
+                funcionario,
+                cliente,
+                veiculo,
+                status,
+                iniciadaEm,
+                finalizadaEm,
+                entregueEm);
+        ordemDeServico.motivoEncerramento = motivoEncerramento;
+        if (servicos != null) {
+            ordemDeServico.servicos.addAll(servicos);
+        }
+        if (pecasPrevistas != null) {
+            ordemDeServico.pecasPrevistas.addAll(pecasPrevistas);
+        }
+        return ordemDeServico;
+    }
+
     public void iniciarDiagnostico() {
         if (status != StatusOrdemDeServico.OS_ABERTA) {
             throw new RegraDeNegocioException("Diagnostico so pode ser iniciado para ordem aberta");

@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
@@ -15,7 +16,9 @@ import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
+import br.com.oficina.pecainsumo.application.command.LiberarReservaPecaCommand;
 import br.com.oficina.pecainsumo.application.command.ReservarPecaCommand;
+import br.com.oficina.pecainsumo.application.usecase.LiberarReservaPecaUseCase;
 import br.com.oficina.pecainsumo.application.usecase.ReservarPecaUseCase;
 
 @Service
@@ -24,12 +27,23 @@ public class AprovarOrcamentoService implements AprovarOrcamentoUseCase {
 
     private final OrcamentoRepository orcamentoRepository;
     private final ReservarPecaUseCase reservarPecaUseCase;
+    private final LiberarReservaPecaUseCase liberarReservaPecaUseCase;
+
+    @Autowired
+    public AprovarOrcamentoService(
+            OrcamentoRepository orcamentoRepository,
+            ReservarPecaUseCase reservarPecaUseCase,
+            LiberarReservaPecaUseCase liberarReservaPecaUseCase) {
+        this.orcamentoRepository = orcamentoRepository;
+        this.reservarPecaUseCase = reservarPecaUseCase;
+        this.liberarReservaPecaUseCase = liberarReservaPecaUseCase;
+    }
 
     public AprovarOrcamentoService(
             OrcamentoRepository orcamentoRepository,
             ReservarPecaUseCase reservarPecaUseCase) {
-        this.orcamentoRepository = orcamentoRepository;
-        this.reservarPecaUseCase = reservarPecaUseCase;
+        this(orcamentoRepository, reservarPecaUseCase, command -> {
+        });
     }
 
     @Override
@@ -56,13 +70,11 @@ public class AprovarOrcamentoService implements AprovarOrcamentoUseCase {
         }
 
         if (!pecasSemEstoque.isEmpty()) {
-            // Desfazer reservas já feitas (rollback parcial)
             for (PecaOrcamento pecaReservada : pecasReservadas) {
                 try {
-                    var liberarCommand = new br.com.oficina.pecainsumo.application.command.LiberarReservaPecaCommand(
-                            pecaReservada.getPecaInsumoId(), pecaReservada.getQuantidade());
-                    // Liberar via repositório diretamente — usamos o mesmo padrão do LiberarReservaPecaService
-                    // Para manter a coesão, chamamos o use case
+                    liberarReservaPecaUseCase.liberarReserva(new LiberarReservaPecaCommand(
+                            pecaReservada.getPecaInsumoId(),
+                            pecaReservada.getQuantidade()));
                 } catch (Exception ignored) {
                     log.warn("Falha ao desfazer reserva da peca {}. Pode ser necessario ajuste manual.",
                             pecaReservada.getPecaInsumoId());

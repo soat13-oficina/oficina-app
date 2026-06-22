@@ -33,7 +33,7 @@ public class AlterarClienteService implements AlterarClienteUseCase {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado."));
 
         validarDuplicidade(command.cpfOuCnpj(), command.clienteId());
-        cliente.alterar(command.nome(), command.cpfOuCnpj(), command.tipoCliente());
+        cliente.alterar(command.nome(), command.cpfOuCnpj(), command.tipoCliente(), command.email());
         clienteRepository.atualizar(cliente);
         log.info("Cliente alterado com sucesso. clienteId={}", command.clienteId());
     }

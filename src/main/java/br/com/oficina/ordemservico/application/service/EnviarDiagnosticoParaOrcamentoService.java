@@ -1,9 +1,11 @@
 package br.com.oficina.ordemservico.application.service;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
@@ -11,6 +13,8 @@ import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoComman
 import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.SituacaoOrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServicoAlterado;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 
 @Service
@@ -19,12 +23,15 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
 
     private final OrdemDeServicoRepository ordemDeServicoRepository;
     private final CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase;
+    private final ApplicationEventPublisher eventPublisher;
 
     public EnviarDiagnosticoParaOrcamentoService(
             OrdemDeServicoRepository ordemDeServicoRepository,
-            CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase) {
+            CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase,
+            ApplicationEventPublisher eventPublisher) {
         this.ordemDeServicoRepository = ordemDeServicoRepository;
         this.cadastrarNovoOrcamentoUseCase = cadastrarNovoOrcamentoUseCase;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -37,7 +44,8 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(request.numeroOrdemServico())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
 
-        ordemDeServico.enviarParaOrcamento();
+        SituacaoOrdemDeServico situacaoAnterior = ordemDeServico.getSituacao();
+        ordemDeServico.enviarParaAprovacao();
 
         String numeroOrcamento = "ORC-" + UUID.randomUUID();
         cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
@@ -57,10 +65,16 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
                 request.observacoes()));
 
         ordemDeServicoRepository.salvar(ordemDeServico);
+        eventPublisher.publishEvent(new StatusOrdemDeServicoAlterado(
+                ordemDeServico.getNumeroOrdemServico(),
+                ordemDeServico.getCliente().getId(),
+                situacaoAnterior,
+                ordemDeServico.getSituacao(),
+                LocalDateTime.now()));
         log.info(
-                "Diagnostico enviado para orcamento com sucesso. numeroOrdemServico={}, numeroOrcamento={}, funcionarioId={}",
+                "Diagnostico enviado para orcamento com sucesso. numeroOrdemServico={}, numeroOrcamento={}, situacao={}",
                 ordemDeServico.getNumeroOrdemServico(),
                 numeroOrcamento,
-                ordemDeServico.getFuncionario().getId());
+                ordemDeServico.getSituacao().getDescricao());
     }
 }

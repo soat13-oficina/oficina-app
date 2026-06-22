@@ -1,0 +1,15 @@
+.git/
+.idea/
+.vscode/
+target/
+build/
+*.class
+*.jar
+*.log*
+.env*
+.DS_Store
+.specify/
+.agents/
+.claude/
+specs/
+docs/contexto-tecnico.md

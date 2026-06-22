@@ -16,6 +16,16 @@ spring:
   flyway:
     enabled: false
 
+  mail:
+    host: localhost
+    port: 1025
+    username:
+    password:
+
 jwt:
   secret: chave-secreta-de-teste-para-rodar-os-testes-unitarios-2026
   expiration: 86400000
+
+orcamento:
+  webhook:
+    secret: segredo-teste

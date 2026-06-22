@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
-import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -77,13 +76,6 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
         if (orcamentoAtual.getEnviadoParaAprovacaoEm() != null) {
             orcamentoAtualizado.enviarParaAprovacao(orcamentoAtual.getEnviadoParaAprovacaoEm());
         }
-        if (orcamentoAtual.getStatus() == StatusOrcamento.APROVADO) {
-            orcamentoAtualizado.aprovar();
-        }
-        if (orcamentoAtual.getStatus() == StatusOrcamento.REJEITADO) {
-            orcamentoAtualizado.rejeitar();
-        }
-
         orcamentoRepository.atualizar(orcamentoAtualizado);
         log.info("Orcamento alterado com sucesso. numeroOrcamento={}", command.numeroOrcamento());
     }
