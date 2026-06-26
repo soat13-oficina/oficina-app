@@ -43,3 +43,5 @@ build/
 
 ### VS Code ###
 .vscode/
+/_bmad-output/
+/_bmad/
