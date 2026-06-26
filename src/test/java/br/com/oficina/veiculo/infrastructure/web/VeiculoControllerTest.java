@@ -7,9 +7,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +26,11 @@ import org.springframework.web.context.WebApplicationContext;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
+import br.com.oficina.ordemservico.domain.model.Funcionario;
+import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataFuncionarioRepository;
+import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataOrdemDeServicoRepository;
+import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.infrastructure.persistence.SpringDataVeiculoRepository;
 
 @SpringBootTest
@@ -36,6 +44,12 @@ class VeiculoControllerTest {
     @Autowired
     private SpringDataClienteRepository clienteRepository;
 
+    @Autowired
+    private SpringDataOrdemDeServicoRepository ordemDeServicoRepository;
+
+    @Autowired
+    private SpringDataFuncionarioRepository funcionarioRepository;
+
     private MockMvc mockMvc;
     private String clienteId1;
     private String clienteId2;
@@ -44,6 +58,8 @@ class VeiculoControllerTest {
 
     @BeforeEach
     void setUp() {
+        ordemDeServicoRepository.deleteAll();
+        funcionarioRepository.deleteAll();
         clienteRepository.deleteAll();
         veiculoRepository.deleteAll();
         clienteId1 = clienteRepository.save(new Cliente("Maria", "11111111111", TipoCliente.PF)).getId().toString();
@@ -326,5 +342,139 @@ class VeiculoControllerTest {
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Placa do veiculo invalida"));
+    }
+
+    @Test
+    void deveRetornarBadRequestAoExcluirVeiculoComOrdemDeServicoVinculada() throws Exception {
+        String requestBody = """
+                {
+                  "placa": "OSV1D23",
+                  "marca": "Ford",
+                  "modelo": "Ranger",
+                  "fabricante": "Ford Motor Company",
+                  "ano": 2022,
+                  "potencia": 213,
+                  "cambio": "AUTOMATICO",
+                  "tipo": "DIESEL",
+                  "clienteId": "%s"
+                }
+                """.formatted(clienteId1);
+
+        mockMvc.perform(post("/veiculos")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated());
+
+        Veiculo veiculoSalvo = veiculoRepository.findByPlaca("OSV1D23").orElseThrow();
+        Funcionario funcionario = funcionarioRepository.save(new Funcionario("Mecanico", "55555555555"));
+        Cliente cliente = Cliente.reconstituir(UUID.fromString(clienteId1), "Maria", "11111111111", TipoCliente.PF);
+        ordemDeServicoRepository.save(
+                OrdemDeServico.abrir(null, "OS-WEB01", funcionario, cliente, veiculoSalvo));
+
+        mockMvc.perform(delete("/veiculos/OSV1D23")
+                        .with(user("tester"))
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Nao e possivel excluir o veiculo: existem ordens de servico vinculadas."));
+
+        mockMvc.perform(get("/veiculos")
+                        .param("placa", "OSV1D23")
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void deveRetornarBadRequestQuandoPotenciaForInvalidaNoCadastro() throws Exception {
+        String requestBody = """
+                {
+                  "placa": "POT1D23",
+                  "marca": "Toyota",
+                  "modelo": "Corolla",
+                  "fabricante": "Toyota Motor Corporation",
+                  "ano": 2024,
+                  "potencia": 0,
+                  "cambio": "AUTOMATICO",
+                  "tipo": "FLEX",
+                  "clienteId": "%s"
+                }
+                """.formatted(clienteId1);
+
+        mockMvc.perform(post("/veiculos")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deveRetornarBadRequestQuandoAnoForInvalidoNoCadastro() throws Exception {
+        String requestBody = """
+                {
+                  "placa": "ANO1D23",
+                  "marca": "Toyota",
+                  "modelo": "Corolla",
+                  "fabricante": "Toyota Motor Corporation",
+                  "ano": 2999,
+                  "potencia": 177,
+                  "cambio": "AUTOMATICO",
+                  "tipo": "FLEX",
+                  "clienteId": "%s"
+                }
+                """.formatted(clienteId1);
+
+        mockMvc.perform(post("/veiculos")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("Ano do veiculo deve estar entre 1886 e")));
+    }
+
+    @Test
+    void deveRetornarBadRequestQuandoPotenciaForInvalidaNaAlteracao() throws Exception {
+        String cadastro = """
+                {
+                  "placa": "ALP1D23",
+                  "marca": "Volkswagen",
+                  "modelo": "T-Cross",
+                  "fabricante": "Volkswagen AG",
+                  "ano": 2023,
+                  "potencia": 128,
+                  "cambio": "AUTOMATICO",
+                  "tipo": "FLEX",
+                  "clienteId": "%s"
+                }
+                """.formatted(clienteId4);
+        String alteracao = """
+                {
+                  "marca": "Volkswagen",
+                  "modelo": "Taos",
+                  "fabricante": "Volkswagen AG",
+                  "ano": 2024,
+                  "potencia": -5,
+                  "cambio": "AUTOMATICO",
+                  "tipo": "GASOLINA"
+                }
+                """;
+
+        mockMvc.perform(post("/veiculos")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cadastro))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(put("/veiculos/ALP1D23")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(alteracao))
+                .andExpect(status().isBadRequest());
     }
 }
