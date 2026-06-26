@@ -6,6 +6,7 @@ Esta pasta contém diagramas Mermaid com a arquitetura e os fluxos da aplicaçã
 |---|---|
 | `fluxograma.md` | Arquitetura hexagonal, ciclo de vida da OS e do Orçamento, módulos e autenticação |
 | `teste-funcional.md` | Passo a passo de teste funcional completo da API |
+| `checklist-validacao-funcional-fase2.md` | Checklist de caixa preta para validar os requisitos de codebase da Fase 2 |
 
 ---
 
