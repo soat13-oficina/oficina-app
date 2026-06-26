@@ -106,6 +106,12 @@ public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
                         && Objects.equals(funcionarioId, os.getFuncionario().getId()));
     }
 
+    @Override
+    public boolean existePorVeiculoId(UUID veiculoId) {
+        return ordens.values().stream()
+                .anyMatch(os -> Objects.equals(veiculoId, os.getVeiculoId()));
+    }
+
     private static int prioridade(StatusOrdemDeServico status) {
         return switch (status) {
             case SERVICO_EM_ANDAMENTO -> 1;

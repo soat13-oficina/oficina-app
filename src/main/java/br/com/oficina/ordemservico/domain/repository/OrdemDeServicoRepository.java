@@ -32,4 +32,6 @@ public interface OrdemDeServicoRepository {
     void excluirPorNumero(String numeroOrdemServico);
 
     boolean existePorFuncionarioId(UUID funcionarioId);
+
+    boolean existePorVeiculoId(UUID veiculoId);
 }

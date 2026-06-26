@@ -83,6 +83,11 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
         return repository.existsByFuncionarioId(funcionarioId);
     }
 
+    @Override
+    public boolean existePorVeiculoId(UUID veiculoId) {
+        return repository.existsByVeiculoId(veiculoId);
+    }
+
     private static <T> Specification<OrdemDeServico> campoIgual(String campo, T valor) {
         return (root, query, criteriaBuilder) -> valor == null ? null : criteriaBuilder.equal(root.get(campo), valor);
     }
