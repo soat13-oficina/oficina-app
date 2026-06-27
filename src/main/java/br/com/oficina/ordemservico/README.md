@@ -58,7 +58,7 @@ enviarParaAprovacao()  enviarParaOrcamento()
      | [Decisão webhook: APROVADO]                   |
      | aprovarOrcamento()                            |
      ▼                                               |
-ORCAMENTO_APROVADO                                   |
+AGUARDANDO_APROVACAO                                 |
      |                                               |
      | iniciarExecucao()                             |
      ▼                                               |
@@ -78,9 +78,11 @@ OS_FINALIZADA (MotivoEncerramento.ORCAMENTO_RECUSADO)
   ENTREGUE
 ```
 
-> **Status sem implementação**: `AGUARDANDO_ORCAMENTO`, `ORCAMENTO_APROVADO`, `AGUARDANDO_PECA`
-> e `SERVICO_CONCLUIDO` existem no enum `StatusOrdemDeServico` mas não possuem transições ou
-> use cases correspondentes — são dívidas técnicas documentadas na constituição.
+> **Status órfãos removidos** (spec `005-ordemservico-achados-residuais`, CRI-003): os valores
+> `AGUARDANDO_ORCAMENTO`, `ORCAMENTO_APROVADO`, `AGUARDANDO_PECA` e `SERVICO_CONCLUIDO` foram
+> **removidos** do enum `StatusOrdemDeServico` por não possuírem transição alguma. Os dados
+> existentes já haviam sido realinhados pela migração `V14`. O enum passa a conter apenas os
+> 8 status alcançáveis.
 
 ### Situações (visão do cliente)
 
@@ -91,9 +93,9 @@ múltiplos status técnicos para 6 situações legíveis:
 |---|---|
 | `RECEBIDA` | `OS_ABERTA` |
 | `DIAGNOSTICO` | `DIAGNOSTICO_EM_ANDAMENTO`, `DIAGNOSTICO_CONCLUIDO` |
-| `AGUARDANDO_APROVACAO` | `AGUARDANDO_ORCAMENTO`, `ORCAMENTO_GERADO`, `AGUARDANDO_APROVACAO`, `ORCAMENTO_APROVADO` |
-| `EXECUCAO` | `SERVICO_EM_ANDAMENTO`, `AGUARDANDO_PECA` |
-| `FINALIZADA` | `SERVICO_CONCLUIDO`, `OS_FINALIZADA` |
+| `AGUARDANDO_APROVACAO` | `ORCAMENTO_GERADO`, `AGUARDANDO_APROVACAO` |
+| `EXECUCAO` | `SERVICO_EM_ANDAMENTO` |
+| `FINALIZADA` | `OS_FINALIZADA` |
 | `ENTREGUE` | `ENTREGUE` |
 
 ### Snapshot de Dados
@@ -254,7 +256,7 @@ ou `400 Bad Request` se a transição for inválida para o status atual.
 | Campo | Tipo | Descrição |
 |---|---|---|
 | `numero` | `String` (UUID) | Identificador único da OS |
-| `status` | `StatusOrdemDeServico` | Status técnico atual (12 valores) |
+| `status` | `StatusOrdemDeServico` | Status técnico atual (8 valores) |
 | `situacao` | `SituacaoOrdemDeServico` | Visão simplificada para o cliente (6 valores) |
 | `motivoEncerramento` | `MotivoEncerramento` | `SERVICO_CONCLUIDO` ou `ORCAMENTO_RECUSADO`; só presente em OS finalizadas |
 | `funcionarioId` | `UUID` | Referência ao funcionário |
@@ -275,14 +277,15 @@ ou `400 Bad Request` se a transição for inválida para o status atual.
 | `dataAbertura` | `LocalDateTime` | Timestamp de criação |
 | `dataFinalizacao` | `LocalDateTime` | Timestamp de finalização (quando aplicável) |
 
-### `StatusOrdemDeServico` — Enum (12 valores)
+### `StatusOrdemDeServico` — Enum (8 valores)
 
 `OS_ABERTA` · `DIAGNOSTICO_EM_ANDAMENTO` · `DIAGNOSTICO_CONCLUIDO` ·
-`AGUARDANDO_ORCAMENTO`* · `ORCAMENTO_GERADO` · `AGUARDANDO_APROVACAO` ·
-`ORCAMENTO_APROVADO`* · `SERVICO_EM_ANDAMENTO` · `AGUARDANDO_PECA`* ·
-`SERVICO_CONCLUIDO`* · `OS_FINALIZADA` · `ENTREGUE`
+`ORCAMENTO_GERADO` · `AGUARDANDO_APROVACAO` · `SERVICO_EM_ANDAMENTO` ·
+`OS_FINALIZADA` · `ENTREGUE`
 
-> (*) Sem transições implementadas atualmente.
+> Todos os 8 valores são alcançáveis e possuem transição. Os quatro status órfãos
+> (`AGUARDANDO_ORCAMENTO`, `ORCAMENTO_APROVADO`, `AGUARDANDO_PECA`, `SERVICO_CONCLUIDO`) foram
+> removidos na spec `005-ordemservico-achados-residuais` (CRI-003).
 
 ### `SituacaoOrdemDeServico` — Enum (6 valores)
 
@@ -331,72 +334,61 @@ ou `400 Bad Request` se a transição for inválida para o status atual.
 
 ### Achados de Integridade Crítica
 
-#### [CRI-001] Ausência de logging em todos os services do módulo
+> **Curadoria (spec `005-ordemservico-achados-residuais`)**: auditoria confirmou que CRI-002 e
+> CRI-004 já estavam resolvidos no código; CRI-001 e CRI-003 foram corrigidos por essa feature.
+> Todos os quatro achados bloqueantes estão **resolvidos**.
 
-**Componente afetado**: todos os `*Service.java` do pacote `ordemservico/application/service/`
+#### [CRI-001] Ausência de logging nos services do módulo ✅ RESOLVIDO
 
-**Descrição**: nenhum service de `ordemservico` emite logs SLF4J de entrada ou conclusão
-de operações. A constituição (Princípio V) exige logging estruturado como requisito
-não-negociável. Em produção, transições de status, criação de OS e consumo de peças são
-invisíveis nos logs de aplicação.
+**Componente afetado**: `*Service.java` do pacote `ordemservico/application/service/`
 
-**Impacto**: impossível rastrear a sequência de eventos em incidentes de produção; auditoria
-de fluxo de OS indisponível.
+**Descrição**: o módulo evoluiu para emitir logging SLF4J de entrada/conclusão em todos os
+services. O único resíduo era `ConsultarStatusOrdemDeServicoService`, que não logava — corrigido
+na spec `005`, alinhando-o ao padrão dos demais services (Princípio V).
 
-**Correção sugerida**: adicionar `log.info("Recebida requisicao de ...")` e
-`log.info("Operacao concluida...")` em todos os services, seguindo o padrão do
-`VeiculoController`.
-
----
-
-#### [CRI-002] Filtragem de OS em memória sem paginação
-
-**Componente afetado**: `ConsultarOrdensDeServicoService`
-
-**Descrição**: `buscarTodas()` carrega todas as OS do banco e filtra em memória via stream
-pelos critérios de `ConsultarOrdensDeServicoQuery` (numero, status, situacao, clienteId,
-veiculoPlaca). Em uma oficina com histórico significativo, essa operação degrada
-linearmente e pode causar `OutOfMemoryError` com volume de dados.
-
-**Impacto**: consulta de OS torna-se o gargalo principal de performance com crescimento do
-banco; a resposta inclui todos os registros sem controle de volume.
-
-**Correção sugerida**: implementar `JpaSpecificationExecutor` em `JpaOrdemDeServicoRepository`
-com `Pageable`, substituindo a filtragem em memória por query dinâmica no banco — conforme
-o padrão já existente em `JpaVeiculoRepository`.
+**Estado**: resolvido — 100% dos services de `ordemservico` emitem logging estruturado de
+entrada e conclusão.
 
 ---
 
-#### [CRI-003] Status técnicos sem transições implementadas — lacuna de ciclo de vida
+#### [CRI-002] Filtragem de OS em memória ✅ RESOLVIDO
 
-**Componente afetado**: `StatusOrdemDeServico` · máquina de estados em `OrdemDeServico`
+**Componente afetado**: `ConsultarOrdensDeServicoService` · `JpaOrdemDeServicoRepository`
 
-**Descrição**: os status `AGUARDANDO_ORCAMENTO`, `ORCAMENTO_APROVADO`, `AGUARDANDO_PECA`
-e `SERVICO_CONCLUIDO` existem no enum mas não possuem transições de entrada nem saída
-implementadas. OS que por qualquer razão chegarem a esses status ficam presas sem possibilidade
-de progressão.
+**Descrição**: a filtragem foi movida para o banco — `JpaOrdemDeServicoRepository` usa
+`JpaSpecificationExecutor` e a query dedicada `buscarAtivasPriorizadasPorFiltros`; a filtragem
+por stream em memória não existe mais.
 
-**Impacto**: se uma OS atingir um status "órfão" (ex.: por inconsistência de dados), não
-há operação disponível na API para progredi-la; a única saída é intervenção direta no banco.
-
-**Correção sugerida**: ou implementar as transições faltantes, ou remover os status do enum
-e garantir que nenhum dado existente os referencie via migração Flyway.
+**Estado**: resolvido. A paginação (`Pageable`) permanece como melhoria de backlog (MEL-002),
+não-bloqueante.
 
 ---
 
-#### [CRI-004] Falta de validação de `veiculoId` pertencente ao `clienteId` na criação da OS
+#### [CRI-003] Status técnicos sem transições implementadas ✅ RESOLVIDO
+
+**Componente afetado**: `StatusOrdemDeServico` · `SituacaoOrdemDeServico.fromStatus`
+
+**Descrição**: os status órfãos `AGUARDANDO_ORCAMENTO`, `ORCAMENTO_APROVADO`, `AGUARDANDO_PECA`
+e `SERVICO_CONCLUIDO` não possuíam transição de entrada nem de saída.
+
+**Correção aplicada (spec `005`)**: os quatro valores foram **removidos** do enum e do `switch`
+de `SituacaoOrdemDeServico.fromStatus`. A migração `V14` (pré-existente) já havia realinhado os
+dados existentes para fora desses valores; como `status` é `EnumType.STRING`, a remoção é
+data-safe e não exigiu nova migração. O enum passou de 12 para 8 valores, todos alcançáveis.
+
+**Estado**: resolvido.
+
+---
+
+#### [CRI-004] Validação de veículo pertencente ao cliente na criação da OS ✅ RESOLVIDO
 
 **Componente afetado**: `CriarNovaOrdemDeServicoService`
 
-**Descrição**: ao criar uma OS, o service valida separadamente que o `clienteId` e o
-`veiculoId` existem, mas não verifica se o veículo pertence ao cliente informado. É possível
-criar uma OS vinculando um veículo de outro cliente.
+**Descrição**: a criação da OS verifica que o veículo pertence ao cliente informado —
+`if (!veiculo.getClienteId().equals(cliente.getId()))` lança
+`RegraDeNegocioException("Veiculo informado nao pertence ao cliente selecionado.")`.
 
-**Impacto**: inconsistência de dados — a OS pode ter snapshot de cliente A com veículo de
-cliente B; a OS de acompanhamento do cliente A exibirá um veículo que não é dele.
-
-**Correção sugerida**: ao buscar o veículo, verificar que `veiculo.clienteId == clienteId`
-da requisição, lançando `RegraDeNegocioException` se divergirem.
+**Estado**: resolvido — não é mais possível vincular um veículo de outro cliente à OS.
 
 ---
 

@@ -18,9 +18,9 @@ public interface SpringDataOrdemDeServicoRepository
     @Query("""
             select o
               from OrdemDeServico o
-             where (:numeroOrdemServico is null or lower(o.numeroOrdemServico) = lower(:numeroOrdemServico))
-               and (:nomeCliente is null or lower(o.clienteNome) = lower(:nomeCliente))
-               and (:placaVeiculo is null or lower(o.veiculoPlaca) = lower(:placaVeiculo))
+             where (:numeroOrdemServico is null or lower(o.numeroOrdemServico) = :numeroOrdemServico)
+               and (:nomeCliente is null or lower(o.clienteNome) = :nomeCliente)
+               and (:placaVeiculo is null or lower(o.veiculoPlaca) = :placaVeiculo)
                and (:documentoCliente is null or o.clienteDocumento = :documentoCliente)
                and o.status not in (
                     br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.OS_FINALIZADA,

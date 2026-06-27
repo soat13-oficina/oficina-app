@@ -1,6 +1,7 @@
 package br.com.oficina.ordemservico.infrastructure.persistence;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -56,9 +57,9 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
             String placaVeiculo,
             String documentoCliente) {
         return repository.buscarAtivasPriorizadasPorFiltros(
-                numeroOrdemServico,
-                nomeCliente,
-                placaVeiculo,
+                normalizarFiltro(numeroOrdemServico),
+                normalizarFiltro(nomeCliente),
+                normalizarFiltro(placaVeiculo),
                 documentoCliente);
     }
 
@@ -90,5 +91,9 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
 
     private static <T> Specification<OrdemDeServico> campoIgual(String campo, T valor) {
         return (root, query, criteriaBuilder) -> valor == null ? null : criteriaBuilder.equal(root.get(campo), valor);
+    }
+
+    private static String normalizarFiltro(String valor) {
+        return valor == null ? null : valor.toLowerCase(Locale.ROOT);
     }
 }

@@ -1,6 +1,7 @@
 package br.com.oficina.ordemservico.domain.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -92,16 +93,20 @@ class TransicoesCicloDeVidaTest {
         assertEquals(SituacaoOrdemDeServico.RECEBIDA, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.OS_ABERTA));
         assertEquals(SituacaoOrdemDeServico.DIAGNOSTICO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO));
         assertEquals(SituacaoOrdemDeServico.DIAGNOSTICO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO));
-        assertEquals(SituacaoOrdemDeServico.AGUARDANDO_APROVACAO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.AGUARDANDO_ORCAMENTO));
         assertEquals(SituacaoOrdemDeServico.AGUARDANDO_APROVACAO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.ORCAMENTO_GERADO));
         assertEquals(SituacaoOrdemDeServico.AGUARDANDO_APROVACAO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.AGUARDANDO_APROVACAO));
-        assertEquals(SituacaoOrdemDeServico.AGUARDANDO_APROVACAO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.ORCAMENTO_APROVADO));
         assertEquals(SituacaoOrdemDeServico.EXECUCAO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.SERVICO_EM_ANDAMENTO));
-        assertEquals(SituacaoOrdemDeServico.EXECUCAO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.AGUARDANDO_PECA));
-        assertEquals(SituacaoOrdemDeServico.FINALIZADA, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.SERVICO_CONCLUIDO));
         assertEquals(SituacaoOrdemDeServico.FINALIZADA, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.OS_FINALIZADA));
         assertEquals(SituacaoOrdemDeServico.ENTREGUE, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.ENTREGUE));
         assertEquals("Aguardando Aprovação", SituacaoOrdemDeServico.AGUARDANDO_APROVACAO.getDescricao());
+    }
+
+    @Test
+    void naoDeveExistirStatusOrfaoNoVocabulario() {
+        assertEquals(8, StatusOrdemDeServico.values().length);
+        for (StatusOrdemDeServico status : StatusOrdemDeServico.values()) {
+            assertNotNull(SituacaoOrdemDeServico.fromStatus(status));
+        }
     }
 
     private static OrdemDeServico novaOrdem() {
