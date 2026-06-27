@@ -10,8 +10,8 @@ import br.com.oficina.cliente.application.command.AlterarClienteCommand;
 import br.com.oficina.cliente.application.usecase.AlterarClienteUseCase;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
+import br.com.oficina.common.domain.exception.ConflitoDeRecursoException;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
-import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 
 @Service
 public class AlterarClienteService implements AlterarClienteUseCase {
@@ -46,7 +46,7 @@ public class AlterarClienteService implements AlterarClienteUseCase {
         clienteRepository.buscarPorDocumento(cpfOuCnpj)
                 .filter(clienteExistente -> !clienteExistente.getId().equals(clienteIdAtual))
                 .ifPresent(clienteExistente -> {
-                    throw new RegraDeNegocioException("Ja existe cliente cadastrado com o mesmo CPF ou CNPJ.");
+                    throw new ConflitoDeRecursoException("Ja existe cliente cadastrado com o mesmo CPF ou CNPJ.");
                 });
     }
 }

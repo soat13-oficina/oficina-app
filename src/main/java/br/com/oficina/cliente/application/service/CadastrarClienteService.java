@@ -10,7 +10,7 @@ import br.com.oficina.cliente.application.command.CadastrarClienteCommand;
 import br.com.oficina.cliente.application.usecase.CadastrarClienteUseCase;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
-import br.com.oficina.common.domain.exception.RegraDeNegocioException;
+import br.com.oficina.common.domain.exception.ConflitoDeRecursoException;
 
 @Service
 public class CadastrarClienteService implements CadastrarClienteUseCase {
@@ -45,7 +45,7 @@ public class CadastrarClienteService implements CadastrarClienteUseCase {
         clienteRepository.buscarPorDocumento(cpfOuCnpj)
                 .filter(clienteExistente -> clienteIdAtual == null || !clienteExistente.getId().equals(clienteIdAtual))
                 .ifPresent(clienteExistente -> {
-                    throw new RegraDeNegocioException("Ja existe cliente cadastrado com o mesmo CPF ou CNPJ.");
+                    throw new ConflitoDeRecursoException("Ja existe cliente cadastrado com o mesmo CPF ou CNPJ.");
                 });
     }
 }

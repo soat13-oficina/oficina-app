@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.cliente.application.command.AlterarClienteCommand;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
+import br.com.oficina.common.domain.exception.ConflitoDeRecursoException;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.support.persistence.TestClienteRepository;
@@ -65,10 +66,10 @@ class AlterarClienteServiceTest {
         repository.salvar(Cliente.reconstituir(outroClienteId, "Joao Silva", "99999999999", TipoCliente.PF));
         AlterarClienteService service = new AlterarClienteService(repository);
 
-        RegraDeNegocioException exception = assertThrows(
-                RegraDeNegocioException.class,
+        ConflitoDeRecursoException exception = assertThrows(
+                ConflitoDeRecursoException.class,
                 () -> service.alterarCliente(new AlterarClienteCommand(
-                        outroClienteId, "Cliente Outro Nome", "123.456.789-01", TipoCliente.PF)));
+                        outroClienteId, "Cliente Outro Nome", "12345678901", TipoCliente.PF)));
 
         assertEquals("Ja existe cliente cadastrado com o mesmo CPF ou CNPJ.", exception.getMessage());
     }

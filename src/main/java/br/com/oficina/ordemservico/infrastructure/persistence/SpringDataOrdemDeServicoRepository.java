@@ -54,4 +54,6 @@ public interface SpringDataOrdemDeServicoRepository
     boolean existsByFuncionarioId(UUID funcionarioId);
 
     boolean existsByVeiculoId(UUID veiculoId);
+
+    boolean existsByClienteId(UUID clienteId);
 }

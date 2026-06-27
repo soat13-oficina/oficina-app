@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -33,6 +34,13 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBusinessRule(RegraDeNegocioException exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(Instant.now(), HttpStatus.BAD_REQUEST.value(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(Instant.now(), HttpStatus.CONFLICT.value(),
+                        "A operacao viola uma restricao de integridade de dados (registro duplicado ou vinculado)."));
     }
 
     @ExceptionHandler(ConflitoDeRecursoException.class)

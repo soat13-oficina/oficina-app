@@ -212,42 +212,45 @@ Todos os endpoints exigem autenticação JWT.
 
 ### Achados de Integridade Crítica
 
-#### [CRI-001] Hard delete sem verificação de integridade referencial
+> **Curadoria (spec `008-cliente-achados-criticos`)**: CRI-001 e CRI-002 foram **resolvidos**, tratando os
+> conflitos como **HTTP 409** (`ConflitoDeRecursoException`, reuso da spec 006). O `ApiExceptionHandler`
+> passou a mapear `DataIntegrityViolationException` → 409 (rede de segurança de corrida, melhoria também para
+> os demais domínios).
 
-**Componente afetado**: `ExcluirClienteService` · `JpaClienteRepository#excluirPorId`
+#### [CRI-001] Hard delete sem verificação de integridade referencial ✅ RESOLVIDO
 
-**Descrição**: `ExcluirClienteService` remove o cliente fisicamente sem verificar se existem
-veículos ou ordens de serviço vinculados. As FKs `fk_veiculos_cliente_id`
-(`veiculos.cliente_id → clientes.id`) e `fk_ordens_de_servico_cliente_id`
-(`ordens_de_servico.cliente_id → clientes.id`) causam `DataIntegrityViolationException`
-quando o cliente possui registros associados. O `ApiExceptionHandler` não mapeia essa
-exceção, resultando em HTTP 500.
+**Componente afetado**: `ExcluirClienteService`
 
-**Impacto**: a exclusão de qualquer cliente ativo — com veículos ou OS — retorna HTTP 500
-sem mensagem explicativa. Qualquer oficina em operação terá clientes com histórico.
+**Descrição**: a exclusão removia o cliente sem verificar vínculos; a violação de FK (veículos/OS) não era
+tratada → HTTP 500 no uso normal.
 
-**Correção sugerida**: verificar a existência de veículos e OS vinculados antes de remover
-o cliente, lançando `RegraDeNegocioException` com mensagem descritiva.
+**Correção aplicada (spec `008`)**: `ExcluirClienteService` consulta a porta de domínio
+`VerificadorVinculosCliente` (adaptador que usa `existsByClienteId` dos repositórios de `veiculo` e
+`ordemservico` — coligação infra→infra, sem dependência circular de domínio); havendo vínculos, lança
+`ConflitoDeRecursoException` (**409**) e preserva o cliente. A corrida (vínculo criado entre a verificação e a
+remoção) é capturada pelo handler central de `DataIntegrityViolationException` → 409.
+
+**Estado**: resolvido.
 
 ---
 
-#### [CRI-002] Busca de unicidade de documento em memória
+#### [CRI-002] Busca de unicidade de documento em memória ✅ RESOLVIDO
 
-**Componente afetado**: `JpaClienteRepository#buscarPorDocumento`
+**Componente afetado**: `JpaClienteRepository#buscarPorDocumento` · `CadastrarClienteService` · `AlterarClienteService`
 
-**Descrição**: a validação de unicidade de CPF/CNPJ nos serviços `CadastrarClienteService`
-e `AlterarClienteService` chama `buscarPorDocumento()`, que executa `repository.findAll()`
-e filtra via stream em memória. Com crescimento da base de clientes, essa operação degrada
-linearmente e pode ser executada em operações concorrentes de cadastro, criando uma condição
-de corrida (race condition) para unicidade — dois cadastros simultâneos com o mesmo
-documento passam na verificação antes que qualquer um persista.
+**Descrição**: a unicidade de CPF/CNPJ era verificada em memória (`findAll().stream()`) e não havia constraint
+no banco — condição de corrida e degradação de performance.
 
-**Impacto**: violação silenciosa de unicidade em cenário de concorrência; degradação de
-performance com volume de dados.
+**Correção aplicada (spec `008`)**: migração Flyway `V16` adiciona `UNIQUE (cpf_ou_cnpj)` em `clientes`
+(com guarda que aborta se houver documentos duplicados pré-existentes); o mapeamento da entidade (`unique =
+true`) garante a mesma restrição nos perfis de teste. A verificação prévia passou a usar `findByCpfOuCnpj`
+(consulta indexada, sem `findAll`) e lança `ConflitoDeRecursoException` (**409**); a corrida é fechada pela
+constraint + handler central → 409.
 
-**Correção sugerida**: adicionar índice `UNIQUE` em `clientes.cpf_ou_cnpj` via migração
-Flyway e delegar a verificação ao banco, tratando a `DataIntegrityViolationException`
-resultante como `RegraDeNegocioException`.
+> A normalização de formato do documento (CPF/CNPJ com vs sem pontuação) permanece como melhoria de backlog
+> (relacionada a MEL-002): a unicidade aqui é sobre o valor armazenado.
+
+**Estado**: resolvido.
 
 ---
 

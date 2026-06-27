@@ -25,7 +25,8 @@ public interface ClienteControllerSwagger {
             description = "Cria um novo cliente. O nome é obrigatório. CPF/CNPJ e tipo do cliente são opcionais, mas quando um for informado o outro também deve ser informado. Se houver CPF/CNPJ, ele deve ser único e não pode estar associado a outro cliente já cadastrado.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Cliente cadastrado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro ou CPF/CNPJ já cadastrado", content = @Content)
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro", content = @Content),
+            @ApiResponse(responseCode = "409", description = "CPF/CNPJ já cadastrado para outro cliente", content = @Content)
     })
     ResponseEntity<Void> cadastrar(CadastrarClienteRequest request);
 
@@ -55,8 +56,9 @@ public interface ClienteControllerSwagger {
             description = "Atualiza os dados de um cliente existente. O nome continua obrigatório. CPF/CNPJ e tipo do cliente permanecem opcionais, mas quando um for informado o outro também deve ser informado. Se houver CPF/CNPJ, ele deve continuar único e não pode pertencer a outro cliente.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Cliente alterado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos para alteração ou CPF/CNPJ já cadastrado para outro cliente", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para alteração", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content),
+            @ApiResponse(responseCode = "409", description = "CPF/CNPJ já cadastrado para outro cliente", content = @Content)
     })
     ResponseEntity<Void> alterar(String clienteId, AlterarClienteRequest request);
 
@@ -64,7 +66,8 @@ public interface ClienteControllerSwagger {
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Cliente excluído com sucesso"),
             @ApiResponse(responseCode = "400", description = "Identificador inválido", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Cliente possui veículos ou ordens de serviço vinculados", content = @Content)
     })
     ResponseEntity<Void> excluir(String clienteId);
 }

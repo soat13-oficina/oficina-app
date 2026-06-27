@@ -57,9 +57,10 @@ public class JpaClienteRepository implements ClienteRepository {
 
     @Override
     public Optional<Cliente> buscarPorDocumento(String cpfOuCnpj) {
-        return repository.findAll().stream()
-                .filter(cliente -> documentosSaoIguais(cliente.getCpfOuCnpj(), cpfOuCnpj))
-                .findFirst();
+        if (cpfOuCnpj == null) {
+            return Optional.empty();
+        }
+        return repository.findByCpfOuCnpj(cpfOuCnpj);
     }
 
     private boolean documentosSaoIguais(String documentoAtual, String documentoInformado) {

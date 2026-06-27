@@ -30,7 +30,7 @@ public class Cliente {
     @Column(nullable = false)
     private String nome;
 
-    @Column(name = "cpf_ou_cnpj")
+    @Column(name = "cpf_ou_cnpj", unique = true)
     private String cpfOuCnpj;
 
     @Enumerated(EnumType.STRING)
