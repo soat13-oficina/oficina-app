@@ -4,6 +4,13 @@ AGENTS.md
 settings.local.json
 **/settings.local.json
 .DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*.class
+*.jar
+*.log
+.env*
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/

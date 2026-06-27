@@ -1,8 +1,12 @@
 .git/
+node_modules/
 .idea/
 .vscode/
 target/
 build/
+coverage/
+Dockerfile*
+.dockerignore
 *.class
 *.jar
 *.log*
