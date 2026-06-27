@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/oficina_db
-    username: oficina_user
-    password: oficina_123
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/oficina_db}
+    username: ${DB_USER:oficina_user}
+    password: ${DB_PASS:oficina_123}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -22,3 +22,9 @@ spring:
 orcamento:
   webhook:
     secret: ${ORCAMENTO_WEBHOOK_SECRET:segredo-teste-integracao}
+
+notificacao:
+  reprocessamento:
+    max-tentativas: 3
+    intervalo: 300000
+    carencia-segundos: 60

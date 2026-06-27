@@ -115,23 +115,26 @@ repositório.
 
 ### Achados de Integridade Crítica
 
-#### [CRI-001] Sem retry e sem persistência de notificações pendentes
+> **Curadoria (spec `007-notificacao-achados-criticos`)**: CRI-001 foi **resolvido** pelo padrão outbox +
+> reprocessamento agendado. A camada `domain` (entidade `Notificacao` + porta `NotificacaoRepository` +
+> adaptador `NotificacaoJpaEntity`) foi introduzida, endereçando estruturalmente também o MEL-001.
+
+#### [CRI-001] Sem retry e sem persistência de notificações pendentes ✅ RESOLVIDO
 
 **Componente afetado**: `EnviarNotificacaoStatusOSService`
 
-**Descrição**: falhas de envio de email (SMTP indisponível, timeout, endereço inválido)
-são silenciadas pelo bloco `catch (RuntimeException)`. O evento não é reenfileirado nem
-armazenado para reprocessamento posterior. Em produção, com servidor SMTP instável ou
-janela de manutenção, notificações são descartadas permanentemente sem rastreabilidade
-além do log de aviso.
+**Descrição**: falhas de envio de e-mail eram silenciadas por um `catch (RuntimeException)` que apenas logava;
+a notificação era descartada permanentemente, sem persistência, retry ou rastreabilidade.
 
-**Impacto**: clientes não recebem notificações em cenários de falha transiente de
-infraestrutura; não há forma de identificar quantas notificações foram perdidas ou
-reenviar manualmente.
+**Correção aplicada (spec `007`)**: padrão **outbox** — toda notificação é persistida na tabela
+`notificacoes` (estados `PENDENTE`/`ENVIADA`/`FALHOU`) **antes** da tentativa de envio (migração Flyway
+`V15`). Um job agendado (`@Scheduled`, intervalo e limite de tentativas configuráveis) reprocessa as
+`PENDENTE` elegíveis até entregá-las ou esgotar as tentativas (→ `FALHOU`). Garantias: nunca reenvia uma
+`ENVIADA`; o job só processa notificações fora de um período de carência, evitando corrida com o envio ativo
+do listener; condições permanentes (sem e-mail / cliente inexistente) viram `FALHOU` terminal sem
+retentativa. O processamento permanece `@Async`, isolado da transação de negócio.
 
-**Correção sugerida**: implementar uma tabela de notificações pendentes (`notificacoes`)
-com status (`PENDENTE`, `ENVIADA`, `FALHOU`) e um job de reprocessamento, ou adotar uma
-fila de mensagens (ex.: RabbitMQ, SQS) para garantia de entrega.
+**Estado**: resolvido.
 
 ---
 

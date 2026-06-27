@@ -42,3 +42,9 @@ jwt:
 orcamento:
   webhook:
     secret: ${ORCAMENTO_WEBHOOK_SECRET:segredo-desenvolvimento}
+
+notificacao:
+  reprocessamento:
+    max-tentativas: ${NOTIFICACAO_MAX_TENTATIVAS:5}
+    intervalo: ${NOTIFICACAO_INTERVALO:300000} # intervalo do job em ms (5 min)
+    carencia-segundos: ${NOTIFICACAO_CARENCIA:60} # janela de carência antes de reprocessar

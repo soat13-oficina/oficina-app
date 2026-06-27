@@ -29,3 +29,9 @@ jwt:
 orcamento:
   webhook:
     secret: segredo-teste
+
+notificacao:
+  reprocessamento:
+    max-tentativas: 3
+    intervalo: 300000
+    carencia-segundos: 60
