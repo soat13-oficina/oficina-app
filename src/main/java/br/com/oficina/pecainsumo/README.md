@@ -126,7 +126,7 @@ Todos os endpoints exigem autenticação JWT.
 | Status | Situação |
 |---|---|
 | 200 OK | `PecaInsumoResponse` |
-| 500 Internal Server Error | Peça não encontrada (`EntityNotFoundException` não tratada — ver CRI-001) |
+| 404 Not Found | Peça não encontrada |
 
 ---
 
@@ -150,6 +150,7 @@ Todos os endpoints exigem autenticação JWT.
 | Status | Situação |
 |---|---|
 | 204 No Content | Peça excluída |
+| 400 Bad Request | Peça possui reserva ativa e não pode ser excluída |
 | 404 Not Found | Peça não encontrada |
 
 ## Modelos de Domínio
@@ -218,40 +219,44 @@ Entidade JPA separada do domínio. Implementa o padrão de referência da consti
 
 ### Achados de Integridade Crítica
 
-#### [CRI-001] `buscarPorId()` lança `EntityNotFoundException` não tratada pelo `ApiExceptionHandler`
+> Status: resolvidos pela spec `004-pecainsumo-achados-criticos`. Esta seção permanece como
+> registro histórico dos bloqueantes encontrados e da correção aplicada.
+
+#### [CRI-001] `buscarPorId()` lançava `EntityNotFoundException` não tratada pelo `ApiExceptionHandler`
 
 **Componente afetado**: `PecaInsumoController#buscarPorId`
 
-**Descrição**: `buscarPorId()` no controller lança `EntityNotFoundException` (Jakarta
+**Descrição**: `buscarPorId()` no controller lançava `EntityNotFoundException` (Jakarta
 Persistence) quando a peça não é encontrada. O `ApiExceptionHandler` não mapeia
-`EntityNotFoundException` — o Spring retorna HTTP 500 com stack trace completo em vez de
+`EntityNotFoundException` — o Spring retornava HTTP 500 com stack trace completo em vez de
 HTTP 404.
 
-**Impacto**: `GET /pecas-insumos/{id}` com ID inexistente sempre retorna HTTP 500, violando
+**Impacto**: `GET /pecas-insumos/{id}` com ID inexistente retornava HTTP 500, violando
 o contrato REST e expondo detalhes de implementação no response body.
 
-**Correção sugerida**: substituir `EntityNotFoundException` por `RecursoNaoEncontradoException`
-(já definida e tratada no `ApiExceptionHandler`), ou adicionar o mapeamento de
-`EntityNotFoundException → 404` no `ApiExceptionHandler`.
+**Correção aplicada**: `PecaInsumoController#buscarPorId` passou a lançar
+`RecursoNaoEncontradoException`, já tratada pelo `ApiExceptionHandler` como HTTP 404 no
+formato padronizado `ErrorResponse(timestamp, status, message)`.
 
 ---
 
-#### [CRI-002] `ReservarPecaService` e `ConsumirPecaService` usam exceção errada para "não encontrado"
+#### [CRI-002] `ReservarPecaService` e `ConsumirPecaService` usavam exceção errada para "não encontrado"
 
 **Componente afetado**: `ReservarPecaService#reservar` · `ConsumirPecaService#consumir`
 
-**Descrição**: ambos os services lançam `RegraDeNegocioException` quando a peça não é
+**Descrição**: ambos os services lançavam `RegraDeNegocioException` quando a peça não era
 encontrada pelo ID (`pecaInsumoRepository.buscarPorId()` retorna `Optional.empty()`). A
 constituição (Princípio X, implícito na convenção de handlers) define
 `RecursoNaoEncontradoException` para entidades inexistentes — `RegraDeNegocioException` é
 para violações de regras de negócio em entidades existentes.
 
-**Impacto**: o chamador (`FinalizarOrdemDeServicoService`) recebe HTTP 400 ("Bad Request")
+**Impacto**: o chamador (`FinalizarOrdemDeServicoService`) recebia HTTP 400 ("Bad Request")
 em vez de HTTP 404 ("Not Found") quando uma peça referenciada no orçamento não existe mais,
 tornando o diagnóstico de erro ambíguo.
 
-**Correção sugerida**: substituir `RegraDeNegocioException` por `RecursoNaoEncontradoException`
-nos dois services quando a peça não for encontrada.
+**Correção aplicada**: `ReservarPecaService` e `ConsumirPecaService` passaram a lançar
+`RecursoNaoEncontradoException` somente quando a peça não existe. As validações de quantidade,
+estoque e reserva insuficiente continuam usando `RegraDeNegocioException` e HTTP 400.
 
 ---
 
@@ -259,18 +264,18 @@ nos dois services quando a peça não for encontrada.
 
 **Componente afetado**: `ExcluirPecaInsumoService`
 
-**Descrição**: uma peça pode ser excluída mesmo com `quantidadeReservada > 0` — ou seja,
+**Descrição**: uma peça podia ser excluída mesmo com `quantidadeReservada > 0` — ou seja,
 referenciada em orçamentos de OS abertas. A exclusão quebra silenciosamente a referência:
 `PecaOrcamento.pecaInsumoId` aponta para um ID que não existe mais. Quando
-`FinalizarOrdemDeServicoService` chamar `ConsumirPecaUseCase` com esse ID, receberá
-`RegraDeNegocioException` (ver CRI-002), retornando HTTP 400 e impedindo a finalização
-da OS.
+`FinalizarOrdemDeServicoService` chamava `ConsumirPecaUseCase` com esse ID, recebia erro
+de "peça não encontrada" e a OS não podia ser finalizada.
 
-**Impacto**: OS com peças excluídas ficam presas — não podem ser finalizadas.
+**Impacto**: OS com peças excluídas ficavam presas — não podiam ser finalizadas.
 
-**Correção sugerida**: verificar `quantidadeReservada > 0` antes da exclusão e lançar
-`RegraDeNegocioException` com mensagem informando que a peça está reservada em orçamentos
-ativos.
+**Correção aplicada**: `ExcluirPecaInsumoService` busca a peça antes de excluir; se o ID
+não existe, lança `RecursoNaoEncontradoException` (HTTP 404); se `quantidadeReservada > 0`,
+lança `RegraDeNegocioException` (HTTP 400) e preserva a peça; caso contrário, remove a peça
+e registra log de sucesso.
 
 ---
 
