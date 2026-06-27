@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
+import br.com.oficina.common.domain.exception.ConflitoDeRecursoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.DecidirOrcamentoExternamenteCommand;
 import br.com.oficina.orcamento.application.result.DecisaoOrcamentoResult;
@@ -110,8 +111,8 @@ class DecisaoOrcamentoServiceTest {
 
         service.decidir(new DecidirOrcamentoExternamenteCommand(NUMERO_ORC, DecisaoOrcamento.APROVADO));
 
-        RegraDeNegocioException exception = assertThrows(
-                RegraDeNegocioException.class,
+        ConflitoDeRecursoException exception = assertThrows(
+                ConflitoDeRecursoException.class,
                 () -> service.decidir(new DecidirOrcamentoExternamenteCommand(NUMERO_ORC, DecisaoOrcamento.REJEITADO)));
 
         assertEquals("Decisao divergente da decisao ja registrada para o orcamento.", exception.getMessage());

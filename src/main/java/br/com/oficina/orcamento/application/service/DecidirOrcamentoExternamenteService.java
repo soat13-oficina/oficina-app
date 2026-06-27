@@ -6,7 +6,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import br.com.oficina.common.domain.exception.ConflitoDeRecursoException;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.AprovarOrcamentoCommand;
@@ -50,6 +52,7 @@ public class DecidirOrcamentoExternamenteService implements DecidirOrcamentoExte
     }
 
     @Override
+    @Transactional
     public DecisaoOrcamentoResult decidir(DecidirOrcamentoExternamenteCommand command) {
         if (command.decisao() == null) {
             throw new RegraDeNegocioException("Decisao do orcamento e obrigatoria.");
@@ -102,7 +105,7 @@ public class DecidirOrcamentoExternamenteService implements DecidirOrcamentoExte
                 || (orcamento.getStatus() == StatusOrcamento.REJEITADO
                 && command.decisao() == DecisaoOrcamento.REJEITADO);
         if (!mesmaDecisao) {
-            throw new RegraDeNegocioException("Decisao divergente da decisao ja registrada para o orcamento.");
+            throw new ConflitoDeRecursoException("Decisao divergente da decisao ja registrada para o orcamento.");
         }
         return resposta(command.numeroOrcamento(), ordem);
     }

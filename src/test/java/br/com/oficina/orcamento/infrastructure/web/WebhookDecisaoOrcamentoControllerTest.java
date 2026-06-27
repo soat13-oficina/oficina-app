@@ -140,7 +140,7 @@ class WebhookDecisaoOrcamentoControllerTest {
     }
 
     @Test
-    void deveRetornar400ComDecisaoDivergenteParaOrcamentoJaDecidido() throws Exception {
+    void deveRetornar409ComDecisaoDivergenteParaOrcamentoJaDecidido() throws Exception {
         OrdemDeServico ordem = criarOrdemEmAguardandoAprovacao();
         criarOrcamento("ORC-WHK-003", ordem, StatusOrcamento.AGUARDANDO_APROVACAO);
 
@@ -158,7 +158,7 @@ class WebhookDecisaoOrcamentoControllerTest {
                         .content("""
                                 { "decisao": "REJEITADO" }
                                 """))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Decisao divergente da decisao ja registrada para o orcamento."));
     }
 

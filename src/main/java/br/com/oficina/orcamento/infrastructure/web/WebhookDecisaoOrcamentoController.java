@@ -15,7 +15,7 @@ import br.com.oficina.orcamento.infrastructure.web.response.DecisaoOrcamentoResp
 
 @RestController
 @RequestMapping("/integracoes/orcamentos")
-public class WebhookDecisaoOrcamentoController {
+public class WebhookDecisaoOrcamentoController implements WebhookDecisaoOrcamentoControllerSwagger {
     private static final Logger log = LoggerFactory.getLogger(WebhookDecisaoOrcamentoController.class);
 
     private final DecidirOrcamentoExternamenteUseCase decidirOrcamentoExternamenteUseCase;
@@ -24,6 +24,7 @@ public class WebhookDecisaoOrcamentoController {
         this.decidirOrcamentoExternamenteUseCase = decidirOrcamentoExternamenteUseCase;
     }
 
+    @Override
     @PostMapping("/{numeroOrcamento}/decisao")
     public ResponseEntity<DecisaoOrcamentoResponse> decidir(
             @PathVariable String numeroOrcamento,

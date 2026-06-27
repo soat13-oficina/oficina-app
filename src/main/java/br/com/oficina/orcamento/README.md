@@ -203,42 +203,41 @@ Todos os endpoints abaixo exigem autenticação, exceto o webhook.
 
 ### Achados de Integridade Crítica
 
-#### [CRI-001] Ausência de validação de transição antes de `enviarParaAprovacao()`
+> **Curadoria (spec `006-orcamento-achados-criticos`)**: CRI-002 (atomicidade) foi corrigido; o
+> resíduo válido de CRI-001 (contrato de erro do webhook) foi corrigido. A premissa original de CRI-001
+> (estado intermediário `EM_APROVACAO`) já era **obsoleta** — esse estado não existe no enum
+> `StatusOrcamento` (`AGUARDANDO_APROVACAO`, `APROVADO`, `REJEITADO`). Ambos os achados estão **resolvidos**.
 
-**Componente afetado**: `Orcamento#enviarParaAprovacao()` · `DecidirOrcamentoExternamenteService`
+#### [CRI-001] Contrato de erro do webhook de decisão ✅ RESOLVIDO
 
-**Descrição**: o método `enviarParaAprovacao()` transiciona o orçamento de
-`AGUARDANDO_APROVACAO` para `EM_APROVACAO`. Se o webhook de decisão chegar antes que
-`enviarParaAprovacao()` seja chamado (orçamento ainda em `AGUARDANDO_APROVACAO`), a
-chamada a `orcamento.aprovar()` ou `orcamento.rejeitar()` lança `RegraDeNegocioException`
-("Orcamento não está em aprovação"), retornando HTTP 400 — não HTTP 422/409. O contrato
-de erro não está documentado no Swagger do webhook.
+**Componente afetado**: `WebhookDecisaoOrcamentoController` · `DecidirOrcamentoExternamenteService`
 
-**Impacto**: integrações externas que enviam a decisão imediatamente após a criação do
-orçamento recebem um 400 sem contexto suficiente para distinguir conflito de decisão de
-chamada fora de ordem.
+**Descrição**: a premissa original (estado `EM_APROVACAO` travado) já não existia — `aprovar()`/`rejeitar()`
+exigem `AGUARDANDO_APROVACAO` e a decisão externa já trata chamadas repetidas de forma idempotente. O resíduo
+real era o contrato de erro do webhook: não documentado, e decisão divergente de uma já registrada retornava
+HTTP 400.
 
-**Correção sugerida**: documentar a restrição de sequência no contrato OpenAPI do endpoint
-de webhook. Avaliar se `enviarParaAprovacao()` deve ser chamado automaticamente na criação,
-eliminando o estado intermediário `AGUARDANDO_APROVACAO`.
+**Correção aplicada (spec `006`)**: decisão divergente passou a lançar `ConflitoDeRecursoException`, mapeada
+para **HTTP 409 Conflict** no `ApiExceptionHandler`. Decisão idêntica permanece idempotente (200). O endpoint
+ganhou `WebhookDecisaoOrcamentoControllerSwagger` documentando 200/400/404/409.
+
+**Estado**: resolvido.
 
 ---
 
-#### [CRI-002] Propagação de evento na decisão sem garantia de atomicidade
+#### [CRI-002] Atomicidade da decisão externa ✅ RESOLVIDO
 
 **Componente afetado**: `DecidirOrcamentoExternamenteService`
 
-**Descrição**: o service salva o orçamento e em seguida publica `StatusOrdemDeServicoAlterado`
-via `ApplicationEventPublisher`. Se a publicação falhar (ex.: erro na atualização da OS no
-listener do evento), o orçamento já estará persistido mas o evento não terá sido processado.
-Não há controle transacional entre a persistência e o efeito lateral da publicação do evento.
+**Descrição**: a decisão externa aprovava/rejeitava o orçamento (reservando peças), atualizava a OS e
+publicava o evento **sem fronteira transacional** — uma falha técnica parcial deixava estado inconsistente.
 
-**Impacto**: inconsistência entre o status do orçamento e o status da OS em caso de falha
-parcial.
+**Correção aplicada (spec `006`)**: `decidir()` passou a ser `@Transactional`. Como os métodos de repositório
+envolvidos já usam propagação `REQUIRED`, a aprovação/rejeição do orçamento, a reserva de peças e a
+atualização da OS **confirmam juntas ou revertem juntas**. A notificação permanece `@Async` (best-effort),
+fora da transação. A compensação de reserva por estoque insuficiente foi preservada.
 
-**Correção sugerida**: garantir que a publicação do evento ocorra dentro da mesma transação
-JPA da persistência do orçamento (usar `@Transactional` no método de decisão), ou migrar
-para eventos transacionais (`@TransactionalEventListener`).
+**Estado**: resolvido.
 
 ---
 
