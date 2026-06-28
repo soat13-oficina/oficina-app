@@ -82,4 +82,66 @@ class AuthControllerTest {
                         .content(body))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void deveRetornar409_quandoRegistrarEmailJaCadastrado() throws Exception {
+        String body = """
+                { "email": "admin@oficina.com", "senha": "outrasenha" }
+                """;
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
+    void deveRegistrarUsuarioERetornarToken_quandoEmailNovo() throws Exception {
+        String body = """
+                { "email": "novo@oficina.com", "senha": "senha123" }
+                """;
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty());
+    }
+
+    @Test
+    void deveRetornar400_quandoLoginComEmailEmBranco() throws Exception {
+        String body = """
+                { "email": "", "senha": "admin123" }
+                """;
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deveRetornar400_quandoRegistrarComEmailSemFormatoValido() throws Exception {
+        String body = """
+                { "email": "abc", "senha": "senha123" }
+                """;
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deveRetornar400_quandoLoginComSenhaEmBranco() throws Exception {
+        String body = """
+                { "email": "admin@oficina.com", "senha": "" }
+                """;
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
 }

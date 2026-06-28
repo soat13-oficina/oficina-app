@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,9 +22,11 @@ import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
     private static final String MENSAGEM_REQUISICAO_INVALIDA = "A requisicao enviada e invalida.";
     private static final String MENSAGEM_CORPO_INVALIDO = "Os dados enviados sao invalidos. Revise o corpo da requisicao.";
     private static final String MENSAGEM_VALIDACAO = "Erro de validação nos campos informados.";
+    private static final String MENSAGEM_ERRO_INESPERADO = "Erro inesperado ao processar a requisicao.";
 
     @ExceptionHandler(RecursoNaoEncontradoException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFound(RecursoNaoEncontradoException exception) {
@@ -93,6 +97,13 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(Instant.now(), HttpStatus.BAD_REQUEST.value(), MENSAGEM_REQUISICAO_INVALIDA));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
+        log.error("Erro inesperado nao tratado ao processar a requisicao.", exception);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(Instant.now(), HttpStatus.INTERNAL_SERVER_ERROR.value(), MENSAGEM_ERRO_INESPERADO));
     }
 
     record ErrorResponse(Instant timestamp, int status, String message) {
