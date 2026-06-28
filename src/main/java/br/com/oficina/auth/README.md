@@ -147,41 +147,45 @@ indiretamente de `auth` por estarem protegidos pela `SecurityFilterChain`.
 
 ### Achados de Integridade Crítica
 
-#### [CRI-001] `POST /api/auth/register` retorna HTTP 500 para falhas genéricas
+> **Curadoria (spec `010-auth-achados-criticos`)**: CRI-001 e CRI-002 foram **resolvidos**.
+> O `ApiExceptionHandler` ganhou um handler genérico `Exception` → 500 com log SLF4J e mensagem
+> segura; o `AuthController` passou a delegar o tratamento ao handler central e a validar a entrada
+> na borda. Os achados de melhoria (MEL-001/002/003) permanecem como backlog.
 
-**Componente afetado**: `AuthController#register`
+#### [CRI-001] `POST /api/auth/register` retorna HTTP 500 para falhas genéricas ✅ RESOLVIDO
 
-**Descrição**: o bloco `catch (Exception e)` no método `register` retorna
+**Componente afetado**: `AuthController#register` · `ApiExceptionHandler`
+
+**Descrição**: o bloco `catch (Exception e)` no método `register` retornava
 `ResponseEntity.status(500).build()` sem log, sem mensagem e sem distinção de causa.
-Qualquer exceção inesperada (timeout de banco, falha de validação não coberta, erro de
-serialização) resulta em 500 silencioso — sem informação para o cliente da API nem
+Qualquer exceção inesperada resultava em 500 silencioso — sem feedback ao cliente nem
 rastreabilidade nos logs.
 
-**Impacto**: falhas no registro são indistinguíveis em produção; o cliente da API não recebe
-feedback acionável; a constituição (Princípio V) exige logging estruturado nas operações de
-negócio.
+**Correção aplicada (spec `010`)**: removido o `catch (Exception e)` genérico do `register`; o
+conflito de e-mail duplicado passou a lançar `ConflitoDeRecursoException` (**409**, via handler
+central). Adicionado ao `ApiExceptionHandler` um `@ExceptionHandler(Exception.class)` que registra
+log SLF4J com contexto e retorna **500** com mensagem genérica segura (sem stacktrace/segredos) —
+rede de segurança central que beneficia todos os domínios. `login` e `register` passaram a emitir
+logging estruturado de entrada/desfecho (sem registrar senha nem token).
 
-**Correção sugerida**: remover o bloco `catch (Exception e)` genérico, deixar o
-`ApiExceptionHandler` centralizado tratar as exceções conhecidas, e adicionar logging
-SLF4J nas operações de negócio conforme o Princípio V da constituição.
+**Estado**: resolvido.
 
 ---
 
-#### [CRI-002] Ausência de validação de entrada no `AuthController`
+#### [CRI-002] Ausência de validação de entrada no `AuthController` ✅ RESOLVIDO
 
 **Componente afetado**: `AuthController#login`, `AuthController#register`, `LoginRequest`
 
-**Descrição**: `LoginRequest` não possui anotações Bean Validation (`@NotBlank`, `@Email`,
-`@Size`). Email `null` ou senha em branco chegam ao `authenticationManager.authenticate()`
-ou ao `encoder.encode()`, podendo causar `NullPointerException` ou comportamento indefinido
-dependendo da implementação subjacente do Spring Security.
+**Descrição**: `LoginRequest` não possuía Bean Validation. Email `null` ou senha em branco
+chegavam à camada de segurança, com risco de `NullPointerException` ou comportamento indefinido.
 
-**Impacto**: requisições malformadas não são rejeitadas na camada de entrada; o comportamento
-é imprevisível e não documentado.
+**Correção aplicada (spec `010`)**: `LoginRequest` recebeu `@NotBlank` + `@Email` no email e
+`@NotBlank` na senha; os parâmetros de `login`/`register` foram anotados com `@Valid`. Entradas
+inválidas são rejeitadas com **400** (via `MethodArgumentNotValidException` no `ApiExceptionHandler`)
+antes de alcançar a autenticação. Credenciais bem-formadas porém incorretas seguem retornando **401**.
+A política de força de senha (tamanho/complexidade) permanece backlog.
 
-**Correção sugerida**: adicionar `@NotBlank` e `@Email` em `LoginRequest`, anotar os
-parâmetros do controller com `@Valid`, e adicionar o tratamento de
-`MethodArgumentNotValidException` já presente no `ApiExceptionHandler`.
+**Estado**: resolvido.
 
 ---
 
