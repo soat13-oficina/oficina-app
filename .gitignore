@@ -16,6 +16,12 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Python (tooling em scripts/) ###
+__pycache__/
+*.pyc
+.venv/
+venv/
+
 ### Specify / Speckit ###
 .specify/
 .agents/

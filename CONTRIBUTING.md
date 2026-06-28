@@ -15,8 +15,20 @@ Sempre que um endpoint mudar, o PR DEVE atualizar, na mesma entrega:
    (anotações nos `*ControllerSwagger`), refletindo path, método, request/response e autenticação.
 2. **README do módulo** afetado — `src/main/java/br/com/oficina/<modulo>/README.md`: tabela de
    endpoints, máquina de estados e ciclo de vida, quando impactados.
-3. **Collection do Insomnia** — `docs/collections/oficina-api.insomnia.json`: adicionar, alterar ou
-   remover o request correspondente, mantendo o JSON válido.
+3. **Collection do Insomnia** — `docs/collections/oficina-api.insomnia.json`: **gerada** a partir do
+   OpenAPI pelo script, não editada à mão. Regere e commite com:
+
+   ```sh
+   # app rodando com /v3/api-docs acessível:
+   python3 scripts/gerar-collection-insomnia.py
+   # ou a partir de um OpenAPI exportado:
+   python3 scripts/gerar-collection-insomnia.py --input openapi.json
+   ```
+
+   A collection traz apenas o **Base Environment** com placeholders (sem segredos). Cada
+   desenvolvedor preenche um **Sub Environment local** no Insomnia (não versionado); reimportar uma
+   versão atualizada altera só os endpoints afetados e preserva esses valores locais. Os testes do
+   script rodam manualmente (`python3 -m unittest discover -s scripts/tests`), fora do `./mvnw verify`.
 4. **Documentação técnica descritiva** — `docs/contexto-tecnico.md` (máquina de estados/endpoints),
    quando aplicável.
 

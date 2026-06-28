@@ -1,0 +1,43 @@
+{
+  "openapi": "3.0.1",
+  "info": { "title": "Oficina API (amostra)", "version": "test" },
+  "security": [ { "bearerAuth": [] } ],
+  "paths": {
+    "/clientes": {
+      "post": {
+        "tags": ["Clientes"],
+        "summary": "Cadastrar cliente",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": { "nome": "Maria", "documento": "11111111111" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "criado" } }
+      }
+    },
+    "/clientes/{clienteId}": {
+      "get": {
+        "tags": ["Clientes"],
+        "summary": "Consultar cliente",
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Login",
+        "security": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": { "login": "user", "senha": "secret" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "ok" } }
+      }
+    }
+  }
+}

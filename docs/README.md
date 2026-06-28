@@ -7,6 +7,29 @@ Esta pasta contém diagramas Mermaid com a arquitetura e os fluxos da aplicaçã
 | `fluxograma.md` | Arquitetura hexagonal, ciclo de vida da OS e do Orçamento, módulos e autenticação |
 | `teste-funcional.md` | Passo a passo de teste funcional completo da API |
 | `checklist-validacao-funcional-fase2.md` | Checklist de caixa preta para validar os requisitos de codebase da Fase 2 |
+| `collections/oficina-api.insomnia.json` | Collection do Insomnia **gerada** a partir do OpenAPI (ver abaixo) |
+
+---
+
+## Collection do Insomnia (gerada)
+
+A collection `collections/oficina-api.insomnia.json` é **gerada** a partir do contrato OpenAPI da
+aplicação — não edite à mão. Para regerar:
+
+```sh
+python3 scripts/gerar-collection-insomnia.py            # busca /v3/api-docs (app rodando)
+python3 scripts/gerar-collection-insomnia.py --input openapi.json   # a partir de um arquivo
+```
+
+Como usar no Insomnia preservando sua configuração local:
+
+1. Importe `collections/oficina-api.insomnia.json` (traz o **Base Environment** só com placeholders).
+2. Crie um **Sub Environment local** (ex.: "Meu Local") e preencha os valores reais (`token`,
+   ids, etc.). Esse Sub Environment **não é versionado**.
+3. Em atualizações futuras, reimporte a collection: apenas os endpoints afetados mudam e os valores
+   do seu Sub Environment local são preservados (não é preciso realimentar variáveis).
+
+Os testes do gerador rodam com `python3 -m unittest discover -s scripts/tests`.
 
 ---
 
