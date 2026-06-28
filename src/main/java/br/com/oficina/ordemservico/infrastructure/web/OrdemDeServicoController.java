@@ -45,6 +45,7 @@ import br.com.oficina.ordemservico.application.usecase.IniciarDiagnosticoUseCase
 import br.com.oficina.ordemservico.application.usecase.IniciarExecucaoUseCase;
 import br.com.oficina.ordemservico.infrastructure.web.request.AlterarOrdemDeServicoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.CriarOrdemDeServicoRequest;
+import br.com.oficina.ordemservico.infrastructure.web.request.ConcluirDiagnosticoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoParaOrcamentoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.response.AberturaOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.AcompanhamentoOrdemDeServicoResponse;
@@ -221,9 +222,14 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
     }
 
     @PostMapping("/{numeroOrdemServico}/diagnostico/concluir")
-    public ResponseEntity<Void> concluirDiagnostico(@PathVariable String numeroOrdemServico) {
+    public ResponseEntity<Void> concluirDiagnostico(
+            @PathVariable String numeroOrdemServico,
+            @RequestBody(required = false) ConcluirDiagnosticoRequest request) {
         log.info("Recebida requisicao para concluir diagnostico. numeroOrdemServico={}", numeroOrdemServico);
-        concluirDiagnosticoUseCase.concluirDiagnostico(new ConcluirDiagnosticoCommand(numeroOrdemServico));
+        ConcluirDiagnosticoCommand command = request == null
+                ? new ConcluirDiagnosticoCommand(numeroOrdemServico)
+                : new ConcluirDiagnosticoCommand(numeroOrdemServico, request.descricaoServico(), request.toPecas());
+        concluirDiagnosticoUseCase.concluirDiagnostico(command);
         log.info("Requisicao para concluir diagnostico concluida. numeroOrdemServico={}", numeroOrdemServico);
         return ResponseEntity.noContent().build();
     }
@@ -259,17 +265,10 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
     public ResponseEntity<Void> enviarDiagnosticoParaOrcamento(
             @PathVariable String numeroOrdemServico,
             @RequestBody EnviarDiagnosticoParaOrcamentoRequest request) {
-        log.info(
-                "Recebida requisicao para enviar diagnostico para orcamento. numeroOrdemServico={}, quantidadeServicosPropostos={}, quantidadePecasPrevistas={}",
-                numeroOrdemServico,
-                request.servicosPropostos() == null ? 0 : request.servicosPropostos().size(),
-                request.pecasPrevistas() == null ? 0 : request.pecasPrevistas().size());
+        log.info("Recebida requisicao para enviar diagnostico para orcamento. numeroOrdemServico={}", numeroOrdemServico);
         enviarDiagnosticoParaOrcamentoUseCase.enviarDiagnosticoParaOrcamento(
                 new EnviarDiagnosticoParaOrcamentoUseCase.EnviarDiagnosticoParaOrcamentoRequest(
                         numeroOrdemServico,
-                        request.descricaoDiagnostico(),
-                        request.servicosPropostos(),
-                        request.toPecasInput(),
                         request.valorMaoDeObra(),
                         request.desconto(),
                         request.validade(),

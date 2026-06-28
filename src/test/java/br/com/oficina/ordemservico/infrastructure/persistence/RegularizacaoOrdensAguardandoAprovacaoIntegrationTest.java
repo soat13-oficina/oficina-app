@@ -54,9 +54,6 @@ class RegularizacaoOrdensAguardandoAprovacaoIntegrationTest {
         UUID idValida = persistirOrdemEmDiagnosticoConcluido("OS-VALIDA", clienteId);
         enviarDiagnosticoParaOrcamentoUseCase.enviarDiagnosticoParaOrcamento(new EnviarDiagnosticoParaOrcamentoRequest(
                 "OS-VALIDA",
-                "Diagnostico completo",
-                List.of(),
-                List.of(),
                 new BigDecimal("200.00"),
                 BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 1, 0, 0),
@@ -100,7 +97,7 @@ class RegularizacaoOrdensAguardandoAprovacaoIntegrationTest {
                         "AUTOMATICO",
                         TipoCombustivel.FLEX));
         ordem.iniciarDiagnostico();
-        ordem.concluirDiagnostico();
+        ordem.concluirDiagnostico("Servico de diagnostico", List.of());
         ordemDeServicoRepository.salvar(ordem);
         return ordemDeServicoRepository.buscarPorNumero(numero).orElseThrow().getId();
     }

@@ -22,9 +22,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.List;
+
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
+import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
+import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
+import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.orcamento.infrastructure.persistence.SpringDataOrcamentoRepository;
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
 import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
@@ -44,6 +49,9 @@ class OrcamentoControllerTest {
 
     @Autowired
     private SpringDataPecaInsumoRepository pecaInsumoRepository;
+
+    @Autowired
+    private CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase;
 
     private MockMvc mockMvc;
     private String clienteId;
@@ -71,32 +79,22 @@ class OrcamentoControllerTest {
 
     @Test
     void deveExecutarCrudDeOrcamento() throws Exception {
-        String cadastro = """
-                {
-                  "numeroOrcamento": "orc-1",
-                  "clienteId": "%s",
-                  "ordemDeServicoId": "00000000-0000-0000-0000-000000000001",
-                  "funcionarioId": "00000000-0000-0000-0000-000000000002",
-                  "placaVeiculo": "ABC1D23",
-                  "marcaVeiculo": "Toyota",
-                  "modeloVeiculo": "Corolla",
-                  "descricaoDiagnostico": "Troca de pastilhas",
-                  "servicosPropostos": ["Troca de pastilhas"],
-                  "pecasPrevistas": [{"pecaInsumoId": "%s", "quantidade": 1}],
-                  "valorMaoDeObra": 150.00,
-                  "desconto": 0.00,
-                  "validade": "2030-12-31T10:00:00",
-                  "observacoes": "Prioridade alta"
-                }
-                """.formatted(clienteId, pecaId1);
-
-        mockMvc.perform(post("/orcamentos")
-                        .with(user("tester"))
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(cadastro))
-                .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "http://localhost/orcamentos/orc-1"));
+        // O orcamento e criado pelo fluxo interno (endpoint standalone POST /orcamentos foi removido).
+        cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
+                "orc-1",
+                clienteId,
+                "00000000-0000-0000-0000-000000000001",
+                "00000000-0000-0000-0000-000000000002",
+                "ABC1D23",
+                "Toyota",
+                "Corolla",
+                "Troca de pastilhas",
+                List.of("Troca de pastilhas"),
+                List.of(new PecaOrcamentoInput(pecaId1, 1)),
+                new BigDecimal("150.00"),
+                BigDecimal.ZERO,
+                java.time.LocalDateTime.of(2030, 12, 31, 10, 0),
+                "Prioridade alta"));
 
         mockMvc.perform(get("/orcamentos/orc-1")
                         .with(user("tester")))
@@ -177,63 +175,4 @@ class OrcamentoControllerTest {
                 .andExpect(jsonPath("$.message").value("Orcamento nao encontrado para o numero informado."));
     }
 
-    @Test
-    void deveRetornarBadRequestQuandoClienteIdForInvalido() throws Exception {
-        String cadastro = """
-                {
-                  "numeroOrcamento": "orc-invalido",
-                  "clienteId": "cliente-invalido",
-                  "ordemDeServicoId": "00000000-0000-0000-0000-000000000001",
-                  "funcionarioId": "00000000-0000-0000-0000-000000000002",
-                  "placaVeiculo": "ABC1D23",
-                  "marcaVeiculo": "Toyota",
-                  "modeloVeiculo": "Corolla",
-                  "descricaoDiagnostico": "Troca de pastilhas",
-                  "servicosPropostos": ["Troca de pastilhas"],
-                  "pecasPrevistas": [{"pecaInsumoId": "%s", "quantidade": 1}],
-                  "valorMaoDeObra": 150.00,
-                  "desconto": 0.00,
-                  "validade": "2030-12-31T10:00:00",
-                  "observacoes": "Prioridade alta"
-                }
-                """.formatted(pecaId1);
-
-        mockMvc.perform(post("/orcamentos")
-                        .with(user("tester"))
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(cadastro))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Identificador do cliente invalido."));
-    }
-
-    @Test
-    void deveRetornarBadRequestQuandoPayloadForInvalido() throws Exception {
-        String cadastro = """
-                {
-                  "numeroOrcamento": "orc-payload-invalido",
-                  "clienteId": "%s",
-                  "ordemDeServicoId": "00000000-0000-0000-0000-000000000001",
-                  "funcionarioId": "00000000-0000-0000-0000-000000000002",
-                  "placaVeiculo": "ABC1D23",
-                  "marcaVeiculo": "Toyota",
-                  "modeloVeiculo": "Corolla",
-                  "descricaoDiagnostico": "Troca de pastilhas",
-                  "servicosPropostos": ["Troca de pastilhas"],
-                  "pecasPrevistas": [{"pecaInsumoId": "%s", "quantidade": 1}],
-                  "valorMaoDeObra": 150.00,
-                  "desconto": 0.00,
-                  "validade": "data-invalida",
-                  "observacoes": "Prioridade alta"
-                }
-                """.formatted(clienteId, pecaId1);
-
-        mockMvc.perform(post("/orcamentos")
-                        .with(user("tester"))
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(cadastro))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Os dados enviados sao invalidos. Revise o corpo da requisicao."));
-    }
 }

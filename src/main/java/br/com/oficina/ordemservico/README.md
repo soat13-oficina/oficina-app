@@ -26,8 +26,8 @@ veículo no momento de sua criação.
 | `AcompanharOrdemDeServicoUseCase` | `GET /ordens-servico/{numero}/acompanhamento` | Retorna situação simplificada para acompanhamento pelo cliente |
 | `ConsultarStatusOrdemDeServicoUseCase` | `GET /ordens-servico/{numero}` | Retorna status técnico completo da OS |
 | `IniciarDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/iniciar` | Transiciona OS_ABERTA → DIAGNOSTICO_EM_ANDAMENTO |
-| `ConcluirDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/concluir` | Transiciona DIAGNOSTICO_EM_ANDAMENTO → DIAGNOSTICO_CONCLUIDO |
-| `EnviarDiagnosticoParaOrcamentoUseCase` | `POST /ordens-servico/{numero}/diagnostico/enviar-para-orcamento` | **Fluxo único** DIAGNOSTICO_CONCLUIDO → AGUARDANDO_APROVACAO; cria o Orçamento na mesma transação |
+| `ConcluirDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/concluir` | Transiciona DIAGNOSTICO_EM_ANDAMENTO → DIAGNOSTICO_CONCLUIDO; corpo opcional grava **descrição do serviço + peças** (fonte do orçamento) |
+| `EnviarDiagnosticoParaOrcamentoUseCase` | `POST /ordens-servico/{numero}/diagnostico/enviar-para-orcamento` | **Fluxo único** DIAGNOSTICO_CONCLUIDO → AGUARDANDO_APROVACAO; corpo só financeiro; deriva cliente/veículo/funcionário e **puxa peças do diagnóstico**; cria o Orçamento na mesma transação |
 | `IniciarExecucaoUseCase` | `POST /ordens-servico/{numero}/execucao/iniciar` | Transiciona AGUARDANDO_APROVACAO → SERVICO_EM_ANDAMENTO |
 | `ConcluirServicoUseCase` | `POST /ordens-servico/{numero}/servico/concluir` | Transiciona SERVICO_EM_ANDAMENTO → OS_FINALIZADA; consome peças do estoque |
 | `FinalizarOrdemDeServicoUseCase` | `POST /ordens-servico/{numero}/finalizacao` | Transiciona ORCAMENTO_GERADO → OS_FINALIZADA; consome peças |

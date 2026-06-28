@@ -52,16 +52,17 @@ class FluxoOrdemDeServicoServicesTest {
         repository.salvar(novaOrdem("OS-001"));
 
         new IniciarDiagnosticoService(repository).iniciarDiagnostico(new IniciarDiagnosticoCommand("OS-001"));
-        new ConcluirDiagnosticoService(repository).concluirDiagnostico(new ConcluirDiagnosticoCommand("OS-001"));
+        new ConcluirDiagnosticoService(repository, event -> {}, pecaInsumoRepository)
+                .concluirDiagnostico(new ConcluirDiagnosticoCommand(
+                        "OS-001",
+                        "Troca de oleo",
+                        List.of(new ConcluirDiagnosticoCommand.PecaDiagnosticoInput(PECA_ID, 1))));
         new EnviarDiagnosticoParaOrcamentoService(
                 repository,
                 new CadastrarNovoOrcamentoService(orcamentoRepository, clienteRepository, pecaInsumoRepository),
                 event -> {})
                 .enviarDiagnosticoParaOrcamento(new EnviarDiagnosticoParaOrcamentoRequest(
                         "OS-001",
-                        "Diagnostico completo do veiculo",
-                        List.of("Troca de oleo"),
-                        List.of(new PecaOrcamentoInput(PECA_ID, 1)),
                         new BigDecimal("200.00"),
                         BigDecimal.ZERO,
                         LocalDateTime.of(2030, 1, 1, 0, 0),

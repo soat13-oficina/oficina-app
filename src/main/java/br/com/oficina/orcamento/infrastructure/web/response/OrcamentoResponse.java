@@ -13,12 +13,27 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record OrcamentoResponse(
         UUID id,
         String numeroOrcamento,
+        UUID ordemDeServicoId,
+        UUID funcionarioOrigemId,
         ClienteOrcamentoResponse cliente,
         VeiculoOrcamentoResponse veiculo,
         DetalhesServicoResponse detalhesServico,
         String status,
         LocalDateTime criadoEm,
         LocalDateTime enviadoParaAprovacaoEm) {
+
+    @Override
+    @Schema(description = "Identificador da ordem de serviço vinculada (1:1)")
+    public UUID ordemDeServicoId() {
+        return ordemDeServicoId;
+    }
+
+    @Override
+    @Schema(description = "Identificador do funcionário de origem (quem abriu o orçamento)")
+    public UUID funcionarioOrigemId() {
+        return funcionarioOrigemId;
+    }
+
     @Override
     @Schema(description = "Identificador UUID do orçamento", example = "55555555-5555-5555-5555-555555555555")
     public UUID id() {
@@ -71,6 +86,8 @@ public record OrcamentoResponse(
         return new OrcamentoResponse(
                 orcamento.getId(),
                 orcamento.getNumeroOrcamento(),
+                orcamento.getOrdemDeServicoId(),
+                orcamento.getFuncionarioId(),
                 new ClienteOrcamentoResponse(orcamento.getClienteNome(), orcamento.getClienteCpf()),
                 new VeiculoOrcamentoResponse(orcamento.getPlacaVeiculo(), orcamento.getMarcaVeiculo(), orcamento.getModeloVeiculo()),
                 new DetalhesServicoResponse(

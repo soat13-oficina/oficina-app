@@ -106,6 +106,25 @@ class EnviarDiagnosticoParaOrcamentoServiceTest {
         assertEquals(1, orcamentoRepository.buscarTodos().size());
     }
 
+    @Test
+    void deveRecusarQuandoDescontoTornaTotalNegativo() {
+        TestOrdemDeServicoRepository ordemRepository = new TestOrdemDeServicoRepository();
+        TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
+        prepararOrdemEmDiagnosticoConcluido(ordemRepository, "OS-005");
+        EnviarDiagnosticoParaOrcamentoService service = new EnviarDiagnosticoParaOrcamentoService(
+                ordemRepository, cadastrarOrcamentoReal(orcamentoRepository), event -> {});
+
+        // Sem peças: total = maoDeObra - desconto; desconto > maoDeObra -> total negativo -> recusa (F3).
+        EnviarDiagnosticoParaOrcamentoRequest req = new EnviarDiagnosticoParaOrcamentoRequest(
+                "OS-005",
+                new BigDecimal("100.00"),
+                new BigDecimal("500.00"),
+                LocalDateTime.of(2030, 1, 1, 0, 0),
+                null);
+        assertThrows(RegraDeNegocioException.class, () -> service.enviarDiagnosticoParaOrcamento(req));
+        assertTrue(orcamentoRepository.buscarTodos().isEmpty());
+    }
+
     private CadastrarNovoOrcamentoUseCase cadastrarOrcamentoReal(TestOrcamentoRepository orcamentoRepository) {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         clienteRepository.salvar(Cliente.reconstituir(CLIENTE_ID, "Maria", "11111111111", TipoCliente.PF));
@@ -115,16 +134,14 @@ class EnviarDiagnosticoParaOrcamentoServiceTest {
     private void prepararOrdemEmDiagnosticoConcluido(TestOrdemDeServicoRepository repository, String numero) {
         OrdemDeServico ordem = novaOrdem(numero);
         ordem.iniciarDiagnostico();
-        ordem.concluirDiagnostico();
+        // Diagnóstico fechado com descrição do serviço (fonte do orçamento); peças vazias neste cenário.
+        ordem.concluirDiagnostico("Servico de diagnostico", List.of());
         repository.salvar(ordem);
     }
 
     private EnviarDiagnosticoParaOrcamentoRequest requisicao(String numero) {
         return new EnviarDiagnosticoParaOrcamentoRequest(
                 numero,
-                "Diagnostico completo do veiculo",
-                List.of(),
-                List.of(),
                 new BigDecimal("200.00"),
                 BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 1, 0, 0),

@@ -3,6 +3,7 @@ package br.com.oficina.ordemservico.infrastructure.web;
 import java.util.List;
 
 import br.com.oficina.ordemservico.infrastructure.web.request.AlterarOrdemDeServicoRequest;
+import br.com.oficina.ordemservico.infrastructure.web.request.ConcluirDiagnosticoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.CriarOrdemDeServicoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoParaOrcamentoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.response.AberturaOrdemDeServicoResponse;
@@ -108,13 +109,14 @@ public interface OrdemDeServicoControllerSwagger {
     })
     ResponseEntity<Void> iniciarDiagnostico(String numeroOrdemServico);
 
-    @Operation(summary = "Concluir diagnóstico", description = "Conclui o diagnóstico de uma ordem de serviço em andamento.")
+    @Operation(summary = "Concluir diagnóstico",
+            description = "Conclui o diagnóstico de uma OS em andamento. Pode receber, no corpo, as peças a usar e a descrição do serviço (fonte das peças do orçamento).")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Diagnóstico concluído com sucesso"),
             @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
+            @ApiResponse(responseCode = "404", description = "Ordem de serviço ou peça não encontrada", content = @Content)
     })
-    ResponseEntity<Void> concluirDiagnostico(String numeroOrdemServico);
+    ResponseEntity<Void> concluirDiagnostico(String numeroOrdemServico, ConcluirDiagnosticoRequest request);
 
     @Operation(
             summary = "Enviar diagnóstico para orçamento",

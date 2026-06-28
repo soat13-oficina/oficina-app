@@ -3,7 +3,6 @@ package br.com.oficina.orcamento.infrastructure.web;
 import java.util.List;
 
 import br.com.oficina.orcamento.infrastructure.web.request.AlterarOrcamentoRequest;
-import br.com.oficina.orcamento.infrastructure.web.request.CadastrarOrcamentoRequest;
 import br.com.oficina.orcamento.infrastructure.web.response.OrcamentoResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,16 +18,6 @@ import org.springframework.http.ResponseEntity;
 @Tag(name = "Orcamentos", description = "Operações de cadastro, consulta, alteração, aprovação, rejeição e exclusão de orçamentos")
 @SecurityRequirement(name = "bearerAuth")
 public interface OrcamentoControllerSwagger {
-
-    @Operation(
-            summary = "Cadastrar orçamento",
-            description = "Cria um novo orçamento vinculado a um cliente existente. As peças previstas devem referenciar peças/insumos cadastrados no sistema.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Orçamento cadastrado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Cliente ou peça/insumo não encontrado", content = @Content)
-    })
-    ResponseEntity<Void> cadastrar(CadastrarOrcamentoRequest request);
 
     @Operation(summary = "Consultar orçamento", description = "Consulta um orçamento pelo número do orçamento.")
     @ApiResponses({

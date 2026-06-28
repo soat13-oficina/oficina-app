@@ -242,6 +242,21 @@ public class OrdemDeServico {
         status = StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO;
     }
 
+    public void concluirDiagnostico(String descricaoServico, List<PecaPrevistaOrdem> pecas) {
+        if (status != StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO) {
+            throw new RegraDeNegocioException("Diagnostico so pode ser concluido em andamento");
+        }
+        if (descricaoServico == null || descricaoServico.isBlank()) {
+            throw new RegraDeNegocioException("Descricao do servico e obrigatoria no fechamento do diagnostico");
+        }
+        // Mao de obra nao e definida no fechamento (e financeiro do orcamento): registra apenas a descricao.
+        servicos.add(new ServicoOrdem(descricaoServico, null));
+        if (pecas != null) {
+            pecasPrevistas.addAll(pecas);
+        }
+        status = StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO;
+    }
+
     public void enviarParaOrcamento() {
         if (status != StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
             throw new RegraDeNegocioException("Diagnostico so pode ser enviado para orcamento quando concluido");

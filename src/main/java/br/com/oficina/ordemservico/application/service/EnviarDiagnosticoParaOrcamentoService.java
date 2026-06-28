@@ -1,6 +1,7 @@
 package br.com.oficina.ordemservico.application.service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -10,10 +11,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
+import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
+import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
 import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.PecaPrevistaOrdem;
+import br.com.oficina.ordemservico.domain.model.ServicoOrdem;
 import br.com.oficina.ordemservico.domain.model.SituacaoOrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServicoAlterado;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
@@ -38,16 +43,27 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
     @Override
     @Transactional
     public void enviarDiagnosticoParaOrcamento(EnviarDiagnosticoParaOrcamentoRequest request) {
-        log.info(
-                "Iniciando envio de diagnostico para orcamento. numeroOrdemServico={}, quantidadeServicosPropostos={}, quantidadePecasPrevistas={}",
-                request.numeroOrdemServico(),
-                request.servicosPropostos() == null ? 0 : request.servicosPropostos().size(),
-                request.pecasPrevistas() == null ? 0 : request.pecasPrevistas().size());
+        log.info("Iniciando envio de diagnostico para orcamento. numeroOrdemServico={}", request.numeroOrdemServico());
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(request.numeroOrdemServico())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
 
+        // O diagnostico deve ter sido fechado com peças/descrição (fonte do orçamento).
+        if (ordemDeServico.getServicos().isEmpty() && ordemDeServico.getPecasPrevistas().isEmpty()) {
+            throw new RegraDeNegocioException(
+                    "Diagnostico nao fechado: registre as pecas e a descricao do servico no fechamento do diagnostico.");
+        }
+
         SituacaoOrdemDeServico situacaoAnterior = ordemDeServico.getSituacao();
         ordemDeServico.enviarParaAprovacao();
+
+        // Deriva descrição/serviços e peças do diagnóstico (na OS); financeiro vem do request.
+        List<String> servicosPropostos = ordemDeServico.getServicos().stream()
+                .map(ServicoOrdem::getDescricao)
+                .toList();
+        String descricaoServico = servicosPropostos.isEmpty() ? null : String.join("; ", servicosPropostos);
+        List<PecaOrcamentoInput> pecas = ordemDeServico.getPecasPrevistas().stream()
+                .map(p -> new PecaOrcamentoInput(p.getPecaInsumoId(), p.getQuantidade()))
+                .toList();
 
         String numeroOrcamento = "ORC-" + UUID.randomUUID();
         cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
@@ -58,9 +74,9 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
                 ordemDeServico.getVeiculo().getPlaca(),
                 ordemDeServico.getVeiculo().getMarca(),
                 ordemDeServico.getVeiculo().getModelo(),
-                request.descricaoDiagnostico(),
-                request.servicosPropostos(),
-                request.pecasPrevistas(),
+                descricaoServico,
+                servicosPropostos,
+                pecas,
                 request.valorMaoDeObra(),
                 request.desconto(),
                 request.validade(),
@@ -73,8 +89,7 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
                 situacaoAnterior,
                 ordemDeServico.getSituacao(),
                 LocalDateTime.now()));
-        log.info(
-                "Diagnostico enviado para orcamento com sucesso. numeroOrdemServico={}, numeroOrcamento={}, situacao={}",
+        log.info("Diagnostico enviado para orcamento com sucesso. numeroOrdemServico={}, numeroOrcamento={}, situacao={}",
                 ordemDeServico.getNumeroOrdemServico(),
                 numeroOrcamento,
                 ordemDeServico.getSituacao().getDescricao());

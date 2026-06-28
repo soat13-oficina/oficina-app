@@ -65,7 +65,9 @@ class AlterarOrcamentoServiceTest {
         Orcamento atualizado = repository.buscarPorNumeroOrcamento("orc-1").orElseThrow();
         assertNotNull(atualizado.getId());
         assertEquals(UUID.fromString("77777777-7777-7777-7777-777777777777"), atualizado.getOrdemDeServicoId());
-        assertEquals(UUID.fromString("88888888-8888-8888-8888-888888888888"), atualizado.getFuncionarioId());
+        // Funcionario de origem e imutavel: a alteracao NAO troca o funcionario que abriu (FR-009/US4),
+        // mesmo o comando informando 88888888.
+        assertEquals(UUID.fromString("44444444-4444-4444-4444-444444444444"), atualizado.getFuncionarioId());
         assertEquals("Maria Souza", atualizado.getClienteNome());
         assertEquals("99999999999", atualizado.getClienteCpf());
         assertEquals(clienteAtualizadoId, atualizado.getClienteId());

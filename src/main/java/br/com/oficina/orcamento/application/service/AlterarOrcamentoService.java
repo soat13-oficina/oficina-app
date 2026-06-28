@@ -46,7 +46,8 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Orcamento nao encontrado para o numero informado."));
         UUID clienteId = paraUuid(command.clienteId(), "Identificador do cliente invalido.");
         UUID ordemDeServicoId = paraUuid(command.ordemDeServicoId(), "Identificador da ordem de servico invalido.");
-        UUID funcionarioId = paraUuid(command.funcionarioId(), "Identificador do funcionario invalido.");
+        // Funcionário de origem é imutável: preserva o que abriu o orçamento, ignorando o do comando (FR-009).
+        UUID funcionarioId = orcamentoAtual.getFuncionarioId();
         Cliente cliente = clienteRepository.buscarPorId(clienteId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado."));
 

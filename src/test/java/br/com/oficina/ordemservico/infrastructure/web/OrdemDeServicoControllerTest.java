@@ -142,13 +142,19 @@ class OrdemDeServicoControllerTest {
                 .andExpect(jsonPath("$.situacao").value("Recebida"));
 
         transicao(numero, "/diagnostico/iniciar");
-        transicao(numero, "/diagnostico/concluir");
-        String diagnosticoBody = """
-                { "descricaoDiagnostico": "Diagnostico completo", "servicosPropostos": [], "pecasPrevistas": [], "valorMaoDeObra": 200.00, "desconto": 0, "validade": "2030-01-01T00:00:00", "observacoes": null }
+        String concluirBody = """
+                { "descricaoServico": "Troca de oleo e revisao", "pecas": [] }
+                """;
+        mockMvc.perform(post("/ordens-servico/" + numero + "/diagnostico/concluir")
+                .with(user("tester")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(concluirBody))
+                .andExpect(status().isNoContent());
+        String orcamentoBody = """
+                { "valorMaoDeObra": 200.00, "desconto": 0, "validade": "2030-01-01T00:00:00", "observacoes": null }
                 """;
         mockMvc.perform(post("/ordens-servico/" + numero + "/diagnostico/enviar-para-orcamento")
                 .with(user("tester")).with(csrf())
-                .contentType(MediaType.APPLICATION_JSON).content(diagnosticoBody))
+                .contentType(MediaType.APPLICATION_JSON).content(orcamentoBody))
                 .andExpect(status().isNoContent());
         mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
                 .andExpect(status().isOk())
