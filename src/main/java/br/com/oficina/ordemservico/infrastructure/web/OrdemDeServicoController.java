@@ -22,7 +22,6 @@ import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoComman
 import br.com.oficina.ordemservico.application.command.ConcluirServicoCommand;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;
-import br.com.oficina.ordemservico.application.command.EnviarParaAprovacaoCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
@@ -40,7 +39,6 @@ import br.com.oficina.ordemservico.application.usecase.ConsultarTempoMedioExecuc
 import br.com.oficina.ordemservico.application.usecase.CriarNovaOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.EntregarAoClienteUseCase;
 import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase;
-import br.com.oficina.ordemservico.application.usecase.EnviarParaAprovacaoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ExcluirOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.IniciarDiagnosticoUseCase;
@@ -71,7 +69,6 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
     private final ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase;
     private final ConsultarTempoMedioExecucaoUseCase consultarTempoMedioExecucaoUseCase;
     private final AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase;
-    private final EnviarParaAprovacaoUseCase enviarParaAprovacaoUseCase;
     private final IniciarExecucaoUseCase iniciarExecucaoUseCase;
     private final ConcluirServicoUseCase concluirServicoUseCase;
     private final ConsultarStatusOrdemDeServicoUseCase consultarStatusOrdemDeServicoUseCase;
@@ -88,7 +85,6 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
             ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase,
             ConsultarTempoMedioExecucaoUseCase consultarTempoMedioExecucaoUseCase,
             AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase,
-            EnviarParaAprovacaoUseCase enviarParaAprovacaoUseCase,
             IniciarExecucaoUseCase iniciarExecucaoUseCase,
             ConcluirServicoUseCase concluirServicoUseCase,
             ConsultarStatusOrdemDeServicoUseCase consultarStatusOrdemDeServicoUseCase) {
@@ -103,7 +99,6 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
         this.consultarOrdensDeServicoUseCase = consultarOrdensDeServicoUseCase;
         this.consultarTempoMedioExecucaoUseCase = consultarTempoMedioExecucaoUseCase;
         this.acompanharOrdemDeServicoUseCase = acompanharOrdemDeServicoUseCase;
-        this.enviarParaAprovacaoUseCase = enviarParaAprovacaoUseCase;
         this.iniciarExecucaoUseCase = iniciarExecucaoUseCase;
         this.concluirServicoUseCase = concluirServicoUseCase;
         this.consultarStatusOrdemDeServicoUseCase = consultarStatusOrdemDeServicoUseCase;
@@ -242,14 +237,6 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
         log.info("Requisicao de consulta de status concluida. numeroOrdemServico={}, situacao={}",
                 numeroOrdemServico, response.situacao());
         return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/{numeroOrdemServico}/orcamento/enviar-aprovacao")
-    public ResponseEntity<Void> enviarParaAprovacao(@PathVariable String numeroOrdemServico) {
-        log.info("Recebida requisicao para enviar ordem de servico para aprovacao. numeroOrdemServico={}", numeroOrdemServico);
-        enviarParaAprovacaoUseCase.enviarParaAprovacao(new EnviarParaAprovacaoCommand(numeroOrdemServico));
-        log.info("Requisicao para enviar para aprovacao concluida. numeroOrdemServico={}", numeroOrdemServico);
-        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{numeroOrdemServico}/execucao/iniciar")

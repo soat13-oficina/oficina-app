@@ -27,9 +27,8 @@ veículo no momento de sua criação.
 | `ConsultarStatusOrdemDeServicoUseCase` | `GET /ordens-servico/{numero}` | Retorna status técnico completo da OS |
 | `IniciarDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/iniciar` | Transiciona OS_ABERTA → DIAGNOSTICO_EM_ANDAMENTO |
 | `ConcluirDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/concluir` | Transiciona DIAGNOSTICO_EM_ANDAMENTO → DIAGNOSTICO_CONCLUIDO |
-| `EnviarDiagnosticoParaOrcamentoUseCase` | `POST /ordens-servico/{numero}/diagnostico/enviar-para-orcamento` | Transiciona DIAGNOSTICO_CONCLUIDO → AGUARDANDO_APROVACAO; cria Orçamento |
-| `EnviarParaAprovacaoUseCase` | `POST /ordens-servico/{numero}/orcamento/enviar-aprovacao` | Transiciona AGUARDANDO_APROVACAO → ORCAMENTO_GERADO |
-| `IniciarExecucaoUseCase` | `POST /ordens-servico/{numero}/execucao/iniciar` | Transiciona ORCAMENTO_APROVADO → SERVICO_EM_ANDAMENTO |
+| `EnviarDiagnosticoParaOrcamentoUseCase` | `POST /ordens-servico/{numero}/diagnostico/enviar-para-orcamento` | **Fluxo único** DIAGNOSTICO_CONCLUIDO → AGUARDANDO_APROVACAO; cria o Orçamento na mesma transação |
+| `IniciarExecucaoUseCase` | `POST /ordens-servico/{numero}/execucao/iniciar` | Transiciona AGUARDANDO_APROVACAO → SERVICO_EM_ANDAMENTO |
 | `ConcluirServicoUseCase` | `POST /ordens-servico/{numero}/servico/concluir` | Transiciona SERVICO_EM_ANDAMENTO → OS_FINALIZADA; consome peças do estoque |
 | `FinalizarOrdemDeServicoUseCase` | `POST /ordens-servico/{numero}/finalizacao` | Transiciona ORCAMENTO_GERADO → OS_FINALIZADA; consome peças |
 | `EntregarAoClienteUseCase` | `POST /ordens-servico/{numero}/entrega` | Transiciona OS_FINALIZADA → ENTREGUE |
@@ -141,10 +140,13 @@ POST /ordens-servico
       ▼
   [DIAGNOSTICO_CONCLUIDO]
       |
-      ├── POST /{num}/diagnostico/enviar-para-orcamento → [AGUARDANDO_APROVACAO] → webhook aprova → [ORCAMENTO_APROVADO] → POST /{num}/execucao/iniciar → [SERVICO_EM_ANDAMENTO] → POST /{num}/servico/concluir → [OS_FINALIZADA]
+      | POST /{num}/diagnostico/enviar-para-orcamento  (cria Orçamento + transição, atômico)
+      ▼
+  [AGUARDANDO_APROVACAO]
       |
-      └── POST /{num}/orcamento/enviar-aprovacao → [ORCAMENTO_GERADO] → POST /{num}/finalizacao → [OS_FINALIZADA]
-                                                                       └── webhook rejeita → [OS_FINALIZADA (ORCAMENTO_RECUSADO)]
+      ├── webhook aprova → POST /{num}/execucao/iniciar → [SERVICO_EM_ANDAMENTO] → POST /{num}/servico/concluir → [OS_FINALIZADA]
+      |
+      └── webhook rejeita → [OS_FINALIZADA (ORCAMENTO_RECUSADO)]
       |
       ▼
   [OS_FINALIZADA]
@@ -239,9 +241,8 @@ OS finalizadas.
 |---|---|
 | `POST /{numero}/diagnostico/iniciar` | `OS_ABERTA → DIAGNOSTICO_EM_ANDAMENTO` |
 | `POST /{numero}/diagnostico/concluir` | `DIAGNOSTICO_EM_ANDAMENTO → DIAGNOSTICO_CONCLUIDO` |
-| `POST /{numero}/diagnostico/enviar-para-orcamento` | `DIAGNOSTICO_CONCLUIDO → AGUARDANDO_APROVACAO` + cria Orçamento |
-| `POST /{numero}/orcamento/enviar-aprovacao` | `AGUARDANDO_APROVACAO → ORCAMENTO_GERADO` |
-| `POST /{numero}/execucao/iniciar` | `ORCAMENTO_APROVADO → SERVICO_EM_ANDAMENTO` |
+| `POST /{numero}/diagnostico/enviar-para-orcamento` | `DIAGNOSTICO_CONCLUIDO → AGUARDANDO_APROVACAO` + cria Orçamento (atômico) |
+| `POST /{numero}/execucao/iniciar` | `AGUARDANDO_APROVACAO → SERVICO_EM_ANDAMENTO` |
 | `POST /{numero}/servico/concluir` | `SERVICO_EM_ANDAMENTO → OS_FINALIZADA` |
 | `POST /{numero}/finalizacao` | `ORCAMENTO_GERADO → OS_FINALIZADA` |
 | `POST /{numero}/entrega` | `OS_FINALIZADA → ENTREGUE` |
@@ -317,11 +318,13 @@ ou `400 Bad Request` se a transição for inválida para o status atual.
 
 ## Observações
 
-- **`EnviarDiagnosticoParaOrcamentoService` chama `enviarParaAprovacao()` na OS** — a
-  transição na OS para `AGUARDANDO_APROVACAO` ocorre neste service (não confundir com
-  `EnviarParaAprovacaoService`, que transiciona para `ORCAMENTO_GERADO`). O nome pode ser
-  confuso; o fluxo correto é: diagnóstico concluído → `enviarParaAprovacao()` (OS) +
-  `CadastrarNovoOrcamento` (cria o orçamento) → aguardar decisão do webhook.
+- **Fluxo único para `AGUARDANDO_APROVACAO`** — `EnviarDiagnosticoParaOrcamentoService` é o
+  único caminho que leva a OS de `DIAGNOSTICO_CONCLUIDO` a `AGUARDANDO_APROVACAO`: ele chama
+  `enviarParaAprovacao()` na OS **e** `CadastrarNovoOrcamento` (cria o orçamento) na mesma
+  transação (`@Transactional`), garantindo que toda OS em `AGUARDANDO_APROVACAO` tenha um
+  orçamento associado. O caminho legado `POST /{num}/orcamento/enviar-aprovacao`
+  (`EnviarParaAprovacaoService`), que transicionava sem criar orçamento, foi **removido**
+  (spec `012-fix-aprovacao-sem-orcamento`).
 - **Sem logging em `ordemservico`** — a constituição lista como dívida técnica a ausência
   de logging SLF4J nos services de `ordemservico`. Nenhum service do módulo emite logs de
   entrada/saída de operação.

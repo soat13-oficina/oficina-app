@@ -117,30 +117,19 @@ public interface OrdemDeServicoControllerSwagger {
     ResponseEntity<Void> concluirDiagnostico(String numeroOrdemServico);
 
     @Operation(
-            summary = "Enviar diagnóstico para aprovação (legado)",
-            description = "**Deprecated** — prefer usar o fluxo canônico: `POST /diagnostico/concluir` + "
-                    + "`POST /orcamento/enviar-aprovacao` + webhook `POST /integracoes/orcamentos/{n}/decisao`. "
-                    + "Gera o orçamento a partir do diagnóstico concluído e move a OS para 'Aguardando Aprovação'. "
-                    + "O orçamento é criado já em status AGUARDANDO_APROVACAO.")
+            summary = "Enviar diagnóstico para orçamento",
+            description = "Fluxo único para levar a OS de 'Diagnóstico Concluído' a 'Aguardando Aprovação'. "
+                    + "Gera o orçamento a partir do diagnóstico e move a OS para 'Aguardando Aprovação' de forma "
+                    + "atômica (orçamento e transição da OS são persistidos na mesma transação). "
+                    + "Em seguida, a decisão ocorre via webhook `POST /integracoes/orcamentos/{n}/decisao`.")
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Diagnóstico enviado e OS em Aguardando Aprovação"),
+            @ApiResponse(responseCode = "204", description = "Diagnóstico enviado, orçamento criado e OS em Aguardando Aprovação"),
             @ApiResponse(responseCode = "400", description = "Dados inválidos ou transição de status inválida", content = @Content),
             @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
     })
     ResponseEntity<Void> enviarDiagnosticoParaOrcamento(
             String numeroOrdemServico,
             EnviarDiagnosticoParaOrcamentoRequest request);
-
-    @Operation(
-            summary = "Enviar para aprovação",
-            description = "Move a ordem de serviço com diagnóstico concluído para o estado 'Aguardando Aprovação'. "
-                    + "Use este endpoint após `POST /diagnostico/concluir` e antes do webhook de decisão.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Ordem de serviço em Aguardando Aprovação"),
-            @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
-    })
-    ResponseEntity<Void> enviarParaAprovacao(String numeroOrdemServico);
 
     @Operation(
             summary = "Iniciar execução",

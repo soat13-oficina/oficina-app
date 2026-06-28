@@ -1,5 +1,6 @@
 package br.com.oficina.ordemservico.infrastructure.web;
 
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -142,7 +143,13 @@ class OrdemDeServicoControllerTest {
 
         transicao(numero, "/diagnostico/iniciar");
         transicao(numero, "/diagnostico/concluir");
-        transicao(numero, "/orcamento/enviar-aprovacao");
+        String diagnosticoBody = """
+                { "descricaoDiagnostico": "Diagnostico completo", "servicosPropostos": [], "pecasPrevistas": [], "valorMaoDeObra": 200.00, "desconto": 0, "validade": "2030-01-01T00:00:00", "observacoes": null }
+                """;
+        mockMvc.perform(post("/ordens-servico/" + numero + "/diagnostico/enviar-para-orcamento")
+                .with(user("tester")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(diagnosticoBody))
+                .andExpect(status().isNoContent());
         mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.situacao").value("Aguardando Aprovação"));
@@ -172,6 +179,15 @@ class OrdemDeServicoControllerTest {
 
         mockMvc.perform(post("/ordens-servico/" + numero + "/execucao/iniciar").with(user("tester")).with(csrf()))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void naoDeveExporEndpointLegadoDeEnvioParaAprovacaoSemOrcamento() throws Exception {
+        // O caminho legado foi removido: não deve mais responder com o 204 de sucesso de antes.
+        // (A ausência de handler para rota inexistente é tratada pelo framework — gap pré-existente.)
+        mockMvc.perform(post("/ordens-servico/OS-QUALQUER/orcamento/enviar-aprovacao")
+                .with(user("tester")).with(csrf()))
+                .andExpect(status().is(not(204)));
     }
 
     private void transicao(String numero, String caminho) throws Exception {
