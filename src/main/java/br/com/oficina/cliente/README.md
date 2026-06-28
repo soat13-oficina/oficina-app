@@ -199,9 +199,10 @@ Todos os endpoints exigem autenticação JWT.
 - **Validação de dígitos, não de dígito verificador**: o domínio valida apenas a quantidade
   de dígitos do CPF/CNPJ, não o dígito verificador. Um CPF como `11111111111` (11 dígitos)
   é aceito mesmo sendo matematicamente inválido.
-- **Busca de documento em memória**: `buscarPorDocumento()` e `buscarPorNomeEDocumento()`
-  no `JpaClienteRepository` carregam todos os registros e filtram via stream. Isso é
-  dívida técnica — com volume de dados, causa degradação de performance.
+- **Busca de documento por query no banco**: `buscarPorDocumento()` usa
+  `findByDocumentoNormalizado` (compara apenas dígitos via `replace()` no banco, sem `findAll`),
+  ignorando a formatação do documento. `buscarPorNomeEDocumento()` ainda carrega registros e filtra
+  via stream — dívida técnica remanescente que, com volume de dados, degrada performance.
 - **Pesquisa normalizada no service**: `PesquisarClientesService` normaliza o termo (remove
   acentos, lowercase) para busca por nome, e mantém somente dígitos para comparação de
   documento. A pesquisa retorna todos os clientes ordenados por nome quando o termo é vazio.
@@ -243,12 +244,15 @@ no banco — condição de corrida e degradação de performance.
 
 **Correção aplicada (spec `008`)**: migração Flyway `V16` adiciona `UNIQUE (cpf_ou_cnpj)` em `clientes`
 (com guarda que aborta se houver documentos duplicados pré-existentes); o mapeamento da entidade (`unique =
-true`) garante a mesma restrição nos perfis de teste. A verificação prévia passou a usar `findByCpfOuCnpj`
-(consulta indexada, sem `findAll`) e lança `ConflitoDeRecursoException` (**409**); a corrida é fechada pela
+true`) garante a mesma restrição nos perfis de teste. A verificação prévia passou a usar uma consulta no
+banco (sem `findAll`) e lança `ConflitoDeRecursoException` (**409**); a corrida é fechada pela
 constraint + handler central → 409.
 
-> A normalização de formato do documento (CPF/CNPJ com vs sem pontuação) permanece como melhoria de backlog
-> (relacionada a MEL-002): a unicidade aqui é sobre o valor armazenado.
+> A busca por documento (`buscarPorDocumento`, usada na verificação de unicidade) é **insensível à
+> formatação**: `findByDocumentoNormalizado` compara apenas os dígitos via `replace()` no banco
+> (compatível com H2 e PostgreSQL), preservando o documento armazenado como informado. A constraint
+> `UNIQUE` permanece sobre o valor bruto da coluna — unificar o formato no armazenamento segue como
+> melhoria de backlog (MEL-002).
 
 **Estado**: resolvido.
 

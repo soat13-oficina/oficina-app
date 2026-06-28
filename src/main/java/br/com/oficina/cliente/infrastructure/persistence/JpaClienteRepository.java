@@ -60,7 +60,11 @@ public class JpaClienteRepository implements ClienteRepository {
         if (cpfOuCnpj == null) {
             return Optional.empty();
         }
-        return repository.findByCpfOuCnpj(cpfOuCnpj);
+        String documentoNormalizado = cpfOuCnpj.replaceAll("\\D", "");
+        if (documentoNormalizado.isEmpty()) {
+            return Optional.empty();
+        }
+        return repository.findByDocumentoNormalizado(documentoNormalizado);
     }
 
     private boolean documentosSaoIguais(String documentoAtual, String documentoInformado) {
