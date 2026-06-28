@@ -451,18 +451,6 @@
       ]
     },
     {
-      "_id": "req_os_enviar_aprovacao",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Enviar OS para aprovação",
-      "method": "POST",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/orcamento/enviar-aprovacao",
-      "body": { "mimeType": "application/json", "text": "" },
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
       "_id": "req_os_execucao_iniciar",
       "_type": "request",
       "parentId": "fld_ordens_servico",
