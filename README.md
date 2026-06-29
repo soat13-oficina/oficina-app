@@ -144,8 +144,8 @@ o webhook de decisão (`X-Webhook-Token`) e o acompanhamento público de OS.
 | `cliente` | `GET /clientes` (`?termo=`) · `POST /clientes` · `GET/PUT/DELETE /clientes/{id}` |
 | `veiculo` | `GET /veiculos` (filtros) · `POST /veiculos` · `PUT/DELETE /veiculos/{placa}` |
 | `funcionario` | `GET /funcionarios` · `POST /funcionarios` · `GET/PUT/DELETE /funcionarios/{funcionarioId}` |
-| `ordemservico` | `POST /ordens-servico` · `GET /ordens-servico` (filtros, listagem priorizada) · `GET/PUT/DELETE /ordens-servico/{numero}` · `GET /ordens-servico/{numero}/acompanhamento` · `GET /ordens-servico/metricas/tempo-medio` · transições: `…/diagnostico/iniciar`, `…/diagnostico/concluir`, `…/diagnostico/enviar-para-orcamento`, `…/orcamento/enviar-aprovacao`, `…/execucao/iniciar`, `…/servico/concluir`, `…/finalizacao`, `…/entrega` |
-| `orcamento` | `GET /orcamentos/{numero}` · `POST /integracoes/orcamentos/{numero}/decisao` *(`X-Webhook-Token`)* |
+| `ordemservico` | `POST /ordens-servico` · `GET /ordens-servico` (filtros, listagem priorizada) · `GET/PUT/DELETE /ordens-servico/{numero}` · `GET /ordens-servico/{numero}/acompanhamento` · `GET /ordens-servico/metricas/tempo-medio` · transições: `…/diagnostico/iniciar`, `…/diagnostico/concluir` (corpo: peças + descrição do serviço), `…/diagnostico/enviar-para-orcamento` (corpo financeiro; cria o orçamento), `…/execucao/iniciar`, `…/servico/concluir`, `…/finalizacao`, `…/entrega` |
+| `orcamento` | `GET /orcamentos/{numero}` · `GET /orcamentos` (filtros) · `PUT /orcamentos/{numero}` · `POST /orcamentos/{numero}/aprovacao` · `POST /orcamentos/{numero}/rejeicao` · `DELETE /orcamentos/{numero}` · `POST /integracoes/orcamentos/{numero}/decisao` *(`X-Webhook-Token`)* |
 | `pecainsumo` | `GET /pecas-insumos` · `POST /pecas-insumos` · `GET/PUT/DELETE /pecas-insumos/{id}` |
 
 Coleção completa para testes: **[`docs/collections/oficina-api.insomnia.json`](docs/collections/oficina-api.insomnia.json)**
@@ -153,13 +153,98 @@ Coleção completa para testes: **[`docs/collections/oficina-api.insomnia.json`]
 
 ---
 
-## Ciclo de vida da OS
+## Fluxo completo da aplicação
+
+Visão ponta-a-ponta, do cadastro à entrega. A situação da OS (visão do cliente) percorre:
 
 `Recebida → Diagnóstico → Aguardando Aprovação → Execução → Finalizada → Entregue`
 
-A decisão de orçamento chega por webhook externo (aprovação → Execução; recusa → Finalizada com
-`motivoEncerramento=ORCAMENTO_RECUSADO`). A cada transição, um evento dispara a notificação por e-mail
-ao cliente (entrega garantida via outbox + reprocessamento agendado; falha de SMTP não causa rollback).
+### Autenticação (dois mecanismos distintos)
+
+| Token | Header | Ator | Origem | Alcance |
+|---|---|---|---|---|
+| **JWT de usuário** | `Authorization: Bearer <jwt>` | Pessoa (atendente/mecânico) | `POST /api/auth/login` (expira em 24h) | Todas as rotas autenticadas |
+| **Token de webhook** | `X-Webhook-Token: <segredo>` | Sistema externo (M2M) | Segredo fixo `ORCAMENTO_WEBHOOK_SECRET` (não expira) | Só `POST /integracoes/orcamentos/{n}/decisao` |
+
+### 0. Pré-requisitos (cadastros base)
+
+Antes de abrir uma OS, devem existir: **cliente**, **veículo**, **funcionário** e as **peças/insumos**
+(com preço) que poderão entrar no orçamento. A OS referencia esses cadastros por id e captura um
+**snapshot** dos dados no momento da abertura.
+
+### 1. Abertura da OS → `Recebida`
+
+`POST /ordens-servico` (cliente, funcionário, placa do veículo) → status `OS_ABERTA`.
+
+### 2. Diagnóstico → `Diagnóstico`
+
+- `POST /ordens-servico/{n}/diagnostico/iniciar` → `DIAGNOSTICO_EM_ANDAMENTO`.
+- `POST /ordens-servico/{n}/diagnostico/concluir` com corpo **`{ descricaoServico, pecas[] }`** →
+  `DIAGNOSTICO_CONCLUIDO`. As **peças a usar** e a **descrição do serviço** ficam gravadas na OS —
+  esta é a **fonte das peças do orçamento**. Peça inexistente no cadastro → `404`.
+
+### 3. Geração do orçamento → `Aguardando Aprovação`
+
+`POST /ordens-servico/{n}/diagnostico/enviar-para-orcamento` com corpo **apenas financeiro**
+(`{ valorMaoDeObra, desconto, validade, observacoes }`). De forma **atômica**, o sistema:
+
+1. deriva cliente/veículo/funcionário-de-origem **da OS** (não vêm no corpo);
+2. **puxa as peças do diagnóstico** e calcula os valores (preço vigente × quantidade + mão de obra − desconto);
+3. cria o **orçamento** (1:1 com a OS — segundo orçamento para a mesma OS é recusado) e move a OS para
+   `AGUARDANDO_APROVACAO`.
+
+> Recusas: OS/funcionário inexistente → `404`; diagnóstico não fechado, 1:1 violado ou desconto > total → `400`.
+
+### 4. Decisão externa do orçamento (webhook)
+
+`POST /integracoes/orcamentos/{numeroOrcamento}/decisao` — autenticado por `X-Webhook-Token`,
+corpo `{ "decisao": "APROVADO" | "REJEITADO" }`. Atômico e idempotente (mesma decisão repetida é
+aceita; decisão divergente da já registrada → `409`):
+
+| Decisão | Orçamento | Ordem de serviço |
+|---|---|---|
+| `APROVADO` | aprovado (reserva as peças no estoque) | `iniciarExecucao()` → **`Execução`** |
+| `REJEITADO` | rejeitado | `recusarOrcamento()` → **`Finalizada`** (`motivoEncerramento=ORCAMENTO_RECUSADO`) |
+
+### 5. Execução e conclusão → `Finalizada`
+
+`POST /ordens-servico/{n}/servico/concluir` → `OS_FINALIZADA` (`motivoEncerramento=SERVICO_CONCLUIDO`).
+
+### 6. Entrega → `Entregue`
+
+`POST /ordens-servico/{n}/entrega` → `ENTREGUE`.
+
+### Notificações (transversal)
+
+A cada transição de status, o domínio publica o evento **`StatusOrdemDeServicoAlterado`**, consumido
+de forma assíncrona pelo módulo `notificacao`, que envia e-mail ao cliente. A entrega é garantida por
+**outbox + reprocessamento agendado**; falha de SMTP **não** causa rollback da operação de negócio.
+
+### Consultas de apoio (a qualquer momento)
+
+- `GET /ordens-servico/{n}` — status técnico completo.
+- `GET /ordens-servico/{n}/acompanhamento` — situação simplificada (público, sem JWT).
+- `GET /ordens-servico` — listagem priorizada (Execução > Aguardando Aprovação > Diagnóstico > Recebida; exclui Finalizada/Entregue).
+- `GET /orcamentos/{n}` — orçamento com cálculo financeiro + dados dos relacionamentos.
+
+### Diagrama do fluxo
+
+```
+[cadastros: cliente, veículo, funcionário, peças]
+        │  POST /ordens-servico
+        ▼
+   [Recebida] ──/diagnostico/iniciar──▶ [Diagnóstico em andamento]
+        │ /diagnostico/concluir { descricaoServico, pecas }
+        ▼
+   [Diagnóstico concluído]
+        │ /diagnostico/enviar-para-orcamento { financeiro }   (cria orçamento, deriva da OS)
+        ▼
+   [Aguardando Aprovação] ──webhook /integracoes/orcamentos/{n}/decisao (X-Webhook-Token)──┐
+        │ APROVADO → iniciarExecucao()                  REJEITADO → recusarOrcamento()      │
+        ▼                                                       ▼                            │
+   [Execução] ─/servico/concluir─▶ [Finalizada] ─/entrega─▶ [Entregue]      [Finalizada (recusado)]
+        └────────────── a cada transição: evento → notificacao (outbox) → e-mail ───────────┘
+```
 
 ---
 
