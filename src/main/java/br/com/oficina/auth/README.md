@@ -21,14 +21,18 @@ validação de usuários com acesso ao sistema.
 | Login | `POST /api/auth/login` | Autentica com email e senha; retorna JWT válido por 24h |
 | Registro | `POST /api/auth/register` | Cria novo usuário; retorna JWT imediatamente após criação |
 | Validação JWT | Filtro automático | Valida o Bearer token em cada requisição para rotas protegidas |
-| Validação Webhook | Filtro automático | Valida o header `X-Webhook-Token` no endpoint de decisão de orçamento |
+| Gerar token de integração | `POST /integracoes/tokens` | (JWT) Emite um token opaco para o webhook; segredo exibido **uma única vez**, armazenado só como hash |
+| Listar tokens de integração | `GET /integracoes/tokens` | (JWT) Lista tokens (rótulo, status, autoria); nunca expõe o segredo |
+| Revogar token de integração | `DELETE /integracoes/tokens/{id}` | (JWT) Revoga um token; deixa de ser aceito no webhook |
+| Validação Webhook | Filtro automático | Valida o header `X-Webhook-Token` no endpoint de decisão (token de integração gerado **ou** segredo estático na transição) |
 
 ### Mecanismos de Segurança
 
 | Componente | Responsabilidade |
 |---|---|
 | `JwtAuthenticationFilter` | Extrai e valida o Bearer token do header `Authorization`; autentica o contexto Spring Security |
-| `WebhookTokenFilter` | Valida o header `X-Webhook-Token` no path `POST /integracoes/orcamentos/*/decisao`; retorna 401 se ausente ou incorreto |
+| `WebhookTokenFilter` | Valida o header `X-Webhook-Token` no path `POST /integracoes/orcamentos/*/decisao`; aceita um **token de integração gerado ATIVO** (lookup por hash) **ou** o segredo estático (coexistência temporária); retorna 401 se ausente/inválido/revogado |
+| `TokenIntegracaoService` | Gera (segredo via `SecureRandom`, hash SHA-256), valida (lookup por hash) e revoga tokens de integração; persiste apenas o hash + autoria |
 | `JwtUtil` | Gera e valida tokens JWT usando HMAC-SHA; o subject do token é o email do usuário |
 | `UserDetailsServiceImpl` | Carrega `UserDetails` a partir do email para validação pelo Spring Security |
 | `SecurityConfig` | Define a cadeia de filtros, política stateless e lista de rotas públicas |

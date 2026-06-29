@@ -26,7 +26,8 @@
         "numero_orcamento": "",
         "peca_id": "",
         "webhook_token": "dev-secret",
-        "webhook_token_invalido": "token-invalido"
+        "webhook_token_invalido": "token-invalido",
+        "token_integracao_id": ""
       }
     },
 
@@ -64,6 +65,44 @@
       },
       "headers": [
         { "name": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "_id": "req_token_integracao_gerar",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Gerar token de integração",
+      "method": "POST",
+      "url": "{{ _.base_url }}/integracoes/tokens",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"rotulo\": \"ERP do cliente X\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_token_integracao_listar",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Listar tokens de integração",
+      "method": "GET",
+      "url": "{{ _.base_url }}/integracoes/tokens",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_token_integracao_revogar",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Revogar token de integração",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/integracoes/tokens/{{ _.token_integracao_id }}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
       ]
     },
 

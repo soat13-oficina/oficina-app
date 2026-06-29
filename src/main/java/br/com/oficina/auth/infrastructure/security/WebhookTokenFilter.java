@@ -17,9 +17,13 @@ public class WebhookTokenFilter extends OncePerRequestFilter {
     private static final String PREFIXO_WEBHOOK_ORCAMENTO = "/integracoes/orcamentos/";
 
     private final String webhookSecret;
+    private final TokenIntegracaoService tokenIntegracaoService;
 
-    public WebhookTokenFilter(@Value("${orcamento.webhook.secret}") String webhookSecret) {
+    public WebhookTokenFilter(
+            @Value("${orcamento.webhook.secret}") String webhookSecret,
+            TokenIntegracaoService tokenIntegracaoService) {
         this.webhookSecret = webhookSecret;
+        this.tokenIntegracaoService = tokenIntegracaoService;
     }
 
     @Override
@@ -31,7 +35,11 @@ public class WebhookTokenFilter extends OncePerRequestFilter {
         }
 
         String token = request.getHeader(HEADER_TOKEN);
-        if (token == null || !token.equals(webhookSecret)) {
+        // Aceita um token de integracao gerado (validado por hash) OU o segredo estatico (coexistencia
+        // temporaria; o estatico sera descontinuado em etapa posterior — spec 015).
+        boolean tokenGeradoValido = tokenIntegracaoService.validar(token);
+        boolean segredoEstaticoValido = token != null && token.equals(webhookSecret);
+        if (!tokenGeradoValido && !segredoEstaticoValido) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
