@@ -1,5 +1,5 @@
-# Requer metrics-server no cluster (instalado automaticamente pelo
-# Terraform em infra/cluster) para conseguir ler uso de CPU/memoria dos pods.
+# Requer metrics-server no cluster para ler uso de CPU/memoria dos pods -
+# instalado como add-on do EKS pelo Terraform (infra/aws/eks.tf).
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

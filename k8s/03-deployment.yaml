@@ -20,17 +20,14 @@ spec:
       labels:
         app: oficina-api
     spec:
-      # Necessario mesmo se o pacote no GHCR for publico: referenciar um
-      # Secret inexistente bloquearia o pull. Ver README (secao Kubernetes)
-      # para o comando que cria este secret.
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: oficina-api
-          # Substituido em CI pelo digest/sha da imagem recem construida
-          # (ver .github/workflows/ci-cd.yml). Para uso local, publique
-          # a imagem e ajuste a tag manualmente se necessario.
-          image: ghcr.io/gustav13/oficina:latest
+          # __IMAGE__ e substituido pela pipeline com a URL do ECR + tag do
+          # commit (os nodes do EKS puxam do ECR via IAM role, sem pull
+          # secret). Para aplicar manualmente:
+          #   IMAGE=$(cd infra/aws && terraform output -raw ecr_repository_url):latest
+          #   sed -i "s#__IMAGE__#$IMAGE#" k8s/03-deployment.yaml
+          image: __IMAGE__
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
