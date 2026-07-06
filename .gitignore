@@ -44,6 +44,7 @@ build/
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+backend.hcl
 crash.log
 crash.*.log
 **/kubeconfig
