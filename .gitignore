@@ -34,3 +34,16 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Ambiente local ###
+.env
+
+### Terraform ###
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+**/kubeconfig
