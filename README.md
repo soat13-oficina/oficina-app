@@ -2,6 +2,20 @@
 
 Backend monolítico para gestão de Oficina Mecânica, desenvolvido com **Java 21 + Spring Boot 4 + PostgreSQL**.
 
+## Fase 2 — objetivo desta fase
+
+Na Fase 1 o foco foi o domínio (OS, clientes, veículos, peças). Nesta Fase 2 o
+objetivo é evoluir a base para suportar **maior demanda e múltiplas unidades**
+com resiliência e escalabilidade, incorporando:
+
+- Containerização revisada (Docker/Docker Compose).
+- Orquestração via Kubernetes (Deployments, Services, ConfigMaps/Secrets, HPA).
+- Infraestrutura como código via Terraform (cluster + banco de dados).
+- Pipeline de CI/CD (build, testes, imagem Docker, deploy no cluster).
+
+A seção [Infraestrutura e Deploy](#infraestrutura-e-deploy) detalha os
+componentes provisionados e como executar cada etapa.
+
 ---
 
 ## Pré-requisitos
@@ -13,6 +27,15 @@ Backend monolítico para gestão de Oficina Mecânica, desenvolvido com **Java 2
 ---
 
 ## Subindo o ambiente
+
+### 0. (Opcional) Customizar credenciais locais
+
+```bash
+cp .env.example .env
+```
+
+O `docker-compose.yml` lê as variáveis do `.env` (se não existir, usa os
+defaults abaixo). O `.env` é ignorado pelo git.
 
 ### 1. Iniciar o banco de dados
 
@@ -31,6 +54,9 @@ Isso sobe um container PostgreSQL com as credenciais padrão:
 ```bash
 ./mvnw spring-boot:run
 ```
+
+Alternativamente, `docker-compose up -d` sobe banco **e** aplicação
+containerizados (usa o `Dockerfile` multi-stage do projeto).
 
 O Flyway executa as migrations automaticamente na inicialização. A aplicação fica disponível em `http://localhost:8080`.
 
@@ -176,6 +202,111 @@ src/main/java/br/com/oficina/
 Arquitetura hexagonal (ports & adapters) com estrutura `domain / application / infrastructure` por módulo.
 
 ---
+
+## Infraestrutura e Deploy
+
+### Desenho da arquitetura
+
+```mermaid
+flowchart TB
+    CLIENT([Cliente HTTP]) --> SVC
+
+    subgraph CI["CI/CD - GitHub Actions (.github/workflows/ci-cd.yml)"]
+        direction LR
+        BUILD["Build + testes\n(unitarios e integracao)"]
+        IMG["Build e push da imagem\n-> ghcr.io"]
+        DEPLOY_STEP["terraform apply + kubectl apply"]
+        BUILD --> IMG --> DEPLOY_STEP
+    end
+
+    subgraph TF["Terraform - /infra (cluster + banco)"]
+        direction LR
+        CLUSTER["cluster/: kind + metrics-server"]
+        DBTF["database/: namespace, Secret, StatefulSet Postgres"]
+        CLUSTER --> DBTF
+    end
+
+    subgraph K8S["Kubernetes - /k8s (namespace oficina)"]
+        CM["ConfigMap\noficina-config"]
+        SEC["Secret\noficina-app-secrets"]
+        DEP["Deployment\noficina-api (2-6 replicas)"]
+        SVC["Service\noficina-api"]
+        HPA["HPA\nCPU 70% / Mem 80%"]
+        PG[("StatefulSet\noficina-db")]
+
+        CM --> DEP
+        SEC --> DEP
+        DEP --> SVC
+        HPA -. escala .-> DEP
+        DEP --> PG
+    end
+
+    DEPLOY_STEP --> CLUSTER
+    DEPLOY_STEP --> DEP
+    DBTF --> PG
+```
+
+**Componentes da aplicação:** API Spring Boot (`oficina-api`, arquitetura
+hexagonal — ver [Estrutura do projeto](#estrutura-do-projeto)) + PostgreSQL.
+
+**Infraestrutura provisionada:** cluster Kubernetes (kind local, via
+Terraform), namespace `oficina`, banco PostgreSQL como `StatefulSet` com
+volume persistente, e a API como `Deployment` com 2-6 réplicas controladas
+por HPA.
+
+**Fluxo de deploy:** push/PR em `master` → build + testes (unitário e
+integração) → build e push da imagem para o GHCR → `terraform apply`
+provisiona cluster + banco → `kubectl apply -f k8s/` sobe a API apontando
+para a imagem recém publicada.
+
+### Containerização (Docker)
+
+- `Dockerfile`: build multi-stage (Maven → JRE Alpine), usuário não-root,
+  `HEALTHCHECK` via `/v3/api-docs` (endpoint público do Swagger, não exige JWT).
+- `docker-compose.yml`: sobe banco + aplicação para desenvolvimento local
+  (ver [Subindo o ambiente](#subindo-o-ambiente)).
+
+### Kubernetes (`/k8s`)
+
+| Arquivo | Recurso |
+|---|---|
+| `01-configmap.yaml` | `DB_URL` (aponta para o Service do Postgres criado pelo Terraform) |
+| `02-secret.yaml` | `JWT_SECRET` (valor de demo — ver comentário no arquivo) |
+| `03-deployment.yaml` | Deployment da API, 2 réplicas, probes de readiness/liveness, requests/limits de CPU e memória |
+| `04-service.yaml` | Service `ClusterIP` |
+| `05-hpa.yaml` | HorizontalPodAutoscaler (2-6 réplicas, 70% CPU / 80% memória) |
+
+As credenciais do banco (`DB_USER`/`DB_PASS`) **não** estão em `/k8s` — vêm do
+Secret `oficina-db-credentials`, criado pelo Terraform (`infra/database`),
+já que o mesmo Terraform provisiona o banco. Por isso a ordem de aplicação
+importa: **Terraform primeiro, manifestos do `/k8s` depois.**
+
+```bash
+# depois de aplicar infra/cluster e infra/database (ver secao seguinte)
+export KUBECONFIG="$(pwd)/infra/cluster/kubeconfig"   # PowerShell: $env:KUBECONFIG = "$PWD/infra/cluster/kubeconfig"
+kubectl apply -f k8s/
+kubectl -n oficina rollout status deployment/oficina-api
+kubectl -n oficina port-forward svc/oficina-api 8080:80   # acesso local em http://localhost:8080
+```
+
+### Infraestrutura como código (Terraform, `/infra`)
+
+Detalhes completos, recursos criados e como apontar para um cluster cloud em
+vez do kind local: [`infra/README.md`](infra/README.md).
+
+```bash
+cd infra/cluster && terraform init && terraform apply -auto-approve
+cd ../database    && terraform init && terraform apply -auto-approve
+```
+
+### CI/CD (`.github/workflows/ci-cd.yml`)
+
+Pipeline no GitHub Actions, disparada em push/PR para `master`:
+
+1. **unit-tests** — `./mvnw clean verify` (build + testes unitários + gate de cobertura JaCoCo).
+2. **integration-tests** — `./mvnw test -Dspring.profiles.active=integration` contra um PostgreSQL real (service container).
+3. **build-image** — build e push da imagem para `ghcr.io/gustav13/oficina` (tags por SHA e `latest`).
+4. **deploy** — provisiona um cluster kind efêmero + banco via Terraform e aplica os manifestos de `/k8s`, validando o rollout (`kubectl rollout status`) — só roda em push a `master` ou `workflow_dispatch`, nunca em PR.
 
 ## Variáveis de ambiente
 
