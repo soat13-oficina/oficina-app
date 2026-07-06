@@ -1,0 +1,12 @@
+# ConfigMap com variaveis NAO sensiveis da aplicacao.
+# Credenciais (DB_USER/DB_PASS) vem do Secret "oficina-db-credentials",
+# criado pelo Terraform em infra/database (ver infra/README.md).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oficina-config
+  namespace: oficina
+  labels:
+    app: oficina-api
+data:
+  DB_URL: "jdbc:postgresql://oficina-db.oficina.svc.cluster.local:5432/oficina_db"
