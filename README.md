@@ -9,9 +9,9 @@ objetivo é evoluir a base para suportar **maior demanda e múltiplas unidades**
 com resiliência e escalabilidade, incorporando:
 
 - Containerização revisada (Docker/Docker Compose).
-- Orquestração via Kubernetes (Deployments, Services, ConfigMaps/Secrets, HPA).
-- Infraestrutura como código via Terraform (cluster + banco de dados).
-- Pipeline de CI/CD (build, testes, imagem Docker, deploy no cluster).
+- Orquestração via Kubernetes na AWS — EKS (Deployments, Services, ConfigMaps/Secrets, HPA).
+- Infraestrutura como código via Terraform (VPC, cluster EKS, ECR e banco RDS).
+- Pipeline de CI/CD (build, testes, imagem Docker no ECR, deploy no EKS).
 
 A seção [Infraestrutura e Deploy](#infraestrutura-e-deploy) detalha os
 componentes provisionados e como executar cada etapa.
@@ -209,59 +209,63 @@ Arquitetura hexagonal (ports & adapters) com estrutura `domain / application / i
 
 ```mermaid
 flowchart TB
-    CLIENT([Cliente HTTP]) --> SVC
-
-    subgraph CI["CI/CD - GitHub Actions (.github/workflows/ci-cd.yml)"]
+    subgraph GH["GitHub Actions"]
         direction LR
-        BUILD["Build + testes\n(unitarios e integracao)"]
-        IMG["Build e push da imagem\n-> ghcr.io"]
-        DEPLOY_STEP["terraform apply + kubectl apply"]
-        BUILD --> IMG --> DEPLOY_STEP
+        INFRA_WF["Infraestrutura (manual)\nterraform plan/apply/destroy"]
+        CI_WF["CI/CD (push na master)\nbuild -> testes -> imagem -> deploy"]
     end
 
-    subgraph TF["Terraform - /infra (cluster + banco)"]
-        direction LR
-        CLUSTER["cluster/: kind + metrics-server"]
-        DBTF["database/: namespace, Secret, StatefulSet Postgres"]
-        CLUSTER --> DBTF
+    subgraph AWS["AWS (us-east-1) - Terraform em /infra/aws"]
+        ECR["ECR\nregistry de imagens"]
+        SM["Secrets Manager\ncredenciais do RDS"]
+
+        subgraph VPC["VPC 10.0.0.0/16 (2 AZs)"]
+            NLB["NLB publico\n(criado pelo Service)"]
+
+            subgraph EKS["EKS - namespace oficina (/k8s)"]
+                CM["ConfigMap"]
+                SEC["Secrets"]
+                DEP["Deployment oficina-api\n2-6 replicas"]
+                HPA["HPA\nCPU 70% / Mem 80%"]
+                MS["metrics-server\n(add-on EKS)"]
+            end
+
+            RDS[("RDS PostgreSQL 15\nsubnets privadas")]
+        end
     end
 
-    subgraph K8S["Kubernetes - /k8s (namespace oficina)"]
-        CM["ConfigMap\noficina-config"]
-        SEC["Secret\noficina-app-secrets"]
-        DEP["Deployment\noficina-api (2-6 replicas)"]
-        SVC["Service\noficina-api"]
-        HPA["HPA\nCPU 70% / Mem 80%"]
-        PG[("StatefulSet\noficina-db")]
-
-        CM --> DEP
-        SEC --> DEP
-        DEP --> SVC
-        HPA -. escala .-> DEP
-        DEP --> PG
-    end
-
-    DEPLOY_STEP --> CLUSTER
-    DEPLOY_STEP --> DEP
-    DBTF --> PG
+    CLIENT([Cliente HTTP]) --> NLB --> DEP
+    INFRA_WF -- provisiona --> AWS
+    CI_WF -- docker push --> ECR
+    CI_WF -- kubectl apply --> EKS
+    CI_WF -- le credenciais --> SM
+    CM --> DEP
+    SEC --> DEP
+    MS --> HPA
+    HPA -. escala .-> DEP
+    DEP --> RDS
+    ECR -. pull via IAM .-> DEP
 ```
 
 **Componentes da aplicação:** API Spring Boot (`oficina-api`, arquitetura
 hexagonal — ver [Estrutura do projeto](#estrutura-do-projeto)) + PostgreSQL.
 
-**Infraestrutura provisionada:** cluster Kubernetes (kind local, via
-Terraform), namespace `oficina`, banco PostgreSQL como `StatefulSet` com
-volume persistente, e a API como `Deployment` com 2-6 réplicas controladas
-por HPA.
+**Infraestrutura provisionada (Terraform, [`infra/aws`](infra/README.md)):**
+VPC com subnets públicas/privadas/de banco em 2 AZs, cluster **EKS** com
+node group gerenciado (2–4× t3.medium) e metrics-server, registry **ECR** e
+banco **RDS PostgreSQL 15** com credenciais gerenciadas pelo Secrets Manager.
 
-**Fluxo de deploy:** push/PR em `master` → build + testes (unitário e
-integração) → build e push da imagem para o GHCR → `terraform apply`
-provisiona cluster + banco → `kubectl apply -f k8s/` sobe a API apontando
-para a imagem recém publicada.
+**Fluxo de deploy:** push na `master` → build + testes (unitário e
+integração) → imagem Docker publicada no **ECR** (tag = sha do commit) →
+job de deploy aponta o `kubectl` para o EKS, materializa o Secret do banco a
+partir do Secrets Manager, injeta imagem/endpoint nos manifestos de `/k8s` e
+aplica, validando o rollout. A infraestrutura em si é provisionada à parte
+pelo workflow **Infraestrutura (Terraform)**, manual, porque criar EKS leva
+~15 min.
 
 ### Containerização (Docker)
 
-- `Dockerfile`: build multi-stage (Maven → JRE Alpine), usuário não-root,
+- `Dockerfile`: build multi-stage (Maven → JRE 21 Alpine), usuário não-root,
   `HEALTHCHECK` via `/v3/api-docs` (endpoint público do Swagger, não exige JWT).
 - `docker-compose.yml`: sobe banco + aplicação para desenvolvimento local
   (ver [Subindo o ambiente](#subindo-o-ambiente)).
@@ -270,52 +274,49 @@ para a imagem recém publicada.
 
 | Arquivo | Recurso |
 |---|---|
-| `01-configmap.yaml` | `DB_URL` (aponta para o Service do Postgres criado pelo Terraform) |
+| `00-namespace.yaml` | Namespace `oficina` |
+| `01-configmap.yaml` | `DB_URL` (placeholder `__RDS_ENDPOINT__`, preenchido pela pipeline com o endpoint do RDS) |
 | `02-secret.yaml` | `JWT_SECRET` (valor de demo — ver comentário no arquivo) |
-| `03-deployment.yaml` | Deployment da API, 2 réplicas, probes de readiness/liveness, requests/limits de CPU e memória |
-| `04-service.yaml` | Service `ClusterIP` |
+| `03-deployment.yaml` | Deployment da API (placeholder `__IMAGE__` → ECR), 2 réplicas, probes, requests/limits |
+| `04-service.yaml` | Service `LoadBalancer` — a AWS cria um NLB público para a demo |
 | `05-hpa.yaml` | HorizontalPodAutoscaler (2-6 réplicas, 70% CPU / 80% memória) |
 
-As credenciais do banco (`DB_USER`/`DB_PASS`) **não** estão em `/k8s` — vêm do
-Secret `oficina-db-credentials`, criado pelo Terraform (`infra/database`),
-já que o mesmo Terraform provisiona o banco. Por isso a ordem de aplicação
-importa: **Terraform primeiro, manifestos do `/k8s` depois.**
+As credenciais do banco **não estão no repositório**: o RDS as gerencia no
+Secrets Manager, e o job de deploy cria o Secret `oficina-db-credentials` no
+cluster a cada deploy. Os comandos para aplicar manualmente (substituição dos
+placeholders) estão comentados nos próprios manifestos.
+
+### Infraestrutura como código (Terraform, `/infra/aws`)
+
+Recursos criados, custos estimados, bootstrap do state (S3) e instruções de
+apply/destroy: **[`infra/README.md`](infra/README.md)**.
 
 ```bash
-# depois de aplicar infra/cluster e infra/database (ver secao seguinte)
-export KUBECONFIG="$(pwd)/infra/cluster/kubeconfig"   # PowerShell: $env:KUBECONFIG = "$PWD/infra/cluster/kubeconfig"
-
-# se o pacote ghcr.io/gustav13/oficina for privado, crie o pull secret antes do apply
-# (a pipeline de CI/CD faz isso automaticamente com o GITHUB_TOKEN)
-kubectl create secret docker-registry ghcr-pull-secret \
-  --namespace oficina \
-  --docker-server=ghcr.io \
-  --docker-username=<seu_usuario_github> \
-  --docker-password=<um_PAT_com_scope_read:packages>
-
-kubectl apply -f k8s/
-kubectl -n oficina rollout status deployment/oficina-api
-kubectl -n oficina port-forward svc/oficina-api 8080:80   # acesso local em http://localhost:8080
+cd infra/aws
+terraform init -backend-config=backend.hcl
+terraform apply    # VPC + EKS + ECR + RDS (~15-20 min)
 ```
 
-### Infraestrutura como código (Terraform, `/infra`)
+> ⚠️ Custo: ~US$ 0,27/h com tudo ligado. Aplique para testar/gravar o vídeo
+> e destrua depois (`terraform destroy` — ver ordem correta no infra/README).
 
-Detalhes completos, recursos criados e como apontar para um cluster cloud em
-vez do kind local: [`infra/README.md`](infra/README.md).
+### CI/CD (`.github/workflows/`)
 
-```bash
-cd infra/cluster && terraform init && terraform apply -auto-approve
-cd ../database    && terraform init && terraform apply -auto-approve
-```
+**Secrets/variables do repositório** (Settings → Secrets and variables → Actions):
+`AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY` (secrets), `TF_STATE_BUCKET` e
+opcionalmente `AWS_REGION` (variables).
 
-### CI/CD (`.github/workflows/ci-cd.yml`)
+**`infra.yml` — Infraestrutura (Terraform)**, manual (*Run workflow*):
+`plan`, `apply` ou `destroy` da infraestrutura AWS, com state remoto no S3.
+No `destroy`, remove antes os recursos do k8s (o NLB é criado fora do
+Terraform e travaria a exclusão da VPC).
 
-Pipeline no GitHub Actions, disparada em push/PR para `master`:
+**`ci-cd.yml` — CI/CD**, a cada push/PR na `master`:
 
 1. **unit-tests** — `./mvnw clean verify` (build + testes unitários + gate de cobertura JaCoCo).
 2. **integration-tests** — `./mvnw test -Dspring.profiles.active=integration` contra um PostgreSQL real (service container).
-3. **build-image** — build e push da imagem para `ghcr.io/gustav13/oficina` (tags por SHA e `latest`).
-4. **deploy** — provisiona um cluster kind efêmero + banco via Terraform e aplica os manifestos de `/k8s`, validando o rollout (`kubectl rollout status`) — só roda em push a `master` ou `workflow_dispatch`, nunca em PR.
+3. **build-image** — build e push da imagem para o **ECR** (tags: sha do commit e `latest`) — só em push, nunca em PR.
+4. **deploy** — `aws eks update-kubeconfig`, cria o Secret do banco a partir do Secrets Manager, injeta imagem/endpoint nos manifestos e `kubectl apply -f k8s/`, aguardando o rollout e imprimindo a URL pública do NLB.
 
 ## Variáveis de ambiente
 
