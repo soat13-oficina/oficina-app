@@ -284,6 +284,15 @@ importa: **Terraform primeiro, manifestos do `/k8s` depois.**
 ```bash
 # depois de aplicar infra/cluster e infra/database (ver secao seguinte)
 export KUBECONFIG="$(pwd)/infra/cluster/kubeconfig"   # PowerShell: $env:KUBECONFIG = "$PWD/infra/cluster/kubeconfig"
+
+# se o pacote ghcr.io/gustav13/oficina for privado, crie o pull secret antes do apply
+# (a pipeline de CI/CD faz isso automaticamente com o GITHUB_TOKEN)
+kubectl create secret docker-registry ghcr-pull-secret \
+  --namespace oficina \
+  --docker-server=ghcr.io \
+  --docker-username=<seu_usuario_github> \
+  --docker-password=<um_PAT_com_scope_read:packages>
+
 kubectl apply -f k8s/
 kubectl -n oficina rollout status deployment/oficina-api
 kubectl -n oficina port-forward svc/oficina-api 8080:80   # acesso local em http://localhost:8080

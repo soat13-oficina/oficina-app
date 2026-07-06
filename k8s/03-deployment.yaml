@@ -20,6 +20,11 @@ spec:
       labels:
         app: oficina-api
     spec:
+      # Necessario mesmo se o pacote no GHCR for publico: referenciar um
+      # Secret inexistente bloquearia o pull. Ver README (secao Kubernetes)
+      # para o comando que cria este secret.
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: oficina-api
           # Substituido em CI pelo digest/sha da imagem recem construida
