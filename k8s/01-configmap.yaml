@@ -1,0 +1,18 @@
+# ConfigMap com variaveis NAO sensiveis da aplicacao.
+#
+# __RDS_ENDPOINT__ (host:porta) e substituido pela pipeline de CI/CD com o
+# endpoint real do RDS. Para aplicar manualmente:
+#   ENDPOINT=$(cd infra/aws && terraform output -raw rds_endpoint)
+#   sed -i "s#__RDS_ENDPOINT__#$ENDPOINT#" k8s/01-configmap.yaml
+#
+# Credenciais (DB_USER/DB_PASS) vem do Secret "oficina-db-credentials",
+# criado pela pipeline a partir do Secrets Manager (gerenciado pelo RDS).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oficina-config
+  namespace: oficina
+  labels:
+    app: oficina-api
+data:
+  DB_URL: "jdbc:postgresql://__RDS_ENDPOINT__/oficina_db"
