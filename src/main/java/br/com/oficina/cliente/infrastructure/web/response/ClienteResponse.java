@@ -21,7 +21,7 @@ public record ClienteResponse(UUID id, String nome, String cpfOuCnpj, TipoClient
     }
 
     @Override
-    @Schema(description = "CPF ou CNPJ do cliente", example = "12345678901")
+    @Schema(description = "CPF ou CNPJ do cliente", example = "12345678909")
     public String cpfOuCnpj() {
         return cpfOuCnpj;
     }

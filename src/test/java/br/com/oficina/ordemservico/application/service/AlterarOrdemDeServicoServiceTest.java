@@ -33,8 +33,8 @@ class AlterarOrdemDeServicoServiceTest {
         UUID clienteId1 = UUID.fromString("21111111-1111-1111-1111-111111111111");
         UUID clienteId2 = UUID.fromString("22222222-2222-2222-2222-222222222222");
         UUID funcionarioId = UUID.fromString("31111111-1111-1111-1111-111111111111");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId1, "Maria", "11111111111", TipoCliente.PF));
-        clienteRepository.salvar(Cliente.reconstituir(clienteId2, "Bianca", "22222222222", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId1, "Maria", "11144477735", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId2, "Bianca", "39053344705", TipoCliente.PF));
         funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", null));
         veiculoRepository.salvar(novoVeiculo(clienteId1, "ABC1D23", "Toyota"));
         veiculoRepository.salvar(novoVeiculo(clienteId2, "XYZ9Z99", "Honda"));
@@ -43,7 +43,7 @@ class AlterarOrdemDeServicoServiceTest {
                 UUID.fromString("11111111-1111-1111-1111-111111111111"),
                 "OS-001",
                 Funcionario.reconstituir(funcionarioId, "Joao", null),
-                Cliente.reconstituir(clienteId1, "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(clienteId1, "Maria", "11144477735", TipoCliente.PF),
                 veiculoOriginal));
         AlterarOrdemDeServicoService service = new AlterarOrdemDeServicoService(
                 clienteRepository,
@@ -69,7 +69,7 @@ class AlterarOrdemDeServicoServiceTest {
         UUID clienteId = UUID.fromString("24444444-4444-4444-4444-444444444444");
         UUID funcionarioCriadorId = UUID.fromString("34444444-4444-4444-4444-444444444444");
         UUID outroFuncionarioId = UUID.fromString("35555555-5555-5555-5555-555555555555");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11144477735", TipoCliente.PF));
         funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioCriadorId, "Joao", null));
         funcionarioRepository.salvar(Funcionario.reconstituir(outroFuncionarioId, "Carlos", null));
         veiculoRepository.salvar(novoVeiculo(clienteId, "ABC1D23", "Toyota"));
@@ -77,7 +77,7 @@ class AlterarOrdemDeServicoServiceTest {
                 UUID.fromString("12222222-2222-2222-2222-222222222222"),
                 "OS-002",
                 Funcionario.reconstituir(funcionarioCriadorId, "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(clienteId, "Maria", "11144477735", TipoCliente.PF),
                 veiculoRepository.buscarPorPlaca("ABC1D23").orElseThrow()));
         AlterarOrdemDeServicoService service = new AlterarOrdemDeServicoService(
                 clienteRepository,
@@ -120,14 +120,14 @@ class AlterarOrdemDeServicoServiceTest {
         UUID clienteId = UUID.fromString("21111111-1111-1111-1111-111111111111");
         UUID funcionarioCriadorId = UUID.fromString("31111111-1111-1111-1111-111111111111");
         UUID funcionarioInexistenteId = UUID.fromString("39999999-1111-1111-1111-111111111111");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11144477735", TipoCliente.PF));
         funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioCriadorId, "Joao", null));
         veiculoRepository.salvar(novoVeiculo(clienteId, "ABC1D23", "Toyota"));
         ordemDeServicoRepository.salvar(OrdemDeServico.abrir(
                 UUID.fromString("11111111-1111-1111-1111-111111111111"),
                 "OS-001",
                 Funcionario.reconstituir(funcionarioCriadorId, "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(clienteId, "Maria", "11144477735", TipoCliente.PF),
                 veiculoRepository.buscarPorPlaca("ABC1D23").orElseThrow()));
         AlterarOrdemDeServicoService service = new AlterarOrdemDeServicoService(
                 clienteRepository,

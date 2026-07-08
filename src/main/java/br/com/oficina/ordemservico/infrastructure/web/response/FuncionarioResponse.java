@@ -20,7 +20,7 @@ public record FuncionarioResponse(UUID id, String nome, String cpf) {
     }
 
     @Override
-    @Schema(description = "CPF do funcionário (somente dígitos)", example = "12345678901")
+    @Schema(description = "CPF do funcionário (somente dígitos)", example = "12345678909")
     public String cpf() {
         return cpf;
     }

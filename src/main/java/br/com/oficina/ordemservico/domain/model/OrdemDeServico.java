@@ -175,9 +175,23 @@ public class OrdemDeServico {
         status = StatusOrdemDeServico.ORCAMENTO_GERADO;
     }
 
-    public void finalizar() {
+    public void aguardarAprovacao() {
         if (status != StatusOrdemDeServico.ORCAMENTO_GERADO) {
-            throw new RegraDeNegocioException("Ordem de servico so pode ser finalizada com orcamento gerado");
+            throw new RegraDeNegocioException("Ordem de servico so pode aguardar aprovacao apos o orcamento ser gerado");
+        }
+        status = StatusOrdemDeServico.AGUARDANDO_APROVACAO;
+    }
+
+    public void iniciarExecucao() {
+        if (status != StatusOrdemDeServico.AGUARDANDO_APROVACAO) {
+            throw new RegraDeNegocioException("Execucao so pode ser iniciada quando a ordem estiver aguardando aprovacao");
+        }
+        status = StatusOrdemDeServico.SERVICO_EM_ANDAMENTO;
+    }
+
+    public void finalizar() {
+        if (status != StatusOrdemDeServico.SERVICO_EM_ANDAMENTO) {
+            throw new RegraDeNegocioException("Ordem de servico so pode ser finalizada quando o servico estiver em andamento");
         }
         status = StatusOrdemDeServico.OS_FINALIZADA;
         finalizadaEm = LocalDateTime.now();

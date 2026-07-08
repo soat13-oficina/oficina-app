@@ -78,8 +78,12 @@ flowchart TD
 
     F7 --> FIN
 
-    subgraph FIN["7. Finalizar OS"]
-        G1["POST /ordens-servico/{num}/finalizacao\n{descricaoServico, valorCobrado}"] --> G2{200 OK?}
+    subgraph FIN["7. Aprovacao, Execucao e Finalizacao da OS"]
+        G0A["POST /ordens-servico/{num}/aguardar-aprovacao"] --> G0B{Status = AGUARDANDO_APROVACAO?}
+        G0B -->|Sim| G0C["POST /ordens-servico/{num}/execucao/iniciar"]
+        G0C --> G0D{Status = SERVICO_EM_ANDAMENTO?}
+        G0D -->|Sim| G1["POST /ordens-servico/{num}/finalizacao\n{descricaoServico, valorCobrado}"]
+        G1 --> G2{200 OK?}
         G2 -->|Sim| G3["GET /ordens-servico/{num}/acompanhamento"]
         G3 --> G4{Status = OS_FINALIZADA?}
         G4 -->|Sim| G5([Fluxo principal OK])

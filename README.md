@@ -120,23 +120,24 @@ Configure as variáveis de ambiente da collection:
 
 ## Executando os testes
 
-### Testes unitários e de controller
-
 ```bash
 ./mvnw test
 ```
 
-Utilizam **H2 in-memory** — não é necessário banco externo. Cobertura mínima de 80% (linhas e branches) é verificada pelo JaCoCo. O build falha se a cobertura não for atingida.
+Esse comando roda toda a suíte. Cobertura mínima de 80% (linhas e branches) é verificada pelo JaCoCo. O build falha se a cobertura não for atingida.
 
-### Testes de integração (PostgreSQL real)
+### Testes unitários e de controller
 
-Exigem o banco rodando (`docker-compose up -d db`).
+Utilizam **H2 in-memory** — não exigem banco externo nem Docker.
 
-```bash
-./mvnw test -Dspring.profiles.active=integration
-```
+### Testes de integração (PostgreSQL real via Testcontainers)
 
-Os testes de integração validam os repositórios JPA contra o PostgreSQL real e usam `@Transactional` com rollback automático — nenhum dado persiste entre testes.
+Os testes `*IntegrationTest` validam os repositórios JPA contra um **PostgreSQL real provisionado automaticamente pelo [Testcontainers](https://testcontainers.com/)**. Basta ter o **Docker em execução** — não é necessário subir o banco manualmente (`docker-compose`) nem apontar para um banco externo em `localhost`. O container é efêmero e descartado ao fim da execução, garantindo que os testes rodem em qualquer máquina/CI com Docker.
+
+Detalhes:
+- A classe base `PostgresIntegrationTest` (em `src/test/.../support`) sobe o container `postgres:16-alpine` e injeta o datasource via `@ServiceConnection`.
+- Os testes usam `@Transactional` com rollback automático — nenhum dado persiste entre testes.
+- Sem Docker disponível, apenas os testes de integração falham ao iniciar o container; os demais continuam rodando normalmente.
 
 ### Build completo com relatório de cobertura
 

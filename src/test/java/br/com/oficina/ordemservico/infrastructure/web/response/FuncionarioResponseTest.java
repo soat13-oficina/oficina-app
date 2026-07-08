@@ -14,13 +14,13 @@ class FuncionarioResponseTest {
     @Test
     void deveConverterFuncionarioComCpfParaResponse() {
         UUID funcionarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
-        Funcionario funcionario = Funcionario.reconstituir(funcionarioId, "Joao Silva", "12345678901");
+        Funcionario funcionario = Funcionario.reconstituir(funcionarioId, "Joao Silva", "12345678909");
 
         FuncionarioResponse response = FuncionarioResponse.from(funcionario);
 
         assertEquals(funcionarioId, response.id());
         assertEquals("Joao Silva", response.nome());
-        assertEquals("12345678901", response.cpf());
+        assertEquals("12345678909", response.cpf());
     }
 
     @Test

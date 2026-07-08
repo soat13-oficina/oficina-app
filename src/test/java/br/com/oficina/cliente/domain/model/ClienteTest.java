@@ -15,11 +15,11 @@ class ClienteTest {
     @Test
     void deveExporDadosDoClienteComDocumentoETipo() {
         UUID clienteId = UUID.fromString("11111111-1111-1111-1111-111111111111");
-        Cliente cliente = Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF);
+        Cliente cliente = Cliente.reconstituir(clienteId, "Maria", "12345678909", TipoCliente.PF);
 
         assertEquals(clienteId, cliente.getId());
         assertEquals("Maria", cliente.getNome());
-        assertEquals("12345678901", cliente.getCpfOuCnpj());
+        assertEquals("12345678909", cliente.getCpfOuCnpj());
         assertEquals(TipoCliente.PF, cliente.getTipoCliente());
     }
 
@@ -36,9 +36,9 @@ class ClienteTest {
 
     @Test
     void deveAceitarCpfFormatadoQuandoPossuirOnzeDigitos() {
-        Cliente cliente = Cliente.reconstituir(UUID.fromString("33333333-3333-3333-3333-333333333333"), "Ana", "123.456.789-01", TipoCliente.PF);
+        Cliente cliente = Cliente.reconstituir(UUID.fromString("33333333-3333-3333-3333-333333333333"), "Ana", "123.456.789-09", TipoCliente.PF);
 
-        assertEquals("123.456.789-01", cliente.getCpfOuCnpj());
+        assertEquals("123.456.789-09", cliente.getCpfOuCnpj());
         assertEquals(TipoCliente.PF, cliente.getTipoCliente());
     }
 
@@ -48,7 +48,7 @@ class ClienteTest {
                 RegraDeNegocioException.class,
                 () -> Cliente.reconstituir(UUID.fromString("44444444-4444-4444-4444-444444444444"), "Carlos", "1234567890", TipoCliente.PF));
 
-        assertEquals("CPF deve possuir 11 digitos", exception.getMessage());
+        assertEquals("CPF informado e invalido", exception.getMessage());
     }
 
     @Test
@@ -57,7 +57,45 @@ class ClienteTest {
                 RegraDeNegocioException.class,
                 () -> Cliente.reconstituir(UUID.fromString("55555555-5555-5555-5555-555555555555"), "Oficina", "1234567800019", TipoCliente.PJ));
 
-        assertEquals("CNPJ deve possuir 14 digitos", exception.getMessage());
+        assertEquals("CNPJ informado e invalido", exception.getMessage());
+    }
+
+    @Test
+    void deveRejeitarCpfComOnzeDigitosMasDigitoVerificadorInvalido() {
+        // "12345678901" tem 11 digitos, mas o digito verificador correto seria "...09".
+        // Antes a validacao so contava digitos e aceitava este CPF; agora o DV e conferido.
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
+                () -> Cliente.reconstituir(UUID.fromString("88888888-8888-8888-8888-888888888888"), "Carlos", "12345678901", TipoCliente.PF));
+
+        assertEquals("CPF informado e invalido", exception.getMessage());
+    }
+
+    @Test
+    void deveRejeitarCpfComDigitosRepetidos() {
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
+                () -> Cliente.reconstituir(UUID.fromString("99999999-9999-9999-9999-999999999999"), "Carlos", "11111111111", TipoCliente.PF));
+
+        assertEquals("CPF informado e invalido", exception.getMessage());
+    }
+
+    @Test
+    void deveRejeitarCnpjComDigitoVerificadorInvalido() {
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
+                () -> Cliente.reconstituir(UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "Oficina", "11222333000199", TipoCliente.PJ));
+
+        assertEquals("CNPJ informado e invalido", exception.getMessage());
+    }
+
+    @Test
+    void deveAceitarCnpjValido() {
+        Cliente cliente = Cliente.reconstituir(
+                UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), "Oficina", "11444777000161", TipoCliente.PJ);
+
+        assertEquals("11444777000161", cliente.getCpfOuCnpj());
+        assertEquals(TipoCliente.PJ, cliente.getTipoCliente());
     }
 
     @Test
@@ -73,7 +111,7 @@ class ClienteTest {
     void deveFalharQuandoDocumentoForInformadoSemTipo() {
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                () -> Cliente.reconstituir(UUID.fromString("77777777-7777-7777-7777-777777777777"), "Maria", "12345678901", null));
+                () -> Cliente.reconstituir(UUID.fromString("77777777-7777-7777-7777-777777777777"), "Maria", "12345678909", null));
 
         assertEquals("Tipo do cliente e obrigatorio quando o documento for informado", exception.getMessage());
     }
@@ -82,7 +120,7 @@ class ClienteTest {
     void deveFalharQuandoNomeNaoForInformado() {
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                () -> new Cliente(" ", "12345678901", TipoCliente.PF));
+                () -> new Cliente(" ", "12345678909", TipoCliente.PF));
 
         assertEquals("Nome do cliente e obrigatorio", exception.getMessage());
     }
