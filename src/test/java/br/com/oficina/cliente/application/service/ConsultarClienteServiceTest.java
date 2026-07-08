@@ -18,13 +18,13 @@ class ConsultarClienteServiceTest {
     void deveConsultarClientePorId() {
         TestClienteRepository repository = new TestClienteRepository();
         UUID clienteId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-        repository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678909", TipoCliente.PF));
         ConsultarClienteService service = new ConsultarClienteService(repository);
 
         Cliente cliente = service.consultarCliente(new ConsultarClienteQuery(clienteId)).orElseThrow();
 
         assertEquals("Maria", cliente.getNome());
-        assertEquals("12345678901", cliente.getCpfOuCnpj());
+        assertEquals("12345678909", cliente.getCpfOuCnpj());
     }
 
     @Test

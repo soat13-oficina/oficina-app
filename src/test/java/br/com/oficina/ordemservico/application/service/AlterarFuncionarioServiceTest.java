@@ -20,7 +20,7 @@ class AlterarFuncionarioServiceTest {
     void deveAlterarNomeECpfDoFuncionario() {
         TestFuncionarioRepository repository = new TestFuncionarioRepository();
         UUID funcionarioId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-        repository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678901"));
+        repository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678909"));
         AlterarFuncionarioService service = new AlterarFuncionarioService(repository);
 
         service.alterarFuncionario(new AlterarFuncionarioCommand(funcionarioId, "Joao Atualizado", "98765432100"));
@@ -34,7 +34,7 @@ class AlterarFuncionarioServiceTest {
     void deveAlterarRemovindoCpfDoFuncionario() {
         TestFuncionarioRepository repository = new TestFuncionarioRepository();
         UUID funcionarioId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
-        repository.salvar(Funcionario.reconstituir(funcionarioId, "Maria", "12345678901"));
+        repository.salvar(Funcionario.reconstituir(funcionarioId, "Maria", "12345678909"));
         AlterarFuncionarioService service = new AlterarFuncionarioService(repository);
 
         service.alterarFuncionario(new AlterarFuncionarioCommand(funcionarioId, "Maria", null));
@@ -48,14 +48,14 @@ class AlterarFuncionarioServiceTest {
     void devePermitirAlterarMantendsOPropriosCpf() {
         TestFuncionarioRepository repository = new TestFuncionarioRepository();
         UUID funcionarioId = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
-        repository.salvar(Funcionario.reconstituir(funcionarioId, "Carlos", "12345678901"));
+        repository.salvar(Funcionario.reconstituir(funcionarioId, "Carlos", "12345678909"));
         AlterarFuncionarioService service = new AlterarFuncionarioService(repository);
 
-        service.alterarFuncionario(new AlterarFuncionarioCommand(funcionarioId, "Carlos Souza", "12345678901"));
+        service.alterarFuncionario(new AlterarFuncionarioCommand(funcionarioId, "Carlos Souza", "12345678909"));
 
         Funcionario atualizado = repository.buscarPorId(funcionarioId).orElseThrow();
         assertEquals("Carlos Souza", atualizado.getNome());
-        assertEquals("12345678901", atualizado.getCpf());
+        assertEquals("12345678909", atualizado.getCpf());
     }
 
     @Test
@@ -75,14 +75,14 @@ class AlterarFuncionarioServiceTest {
         TestFuncionarioRepository repository = new TestFuncionarioRepository();
         UUID funcionarioId = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
         UUID outroFuncionarioId = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
-        repository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678901"));
-        repository.salvar(Funcionario.reconstituir(outroFuncionarioId, "Maria", "99999999999"));
+        repository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678909"));
+        repository.salvar(Funcionario.reconstituir(outroFuncionarioId, "Maria", "52998224725"));
         AlterarFuncionarioService service = new AlterarFuncionarioService(repository);
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
                 () -> service.alterarFuncionario(new AlterarFuncionarioCommand(
-                        outroFuncionarioId, "Maria", "123.456.789-01")));
+                        outroFuncionarioId, "Maria", "123.456.789-09")));
 
         assertEquals("Ja existe funcionario cadastrado com o mesmo CPF.", exception.getMessage());
     }
@@ -91,7 +91,7 @@ class AlterarFuncionarioServiceTest {
     void deveFalharAoAlterarParaNomeVazio() {
         TestFuncionarioRepository repository = new TestFuncionarioRepository();
         UUID funcionarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
-        repository.salvar(Funcionario.reconstituir(funcionarioId, "Ana", "12345678901"));
+        repository.salvar(Funcionario.reconstituir(funcionarioId, "Ana", "12345678909"));
         AlterarFuncionarioService service = new AlterarFuncionarioService(repository);
 
         RegraDeNegocioException exception = assertThrows(

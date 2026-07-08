@@ -17,8 +17,10 @@ import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
 import br.com.oficina.orcamento.application.service.CadastrarNovoOrcamentoService;
+import br.com.oficina.ordemservico.application.command.AguardarAprovacaoCommand;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;
+import br.com.oficina.ordemservico.application.command.IniciarExecucaoCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
@@ -48,7 +50,7 @@ class FluxoOrdemDeServicoServicesTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
         TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11144477735", TipoCliente.PF));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Oleo 5W30", "Castrol", new BigDecimal("150.00"), 10, 0, "REF-OLEO", CategoriaPeca.LUBRIFICANTES));
         repository.salvar(novaOrdem("OS-001"));
 
@@ -69,6 +71,8 @@ class FluxoOrdemDeServicoServicesTest {
                         BigDecimal.ZERO,
                         LocalDateTime.of(2030, 1, 1, 0, 0),
                         null));
+        new AguardarAprovacaoService(repository).aguardarAprovacao(new AguardarAprovacaoCommand("OS-001"));
+        new IniciarExecucaoService(repository).iniciarExecucao(new IniciarExecucaoCommand("OS-001"));
         new FinalizarOrdemDeServicoService(repository, orcamentoRepository, noOpConsumirPeca)
                 .finalizarOrdemDeServico(new FinalizarOrdemDeServicoCommand("OS-001"));
         new EntregarAoClienteService(repository)
@@ -103,7 +107,7 @@ class FluxoOrdemDeServicoServicesTest {
                 UUID.nameUUIDFromBytes(("ordem-" + numero).getBytes()),
                 numero,
                 Funcionario.reconstituir(funcionarioId, "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(clienteId, "Maria", "11144477735", TipoCliente.PF),
                 Veiculo.reconstituir(
                         UUID.nameUUIDFromBytes(("veiculo-" + numero).getBytes()),
                         clienteId,

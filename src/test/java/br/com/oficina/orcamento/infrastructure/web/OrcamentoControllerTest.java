@@ -55,7 +55,7 @@ class OrcamentoControllerTest {
         orcamentoRepository.deleteAll();
         pecaInsumoRepository.deleteAll();
         clienteRepository.deleteAll();
-        clienteId = clienteRepository.save(new Cliente("Joao Silva", "12345678901", TipoCliente.PF)).getId().toString();
+        clienteId = clienteRepository.save(new Cliente("Joao Silva", "12345678909", TipoCliente.PF)).getId().toString();
 
         PecaInsumo pastilha = new PecaInsumo("pastilha-001", "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-PAST", CategoriaPeca.FREIOS);
         PecaInsumo fluido = new PecaInsumo("fluido-001", "Fluido de freio", "TRW", new BigDecimal("100.00"), 10, 0, "REF-FLUID", CategoriaPeca.FREIOS);
@@ -104,7 +104,7 @@ class OrcamentoControllerTest {
                 .andExpect(jsonPath("$.id").isNotEmpty())
                 .andExpect(jsonPath("$.numeroOrcamento").value("orc-1"))
                 .andExpect(jsonPath("$.cliente.nome").value("Joao Silva"))
-                .andExpect(jsonPath("$.cliente.cpf").value("12345678901"))
+                .andExpect(jsonPath("$.cliente.cpf").value("12345678909"))
                 .andExpect(jsonPath("$.veiculo.placa").value("ABC1D23"))
                 .andExpect(jsonPath("$.detalhesServico.valorTotal").value(400.0))
                 .andExpect(jsonPath("$.detalhesServico.descricaoDiagnostico").value("Troca de pastilhas"))
@@ -142,7 +142,7 @@ class OrcamentoControllerTest {
                 .andExpect(jsonPath("$.detalhesServico.descricaoDiagnostico").value("Revisao de freios"));
 
         mockMvc.perform(get("/orcamentos")
-                        .param("cpfCliente", "12345678901")
+                        .param("cpfCliente", "12345678909")
                         .with(user("tester")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].numeroOrcamento").value("orc-1"));

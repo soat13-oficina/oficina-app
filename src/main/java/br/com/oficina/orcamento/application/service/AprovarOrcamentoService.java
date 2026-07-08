@@ -15,7 +15,9 @@ import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
+import br.com.oficina.pecainsumo.application.command.LiberarReservaPecaCommand;
 import br.com.oficina.pecainsumo.application.command.ReservarPecaCommand;
+import br.com.oficina.pecainsumo.application.usecase.LiberarReservaPecaUseCase;
 import br.com.oficina.pecainsumo.application.usecase.ReservarPecaUseCase;
 
 @Service
@@ -24,12 +26,15 @@ public class AprovarOrcamentoService implements AprovarOrcamentoUseCase {
 
     private final OrcamentoRepository orcamentoRepository;
     private final ReservarPecaUseCase reservarPecaUseCase;
+    private final LiberarReservaPecaUseCase liberarReservaPecaUseCase;
 
     public AprovarOrcamentoService(
             OrcamentoRepository orcamentoRepository,
-            ReservarPecaUseCase reservarPecaUseCase) {
+            ReservarPecaUseCase reservarPecaUseCase,
+            LiberarReservaPecaUseCase liberarReservaPecaUseCase) {
         this.orcamentoRepository = orcamentoRepository;
         this.reservarPecaUseCase = reservarPecaUseCase;
+        this.liberarReservaPecaUseCase = liberarReservaPecaUseCase;
     }
 
     @Override
@@ -56,16 +61,14 @@ public class AprovarOrcamentoService implements AprovarOrcamentoUseCase {
         }
 
         if (!pecasSemEstoque.isEmpty()) {
-            // Desfazer reservas já feitas (rollback parcial)
+            // Desfazer reservas já feitas (rollback parcial) liberando-as de volta ao estoque
             for (PecaOrcamento pecaReservada : pecasReservadas) {
                 try {
-                    var liberarCommand = new br.com.oficina.pecainsumo.application.command.LiberarReservaPecaCommand(
-                            pecaReservada.getPecaInsumoId(), pecaReservada.getQuantidade());
-                    // Liberar via repositório diretamente — usamos o mesmo padrão do LiberarReservaPecaService
-                    // Para manter a coesão, chamamos o use case
-                } catch (Exception ignored) {
+                    liberarReservaPecaUseCase.liberarReserva(new LiberarReservaPecaCommand(
+                            pecaReservada.getPecaInsumoId(), pecaReservada.getQuantidade()));
+                } catch (RuntimeException excecao) {
                     log.warn("Falha ao desfazer reserva da peca {}. Pode ser necessario ajuste manual.",
-                            pecaReservada.getPecaInsumoId());
+                            pecaReservada.getPecaInsumoId(), excecao);
                 }
             }
             throw new RegraDeNegocioException(

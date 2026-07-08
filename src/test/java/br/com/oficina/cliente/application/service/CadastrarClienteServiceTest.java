@@ -19,11 +19,11 @@ class CadastrarClienteServiceTest {
         TestClienteRepository repository = new TestClienteRepository();
         CadastrarClienteService service = new CadastrarClienteService(repository);
 
-        var clienteId = service.cadastrarCliente(new CadastrarClienteCommand("Maria", "12345678901", TipoCliente.PF));
+        var clienteId = service.cadastrarCliente(new CadastrarClienteCommand("Maria", "12345678909", TipoCliente.PF));
 
         assertNotNull(clienteId);
         assertEquals("Maria", repository.buscarPorId(clienteId).orElseThrow().getNome());
-        assertEquals("12345678901", repository.buscarPorId(clienteId).orElseThrow().getCpfOuCnpj());
+        assertEquals("12345678909", repository.buscarPorId(clienteId).orElseThrow().getCpfOuCnpj());
         assertEquals(TipoCliente.PF, repository.buscarPorId(clienteId).orElseThrow().getTipoCliente());
     }
 
@@ -36,7 +36,7 @@ class CadastrarClienteServiceTest {
                 RegraDeNegocioException.class,
                 () -> service.cadastrarCliente(new CadastrarClienteCommand("Maria", "1234567890", TipoCliente.PF)));
 
-        assertEquals("CPF deve possuir 11 digitos", exception.getMessage());
+        assertEquals("CPF informado e invalido", exception.getMessage());
     }
 
     @Test
@@ -58,7 +58,7 @@ class CadastrarClienteServiceTest {
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                () -> service.cadastrarCliente(new CadastrarClienteCommand("Maria", "12345678901", null)));
+                () -> service.cadastrarCliente(new CadastrarClienteCommand("Maria", "12345678909", null)));
 
         assertEquals("Tipo do cliente e obrigatorio quando o documento for informado", exception.getMessage());
     }
@@ -70,7 +70,7 @@ class CadastrarClienteServiceTest {
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                () -> service.cadastrarCliente(new CadastrarClienteCommand(" ", "12345678901", TipoCliente.PF)));
+                () -> service.cadastrarCliente(new CadastrarClienteCommand(" ", "12345678909", TipoCliente.PF)));
 
         assertEquals("Nome do cliente e obrigatorio", exception.getMessage());
     }
@@ -79,12 +79,12 @@ class CadastrarClienteServiceTest {
     void deveFalharAoCadastrarClienteComMesmoDocumentoMesmoComNomeDiferente() {
         TestClienteRepository repository = new TestClienteRepository();
         repository.salvar(Cliente.reconstituir(
-                java.util.UUID.randomUUID(), "Maria Silva", "12345678901", TipoCliente.PF));
+                java.util.UUID.randomUUID(), "Maria Silva", "12345678909", TipoCliente.PF));
         CadastrarClienteService service = new CadastrarClienteService(repository);
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                () -> service.cadastrarCliente(new CadastrarClienteCommand("Ana Souza", "123.456.789-01", TipoCliente.PF)));
+                () -> service.cadastrarCliente(new CadastrarClienteCommand("Ana Souza", "123.456.789-09", TipoCliente.PF)));
 
         assertEquals("Ja existe cliente cadastrado com o mesmo CPF ou CNPJ.", exception.getMessage());
     }

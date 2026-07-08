@@ -57,7 +57,7 @@ class ConsultarTempoMedioExecucaoServiceTest {
                 UUID.nameUUIDFromBytes(("ordem-" + numero).getBytes(StandardCharsets.UTF_8)),
                 numero,
                 Funcionario.reconstituir(funcionarioId, "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF),
+                Cliente.reconstituir(clienteId, "Maria", "12345678909", TipoCliente.PF),
                 Veiculo.reconstituir(
                         UUID.nameUUIDFromBytes(("veiculo-" + numero).getBytes(StandardCharsets.UTF_8)),
                         clienteId,
@@ -84,7 +84,7 @@ class ConsultarTempoMedioExecucaoServiceTest {
                 UUID.nameUUIDFromBytes(("ordem-" + numero).getBytes(StandardCharsets.UTF_8)),
                 numero,
                 Funcionario.reconstituir(funcionarioId, "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF),
+                Cliente.reconstituir(clienteId, "Maria", "12345678909", TipoCliente.PF),
                 Veiculo.reconstituir(
                         veiculoId,
                         clienteId,

@@ -25,7 +25,7 @@ class OrcamentoResponseTest {
                 ordemDeServicoId,
                 funcionarioId,
                 "Joao Silva",
-                "12345678901",
+                "12345678909",
                 "ABC1D23",
                 "Toyota",
                 "Corolla",
@@ -44,7 +44,7 @@ class OrcamentoResponseTest {
         assertEquals(id, response.id());
         assertEquals("orc-1", response.numeroOrcamento());
         assertEquals("Joao Silva", response.cliente().nome());
-        assertEquals("12345678901", response.cliente().cpf());
+        assertEquals("12345678909", response.cliente().cpf());
         assertEquals("ABC1D23", response.veiculo().placa());
         assertEquals("Toyota", response.veiculo().marca());
         assertEquals(new BigDecimal("400.00"), response.detalhesServico().valorTotal());

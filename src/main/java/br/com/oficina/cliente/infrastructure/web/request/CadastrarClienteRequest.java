@@ -13,7 +13,7 @@ public record CadastrarClienteRequest(String nome, String cpfOuCnpj, TipoCliente
     }
 
     @Override
-    @Schema(description = "CPF ou CNPJ do cliente", example = "12345678901")
+    @Schema(description = "CPF ou CNPJ do cliente", example = "12345678909")
     public String cpfOuCnpj() {
         return cpfOuCnpj;
     }

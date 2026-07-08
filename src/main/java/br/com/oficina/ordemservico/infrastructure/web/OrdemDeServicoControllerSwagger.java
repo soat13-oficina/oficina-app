@@ -113,7 +113,27 @@ public interface OrdemDeServicoControllerSwagger {
             String numeroOrdemServico,
             EnviarDiagnosticoParaOrcamentoRequest request);
 
-    @Operation(summary = "Finalizar ordem de serviço", description = "Finaliza uma ordem de serviço com orçamento já gerado, registrando o timestamp de finalização.")
+    @Operation(
+            summary = "Enviar ordem de serviço para aprovação",
+            description = "Move uma ordem de serviço com orçamento gerado para o status AGUARDANDO_APROVACAO, sinalizando que o cliente precisa aprovar o orçamento.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Ordem de serviço movida para aguardando aprovação"),
+            @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
+    })
+    ResponseEntity<Void> aguardarAprovacao(String numeroOrdemServico);
+
+    @Operation(
+            summary = "Iniciar execução do serviço",
+            description = "Inicia a execução do serviço após o cliente aprovar o orçamento, movendo a ordem de serviço para o status SERVICO_EM_ANDAMENTO.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Execução do serviço iniciada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Transição de status inválida", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
+    })
+    ResponseEntity<Void> iniciarExecucao(String numeroOrdemServico);
+
+    @Operation(summary = "Finalizar ordem de serviço", description = "Finaliza uma ordem de serviço com o serviço em andamento, registrando o timestamp de finalização.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Ordem de serviço finalizada com sucesso",
                     content = @Content(schema = @Schema(implementation = FinalizacaoOrdemDeServicoResponse.class))),

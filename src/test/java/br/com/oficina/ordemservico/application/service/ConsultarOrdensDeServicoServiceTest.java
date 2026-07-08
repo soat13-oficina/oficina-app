@@ -22,12 +22,12 @@ class ConsultarOrdensDeServicoServiceTest {
     @Test
     void deveConsultarOrdensDeServicoComFiltros() {
         TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
-        repository.salvar(novaOrdem("OS-001", "Marina", "12345678901", "AAA1A11"));
-        repository.salvar(novaOrdem("OS-002", "Bianca", "99999999999", "BBB2B22"));
+        repository.salvar(novaOrdem("OS-001", "Marina", "12345678909", "AAA1A11"));
+        repository.salvar(novaOrdem("OS-002", "Bianca", "52998224725", "BBB2B22"));
         ConsultarOrdensDeServicoService service = new ConsultarOrdensDeServicoService(repository);
 
         List<OrdemDeServico> resultado = service.consultarOrdensDeServico(
-                new ConsultarOrdensDeServicoQuery("OS-001", "Marina", "AAA1A11", "12345678901"));
+                new ConsultarOrdensDeServicoQuery("OS-001", "Marina", "AAA1A11", "12345678909"));
 
         assertEquals(1, resultado.size());
         assertEquals("OS-001", resultado.get(0).getNumeroOrdemServico());
@@ -36,8 +36,8 @@ class ConsultarOrdensDeServicoServiceTest {
     @Test
     void deveRetornarTodasAsOrdensQuandoNaoHouverFiltros() {
         TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
-        repository.salvar(novaOrdem("OS-001", "Marina", "12345678901", "AAA1A11"));
-        repository.salvar(novaOrdem("OS-002", "Bianca", "99999999999", "BBB2B22"));
+        repository.salvar(novaOrdem("OS-001", "Marina", "12345678909", "AAA1A11"));
+        repository.salvar(novaOrdem("OS-002", "Bianca", "52998224725", "BBB2B22"));
         ConsultarOrdensDeServicoService service = new ConsultarOrdensDeServicoService(repository);
 
         List<OrdemDeServico> resultado = service.consultarOrdensDeServico(
