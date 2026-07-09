@@ -23,7 +23,7 @@ class CadastrarVeiculoServiceTest {
         TestVeiculoRepository repository = new TestVeiculoRepository();
         TestClienteRepository clienteRepository = new TestClienteRepository();
         UUID clienteId = UUID.fromString("11111111-1111-1111-1111-111111111111");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678909", TipoCliente.PF));
         CadastrarVeiculoService service = new CadastrarVeiculoService(repository, clienteRepository);
 
         service.cadastrarVeiculo(new CadastrarVeiculoCommand(
@@ -48,8 +48,8 @@ class CadastrarVeiculoServiceTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         UUID clienteId1 = UUID.fromString("22222222-2222-2222-2222-222222222222");
         UUID clienteId2 = UUID.fromString("33333333-3333-3333-3333-333333333333");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId1, "Maria", "12345678901", TipoCliente.PF));
-        clienteRepository.salvar(Cliente.reconstituir(clienteId2, "Joao", "99999999999", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId1, "Maria", "12345678909", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId2, "Joao", "20100000053", TipoCliente.PF));
         repository.salvar(new Veiculo(
                 clienteId1,
                 "ABC1D23",

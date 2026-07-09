@@ -27,8 +27,8 @@ class AberturaComServicosEPecasTest {
         OrdemDeServico ordem = OrdemDeServico.abrir(
                 null,
                 "OS-TESTE01",
-                Funcionario.reconstituir(FUNCIONARIO_ID, "Joao", "12345678901"),
-                Cliente.reconstituir(CLIENTE_ID, "Maria", "11111111111", TipoCliente.PF),
+                Funcionario.reconstituir(FUNCIONARIO_ID, "Joao", "12345678909"),
+                Cliente.reconstituir(CLIENTE_ID, "Maria", "20110101103", TipoCliente.PF),
                 veiculo(),
                 List.of(new ServicoOrdem("Troca de pastilhas", new BigDecimal("150.00"))),
                 List.of(new PecaPrevistaOrdem("PECA-1", 2)));
@@ -45,8 +45,8 @@ class AberturaComServicosEPecasTest {
         OrdemDeServico ordem = OrdemDeServico.abrir(
                 null,
                 "OS-TESTE02",
-                Funcionario.reconstituir(FUNCIONARIO_ID, "Joao", "12345678901"),
-                Cliente.reconstituir(CLIENTE_ID, "Maria", "11111111111", TipoCliente.PF),
+                Funcionario.reconstituir(FUNCIONARIO_ID, "Joao", "12345678909"),
+                Cliente.reconstituir(CLIENTE_ID, "Maria", "20110101103", TipoCliente.PF),
                 veiculo(),
                 null,
                 null);

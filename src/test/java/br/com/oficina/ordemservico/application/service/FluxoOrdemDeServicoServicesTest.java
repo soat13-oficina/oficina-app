@@ -47,7 +47,7 @@ class FluxoOrdemDeServicoServicesTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
         TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Oleo 5W30", "Castrol", new BigDecimal("150.00"), 10, 0, "REF-OLEO", CategoriaPeca.LUBRIFICANTES));
         repository.salvar(novaOrdem("OS-001"));
 
@@ -103,7 +103,7 @@ class FluxoOrdemDeServicoServicesTest {
                 UUID.nameUUIDFromBytes(("ordem-" + numero).getBytes()),
                 numero,
                 Funcionario.reconstituir(funcionarioId, "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF),
                 Veiculo.reconstituir(
                         UUID.nameUUIDFromBytes(("veiculo-" + numero).getBytes()),
                         clienteId,

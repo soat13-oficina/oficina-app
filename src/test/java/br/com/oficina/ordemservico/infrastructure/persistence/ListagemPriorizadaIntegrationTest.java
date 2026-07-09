@@ -36,8 +36,8 @@ class ListagemPriorizadaIntegrationTest {
     @Test
     void deveOrdenarPorPrioridadeDeSituacao() {
         UUID clienteId = UUID.randomUUID();
-        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Joao", "12345678901");
-        Cliente cliente = Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF);
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Joao", "12345678909");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Maria", "12345678909", TipoCliente.PF);
 
         Veiculo v1 = salvarVeiculo(clienteId, "PRI1A11");
         Veiculo v2 = salvarVeiculo(clienteId, "PRI2B22");
@@ -60,8 +60,8 @@ class ListagemPriorizadaIntegrationTest {
     @Test
     void deveExcluirFinalizadasEEntregues() {
         UUID clienteId = UUID.randomUUID();
-        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Carlos", "98765432100");
-        Cliente cliente = Cliente.reconstituir(clienteId, "Ana", "98765432100", TipoCliente.PF);
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Carlos", "20120202247");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Ana", "20120202247", TipoCliente.PF);
 
         Veiculo v1 = salvarVeiculo(clienteId, "EXC1A11");
         Veiculo v2 = salvarVeiculo(clienteId, "EXC2B22");
@@ -84,8 +84,8 @@ class ListagemPriorizadaIntegrationTest {
     @Test
     void deveOrdenarPorAntiguidade_DentroDeUmaMesmaSituacao() {
         UUID clienteId = UUID.randomUUID();
-        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Paulo", "11122233344");
-        Cliente cliente = Cliente.reconstituir(clienteId, "Rosa", "11122233344", TipoCliente.PF);
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Paulo", "20140404430");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Rosa", "20140404430", TipoCliente.PF);
 
         Veiculo v1 = salvarVeiculo(clienteId, "ANT1A11");
         Veiculo v2 = salvarVeiculo(clienteId, "ANT2B22");

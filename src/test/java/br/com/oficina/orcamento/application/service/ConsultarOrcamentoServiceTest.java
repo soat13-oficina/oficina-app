@@ -31,10 +31,10 @@ class ConsultarOrcamentoServiceTest {
     void deveConsultarOrcamentoPorCpfClienteOuPlacaVeiculo() {
         TestOrcamentoRepository repository = new TestOrcamentoRepository();
         repository.salvar(novoOrcamento());
-        repository.salvar(novoOrcamento("orc-2", "Maria Souza", "99999999999", "XYZ1A23"));
+        repository.salvar(novoOrcamento("orc-2", "Maria Souza", "20100000053", "XYZ1A23"));
         ConsultarOrcamentoService service = new ConsultarOrcamentoService(repository);
 
-        List<Orcamento> porCpf = service.consultarOrcamento(new ConsultarOrcamentoQuery(null, "12345678901", null));
+        List<Orcamento> porCpf = service.consultarOrcamento(new ConsultarOrcamentoQuery(null, "12345678909", null));
         List<Orcamento> porPlaca = service.consultarOrcamento(new ConsultarOrcamentoQuery(null, null, "XYZ1A23"));
 
         assertEquals(1, porCpf.size());
@@ -44,7 +44,7 @@ class ConsultarOrcamentoServiceTest {
     }
 
     private Orcamento novoOrcamento() {
-        return novoOrcamento("orc-1", "Joao Silva", "12345678901", "ABC1D23");
+        return novoOrcamento("orc-1", "Joao Silva", "12345678909", "ABC1D23");
     }
 
     private Orcamento novoOrcamento(String numeroOrcamento, String clienteNome, String clienteCpf, String placaVeiculo) {

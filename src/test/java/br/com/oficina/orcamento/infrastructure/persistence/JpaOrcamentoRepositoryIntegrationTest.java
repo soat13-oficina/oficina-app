@@ -38,7 +38,7 @@ class JpaOrcamentoRepositoryIntegrationTest {
                 ordemId,
                 funcionarioId,
                 "Maria Silva",
-                "12345678901",
+                "12345678909",
                 "ABC1D23",
                 "Toyota",
                 "Corolla",
@@ -68,7 +68,7 @@ class JpaOrcamentoRepositoryIntegrationTest {
         assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, atualizado.getStatus());
         assertEquals(2, atualizado.getPecasOrcamento().size());
 
-        List<Orcamento> filtrados = repository.buscarPorFiltros("ORC-2026-0001", "12345678901", "ABC1D23");
+        List<Orcamento> filtrados = repository.buscarPorFiltros("ORC-2026-0001", "12345678909", "ABC1D23");
         assertEquals(1, filtrados.size());
     }
 
@@ -80,7 +80,7 @@ class JpaOrcamentoRepositoryIntegrationTest {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 "Carlos",
-                "98765432100",
+                "20120202247",
                 "DEF2G34",
                 "Honda",
                 "Civic",

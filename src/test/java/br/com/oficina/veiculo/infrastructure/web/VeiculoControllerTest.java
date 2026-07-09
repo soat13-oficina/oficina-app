@@ -62,10 +62,10 @@ class VeiculoControllerTest {
         funcionarioRepository.deleteAll();
         clienteRepository.deleteAll();
         veiculoRepository.deleteAll();
-        clienteId1 = clienteRepository.save(new Cliente("Maria", "11111111111", TipoCliente.PF)).getId().toString();
-        clienteId2 = clienteRepository.save(new Cliente("Joao", "22222222222", TipoCliente.PF)).getId().toString();
-        clienteId3 = clienteRepository.save(new Cliente("Bianca", "33333333333", TipoCliente.PF)).getId().toString();
-        clienteId4 = clienteRepository.save(new Cliente("Carlos", "44444444444", TipoCliente.PF)).getId().toString();
+        clienteId1 = clienteRepository.save(new Cliente("Maria", "20110101103", TipoCliente.PF)).getId().toString();
+        clienteId2 = clienteRepository.save(new Cliente("Joao", "20170707776", TipoCliente.PF)).getId().toString();
+        clienteId3 = clienteRepository.save(new Cliente("Bianca", "20201011069", TipoCliente.PF)).getId().toString();
+        clienteId4 = clienteRepository.save(new Cliente("Carlos", "20190909960", TipoCliente.PF)).getId().toString();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
@@ -368,8 +368,8 @@ class VeiculoControllerTest {
                 .andExpect(status().isCreated());
 
         Veiculo veiculoSalvo = veiculoRepository.findByPlaca("OSV1D23").orElseThrow();
-        Funcionario funcionario = funcionarioRepository.save(new Funcionario("Mecanico", "55555555555"));
-        Cliente cliente = Cliente.reconstituir(UUID.fromString(clienteId1), "Maria", "11111111111", TipoCliente.PF);
+        Funcionario funcionario = funcionarioRepository.save(new Funcionario("Mecanico", "20160606624"));
+        Cliente cliente = Cliente.reconstituir(UUID.fromString(clienteId1), "Maria", "20110101103", TipoCliente.PF);
         ordemDeServicoRepository.save(
                 OrdemDeServico.abrir(null, "OS-WEB01", funcionario, cliente, veiculoSalvo));
 

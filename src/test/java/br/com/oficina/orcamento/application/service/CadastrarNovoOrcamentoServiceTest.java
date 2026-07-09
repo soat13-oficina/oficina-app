@@ -36,7 +36,7 @@ class CadastrarNovoOrcamentoServiceTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("44444444-4444-4444-4444-444444444444");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678909", TipoCliente.PF));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
         CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(repository, clienteRepository, pecaInsumoRepository);
 
@@ -69,7 +69,7 @@ class CadastrarNovoOrcamentoServiceTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("44444444-4444-4444-4444-444444444444");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678909", TipoCliente.PF));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
         repository.salvar(new Orcamento(
                 "orc-1",
@@ -77,7 +77,7 @@ class CadastrarNovoOrcamentoServiceTest {
                 UUID.fromString("33333333-3333-3333-3333-333333333333"),
                 UUID.fromString("44444444-4444-4444-4444-444444444444"),
                 "Joao Silva",
-                "12345678901",
+                "12345678909",
                 "ABC1D23",
                 "Toyota",
                 "Corolla",

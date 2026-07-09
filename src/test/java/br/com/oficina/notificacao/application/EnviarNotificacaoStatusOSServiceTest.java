@@ -40,7 +40,7 @@ class EnviarNotificacaoStatusOSServiceTest {
     @Test
     void deveRegistrarEnviarEMarcarEnviadaQuandoClientePossuiEmail() {
         UUID clienteId = UUID.fromString("11111111-1111-1111-1111-111111111111");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF, "maria@email.com"));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678909", TipoCliente.PF, "maria@email.com"));
 
         service.enviar(evento(clienteId));
 
@@ -55,7 +55,7 @@ class EnviarNotificacaoStatusOSServiceTest {
     @Test
     void deveRegistrarFalhaTerminalQuandoClienteNaoPossuiEmail() {
         UUID clienteId = UUID.fromString("22222222-2222-2222-2222-222222222222");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao", "12345678901", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao", "12345678909", TipoCliente.PF));
 
         service.enviar(evento(clienteId));
 
@@ -80,7 +80,7 @@ class EnviarNotificacaoStatusOSServiceTest {
     @Test
     void devePermanecerPendenteEReprocessavelQuandoEnvioFalha() {
         UUID clienteId = UUID.fromString("33333333-3333-3333-3333-333333333333");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Ana", "12345678901", TipoCliente.PF, "ana@email.com"));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Ana", "12345678909", TipoCliente.PF, "ana@email.com"));
         notificadorEmail.falhar = true;
 
         assertDoesNotThrow(() -> service.enviar(evento(clienteId)));

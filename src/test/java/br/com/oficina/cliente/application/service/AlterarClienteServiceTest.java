@@ -21,14 +21,14 @@ class AlterarClienteServiceTest {
     void deveAlterarClienteExistente() {
         TestClienteRepository repository = new TestClienteRepository();
         UUID clienteId = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
-        repository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678909", TipoCliente.PF));
         AlterarClienteService service = new AlterarClienteService(repository);
 
-        service.alterarCliente(new AlterarClienteCommand(clienteId, "Bianca", "11222333000199", TipoCliente.PJ));
+        service.alterarCliente(new AlterarClienteCommand(clienteId, "Bianca", "11222333000181", TipoCliente.PJ));
 
         Cliente clienteAtualizado = repository.buscarPorId(clienteId).orElseThrow();
         assertEquals("Bianca", clienteAtualizado.getNome());
-        assertEquals("11222333000199", clienteAtualizado.getCpfOuCnpj());
+        assertEquals("11222333000181", clienteAtualizado.getCpfOuCnpj());
         assertEquals(TipoCliente.PJ, clienteAtualizado.getTipoCliente());
     }
 
@@ -38,7 +38,7 @@ class AlterarClienteServiceTest {
 
         RecursoNaoEncontradoException exception = assertThrows(
                 RecursoNaoEncontradoException.class,
-                () -> service.alterarCliente(new AlterarClienteCommand(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"), "Bianca", "99999999999", TipoCliente.PF)));
+                () -> service.alterarCliente(new AlterarClienteCommand(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"), "Bianca", "20100000053", TipoCliente.PF)));
 
         assertEquals("Cliente nao encontrado para o identificador informado.", exception.getMessage());
     }
@@ -47,14 +47,14 @@ class AlterarClienteServiceTest {
     void deveFalharAoAlterarClienteParaCnpjInvalido() {
         TestClienteRepository repository = new TestClienteRepository();
         UUID clienteId = UUID.fromString("12121212-1212-1212-1212-121212121212");
-        repository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678901", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(clienteId, "Maria", "12345678909", TipoCliente.PF));
         AlterarClienteService service = new AlterarClienteService(repository);
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
                 () -> service.alterarCliente(new AlterarClienteCommand(clienteId, "Empresa", "1234567800019", TipoCliente.PJ)));
 
-        assertEquals("CNPJ deve possuir 14 digitos", exception.getMessage());
+        assertEquals("CNPJ informado e invalido", exception.getMessage());
     }
 
     @Test
@@ -62,14 +62,14 @@ class AlterarClienteServiceTest {
         TestClienteRepository repository = new TestClienteRepository();
         UUID clienteId = UUID.fromString("13131313-1313-1313-1313-131313131313");
         UUID outroClienteId = UUID.fromString("14141414-1414-1414-1414-141414141414");
-        repository.salvar(Cliente.reconstituir(clienteId, "Maria Oliveira", "12345678901", TipoCliente.PF));
-        repository.salvar(Cliente.reconstituir(outroClienteId, "Joao Silva", "99999999999", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(clienteId, "Maria Oliveira", "12345678909", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(outroClienteId, "Joao Silva", "20100000053", TipoCliente.PF));
         AlterarClienteService service = new AlterarClienteService(repository);
 
         ConflitoDeRecursoException exception = assertThrows(
                 ConflitoDeRecursoException.class,
                 () -> service.alterarCliente(new AlterarClienteCommand(
-                        outroClienteId, "Cliente Outro Nome", "12345678901", TipoCliente.PF)));
+                        outroClienteId, "Cliente Outro Nome", "12345678909", TipoCliente.PF)));
 
         assertEquals("Ja existe cliente cadastrado com o mesmo CPF ou CNPJ.", exception.getMessage());
     }

@@ -161,7 +161,7 @@ class DecisaoOrcamentoServiceTest {
                 ordemId,
                 UUID.randomUUID(),
                 "Maria",
-                "12345678901",
+                "12345678909",
                 "ABC1D23",
                 "Toyota",
                 "Corolla",
@@ -178,11 +178,11 @@ class DecisaoOrcamentoServiceTest {
     }
 
     private static Funcionario funcionario() {
-        return Funcionario.reconstituir(UUID.randomUUID(), "Joao", "12345678901");
+        return Funcionario.reconstituir(UUID.randomUUID(), "Joao", "12345678909");
     }
 
     private static Cliente cliente() {
-        return Cliente.reconstituir(UUID.randomUUID(), "Maria", "12345678901", TipoCliente.PF);
+        return Cliente.reconstituir(UUID.randomUUID(), "Maria", "12345678909", TipoCliente.PF);
     }
 
     private static Veiculo veiculo() {

@@ -62,7 +62,7 @@ class ListagemOrdemDeServicoControllerTest {
         springDataClienteRepository.deleteAll();
         springDataFuncionarioRepository.deleteAll();
 
-        cliente = new Cliente("Maria", "11111111111", TipoCliente.PF);
+        cliente = new Cliente("Maria", "20110101103", TipoCliente.PF);
         springDataClienteRepository.save(cliente);
         funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
 

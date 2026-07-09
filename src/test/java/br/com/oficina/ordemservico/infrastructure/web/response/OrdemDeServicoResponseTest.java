@@ -27,7 +27,7 @@ class OrdemDeServicoResponseTest {
                 id,
                 "OS-001",
                 Funcionario.reconstituir(funcionarioId, "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF),
                 Veiculo.reconstituir(
                         veiculoId,
                         clienteId,
@@ -48,7 +48,7 @@ class OrdemDeServicoResponseTest {
         assertEquals("41111111-1111-1111-1111-111111111111", response.clienteId());
         assertEquals(veiculoId, response.veiculoId());
         assertEquals("Maria", response.nomeCliente());
-        assertEquals("11111111111", response.documentoCliente());
+        assertEquals("20110101103", response.documentoCliente());
         assertEquals(TipoCliente.PF, response.tipoCliente());
         assertEquals("ABC1D23", response.placaVeiculo());
         assertEquals(StatusOrdemDeServico.OS_ABERTA, response.status());

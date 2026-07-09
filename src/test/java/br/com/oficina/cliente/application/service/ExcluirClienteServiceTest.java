@@ -22,7 +22,7 @@ class ExcluirClienteServiceTest {
     @Test
     void deveExcluirClienteSemVinculos() {
         TestClienteRepository repository = new TestClienteRepository();
-        repository.salvar(Cliente.reconstituir(CLIENTE_ID, "Maria", "12345678901", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(CLIENTE_ID, "Maria", "12345678909", TipoCliente.PF));
         ExcluirClienteService service = new ExcluirClienteService(repository, clienteId -> false);
 
         service.excluirCliente(new ExcluirClienteCommand(CLIENTE_ID));
@@ -33,7 +33,7 @@ class ExcluirClienteServiceTest {
     @Test
     void deveBloquearExclusaoQuandoClientePossuiVinculos() {
         TestClienteRepository repository = new TestClienteRepository();
-        repository.salvar(Cliente.reconstituir(CLIENTE_ID, "Maria", "12345678901", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(CLIENTE_ID, "Maria", "12345678909", TipoCliente.PF));
         ExcluirClienteService service = new ExcluirClienteService(repository, clienteId -> true);
 
         ConflitoDeRecursoException exception = assertThrows(

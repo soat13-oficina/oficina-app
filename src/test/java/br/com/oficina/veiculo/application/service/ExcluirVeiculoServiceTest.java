@@ -64,7 +64,7 @@ class ExcluirVeiculoServiceTest {
                 "Ford", "Ranger", "Ford Motor Company", 2022, 213, "AUTOMATICO", TipoCombustivel.DIESEL);
         veiculoRepository.salvar(veiculo);
 
-        Cliente cliente = Cliente.reconstituir(clienteId, "Cliente Teste", "12345678901", TipoCliente.PF);
+        Cliente cliente = Cliente.reconstituir(clienteId, "Cliente Teste", "12345678909", TipoCliente.PF);
         Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Mecanico", null);
         ordemDeServicoRepository.salvar(
                 OrdemDeServico.abrir(UUID.randomUUID(), "OS-VEIC01", funcionario, cliente, veiculo));

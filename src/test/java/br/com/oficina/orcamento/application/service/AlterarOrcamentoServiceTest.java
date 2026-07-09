@@ -37,8 +37,8 @@ class AlterarOrcamentoServiceTest {
         TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("55555555-5555-5555-5555-555555555555");
         UUID clienteAtualizadoId = UUID.fromString("66666666-6666-6666-6666-666666666666");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
-        clienteRepository.salvar(Cliente.reconstituir(clienteAtualizadoId, "Maria Souza", "99999999999", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678909", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteAtualizadoId, "Maria Souza", "20100000053", TipoCliente.PF));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID_2, "Fluido de freio", "TRW", new BigDecimal("100.00"), 10, 0, "REF-002", CategoriaPeca.LUBRIFICANTES));
         Orcamento orcamento = novoOrcamento();
@@ -69,7 +69,7 @@ class AlterarOrcamentoServiceTest {
         // mesmo o comando informando 88888888.
         assertEquals(UUID.fromString("44444444-4444-4444-4444-444444444444"), atualizado.getFuncionarioId());
         assertEquals("Maria Souza", atualizado.getClienteNome());
-        assertEquals("99999999999", atualizado.getClienteCpf());
+        assertEquals("20100000053", atualizado.getClienteCpf());
         assertEquals(clienteAtualizadoId, atualizado.getClienteId());
         assertEquals("XYZ9Z99", atualizado.getPlacaVeiculo());
         assertEquals("Honda", atualizado.getMarcaVeiculo());
@@ -85,7 +85,7 @@ class AlterarOrcamentoServiceTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("77777777-7777-7777-7777-777777777777");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678909", TipoCliente.PF));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
         AlterarOrcamentoService service = new AlterarOrcamentoService(new TestOrcamentoRepository(), clienteRepository, pecaInsumoRepository);
 
@@ -116,7 +116,7 @@ class AlterarOrcamentoServiceTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("55555555-5555-5555-5555-555555555555");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678909", TipoCliente.PF));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Peca", "Marca", new BigDecimal("50.00"), 10, 0, "REF", CategoriaPeca.FREIOS));
         Orcamento orcamento = novoOrcamento();
         orcamento.aprovar();
@@ -148,7 +148,7 @@ class AlterarOrcamentoServiceTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("55555555-5555-5555-5555-555555555555");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678901", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678909", TipoCliente.PF));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Peca", "Marca", new BigDecimal("50.00"), 10, 0, "REF", CategoriaPeca.FREIOS));
         Orcamento orcamento = novoOrcamento();
         orcamento.rejeitar();
@@ -181,7 +181,7 @@ class AlterarOrcamentoServiceTest {
                 UUID.fromString("33333333-3333-3333-3333-333333333333"),
                 UUID.fromString("44444444-4444-4444-4444-444444444444"),
                 "Joao Silva",
-                "12345678901",
+                "12345678909",
                 "ABC1D23",
                 "Toyota",
                 "Corolla",

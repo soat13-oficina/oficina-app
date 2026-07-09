@@ -2,6 +2,10 @@ package br.com.oficina.cliente.domain.model;
 
 import java.util.UUID;
 
+import br.com.caelum.stella.validation.CNPJValidator;
+import br.com.caelum.stella.validation.CPFValidator;
+import br.com.caelum.stella.validation.InvalidStateException;
+import br.com.caelum.stella.validation.Validator;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,13 +19,11 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "clientes")
 public class Cliente {
-    private static final int QUANTIDADE_DIGITOS_CPF = 11;
-    private static final int QUANTIDADE_DIGITOS_CNPJ = 14;
     private static final String MENSAGEM_NOME_OBRIGATORIO = "Nome do cliente e obrigatorio";
     private static final String MENSAGEM_DOCUMENTO_OBRIGATORIO = "Documento do cliente e obrigatorio quando o tipo for informado";
     private static final String MENSAGEM_TIPO_OBRIGATORIO = "Tipo do cliente e obrigatorio quando o documento for informado";
-    private static final String MENSAGEM_CPF_INVALIDO = "CPF deve possuir 11 digitos";
-    private static final String MENSAGEM_CNPJ_INVALIDO = "CNPJ deve possuir 14 digitos";
+    private static final String MENSAGEM_CPF_INVALIDO = "CPF informado e invalido";
+    private static final String MENSAGEM_CNPJ_INVALIDO = "CNPJ informado e invalido";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -125,12 +127,19 @@ public class Cliente {
             throw new RegraDeNegocioException(MENSAGEM_TIPO_OBRIGATORIO);
         }
 
-        int quantidadeDeDigitos = contarDigitos(cpfOuCnpj);
-        if (tipoCliente == TipoCliente.PF && quantidadeDeDigitos != QUANTIDADE_DIGITOS_CPF) {
-            throw new RegraDeNegocioException(MENSAGEM_CPF_INVALIDO);
+        String somenteDigitos = apenasDigitos(cpfOuCnpj);
+        if (tipoCliente == TipoCliente.PF) {
+            validarComDigitoVerificador(new CPFValidator(), somenteDigitos, MENSAGEM_CPF_INVALIDO);
+        } else if (tipoCliente == TipoCliente.PJ) {
+            validarComDigitoVerificador(new CNPJValidator(), somenteDigitos, MENSAGEM_CNPJ_INVALIDO);
         }
-        if (tipoCliente == TipoCliente.PJ && quantidadeDeDigitos != QUANTIDADE_DIGITOS_CNPJ) {
-            throw new RegraDeNegocioException(MENSAGEM_CNPJ_INVALIDO);
+    }
+
+    private static void validarComDigitoVerificador(Validator<String> validador, String documento, String mensagemErro) {
+        try {
+            validador.assertValid(documento);
+        } catch (InvalidStateException excecao) {
+            throw new RegraDeNegocioException(mensagemErro);
         }
     }
 
@@ -138,8 +147,8 @@ public class Cliente {
         return cpfOuCnpj != null && !cpfOuCnpj.isBlank();
     }
 
-    private static int contarDigitos(String valor) {
-        return (int) valor.chars().filter(Character::isDigit).count();
+    private static String apenasDigitos(String valor) {
+        return valor.replaceAll("\\D", "");
     }
 
     private static String normalizarEmail(String email) {

@@ -29,10 +29,10 @@ class ClienteUnicidadeDocumentoIntegrationTest {
 
     @Test
     void deveRejeitarDocumentoDuplicadoPelaConstraintAoInserirDireto() {
-        clienteRepository.saveAndFlush(new Cliente("Maria", "12345678901", TipoCliente.PF));
+        clienteRepository.saveAndFlush(new Cliente("Maria", "12345678909", TipoCliente.PF));
 
         assertThrows(DataIntegrityViolationException.class,
-                () -> clienteRepository.saveAndFlush(new Cliente("Ana", "12345678901", TipoCliente.PF)));
+                () -> clienteRepository.saveAndFlush(new Cliente("Ana", "12345678909", TipoCliente.PF)));
     }
 
     @Test

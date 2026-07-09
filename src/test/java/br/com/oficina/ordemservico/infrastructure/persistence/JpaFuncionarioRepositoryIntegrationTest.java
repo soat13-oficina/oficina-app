@@ -21,12 +21,12 @@ class JpaFuncionarioRepositoryIntegrationTest {
 
     @Test
     void devePersistirEBuscarFuncionarioPorId() {
-        Funcionario salvo = repository.salvar(new Funcionario("Ana Paula", "12345678901"));
+        Funcionario salvo = repository.salvar(new Funcionario("Ana Paula", "12345678909"));
 
         Funcionario encontrado = repository.buscarPorId(salvo.getId()).orElseThrow();
 
         assertEquals("Ana Paula", encontrado.getNome());
-        assertEquals("12345678901", encontrado.getCpf());
+        assertEquals("12345678909", encontrado.getCpf());
         assertTrue(repository.buscarPorId(salvo.getId()).isPresent());
     }
 }

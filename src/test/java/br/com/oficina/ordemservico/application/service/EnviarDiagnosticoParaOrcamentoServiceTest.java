@@ -127,7 +127,7 @@ class EnviarDiagnosticoParaOrcamentoServiceTest {
 
     private CadastrarNovoOrcamentoUseCase cadastrarOrcamentoReal(TestOrcamentoRepository orcamentoRepository) {
         TestClienteRepository clienteRepository = new TestClienteRepository();
-        clienteRepository.salvar(Cliente.reconstituir(CLIENTE_ID, "Maria", "11111111111", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(CLIENTE_ID, "Maria", "20110101103", TipoCliente.PF));
         return new CadastrarNovoOrcamentoService(orcamentoRepository, clienteRepository, new TestPecaInsumoRepository());
     }
 
@@ -154,7 +154,7 @@ class EnviarDiagnosticoParaOrcamentoServiceTest {
                 UUID.nameUUIDFromBytes(("ordem-" + numero).getBytes()),
                 numero,
                 Funcionario.reconstituir(funcionarioId, "Joao", null),
-                Cliente.reconstituir(CLIENTE_ID, "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(CLIENTE_ID, "Maria", "20110101103", TipoCliente.PF),
                 Veiculo.reconstituir(
                         UUID.nameUUIDFromBytes(("veiculo-" + numero).getBytes()),
                         CLIENTE_ID,

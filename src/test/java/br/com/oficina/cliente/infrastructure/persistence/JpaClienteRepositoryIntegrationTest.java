@@ -23,17 +23,17 @@ class JpaClienteRepositoryIntegrationTest {
 
     @Test
     void devePersistirBuscarAtualizarEExcluirClienteNoBanco() {
-        Cliente salvo = repository.salvar(new Cliente("Maria Silva", "123.456.789-01", TipoCliente.PF));
+        Cliente salvo = repository.salvar(new Cliente("Maria Silva", "123.456.789-09", TipoCliente.PF));
 
         assertTrue(repository.buscarPorId(salvo.getId()).isPresent());
         assertEquals(1, repository.buscarTodos().size());
 
-        salvo.alterar("Maria Souza", "12.345.678/0001-99", TipoCliente.PJ);
+        salvo.alterar("Maria Souza", "11.222.333/0001-81", TipoCliente.PJ);
         repository.atualizar(salvo);
 
         Cliente atualizado = repository.buscarPorId(salvo.getId()).orElseThrow();
         assertEquals("Maria Souza", atualizado.getNome());
-        assertEquals("12.345.678/0001-99", atualizado.getCpfOuCnpj());
+        assertEquals("11.222.333/0001-81", atualizado.getCpfOuCnpj());
         assertEquals(TipoCliente.PJ, atualizado.getTipoCliente());
 
         repository.excluirPorId(salvo.getId());
@@ -43,9 +43,9 @@ class JpaClienteRepositoryIntegrationTest {
 
     @Test
     void deveBuscarClientePorNomeEDocumentoIgnorandoFormatacao() {
-        repository.salvar(new Cliente("Joao da Silva", "123.456.789-01", TipoCliente.PF));
+        repository.salvar(new Cliente("Joao da Silva", "123.456.789-09", TipoCliente.PF));
 
-        assertTrue(repository.buscarPorNomeEDocumento(" joao da silva ", "12345678901").isPresent());
-        assertTrue(repository.buscarPorDocumento("12345678901").isPresent());
+        assertTrue(repository.buscarPorNomeEDocumento(" joao da silva ", "12345678909").isPresent());
+        assertTrue(repository.buscarPorDocumento("12345678909").isPresent());
     }
 }

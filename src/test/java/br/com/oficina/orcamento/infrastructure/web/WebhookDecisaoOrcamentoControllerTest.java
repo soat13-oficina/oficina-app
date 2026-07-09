@@ -183,7 +183,7 @@ class WebhookDecisaoOrcamentoControllerTest {
     }
 
     private OrdemDeServico criarOrdemEmAguardandoAprovacao() {
-        Cliente cliente = new Cliente("Maria", "11111111111", TipoCliente.PF);
+        Cliente cliente = new Cliente("Maria", "20110101103", TipoCliente.PF);
         springDataClienteRepository.save(cliente);
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         Veiculo veiculo = springDataVeiculoRepository.save(new Veiculo(

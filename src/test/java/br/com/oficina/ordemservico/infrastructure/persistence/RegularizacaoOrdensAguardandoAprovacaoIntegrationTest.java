@@ -48,7 +48,7 @@ class RegularizacaoOrdensAguardandoAprovacaoIntegrationTest {
 
     @Test
     void deveReverterOrdensSemOrcamentoEPreservarAsComOrcamento() throws Exception {
-        UUID clienteId = clienteRepository.salvar(new Cliente("Maria", "11111111111", TipoCliente.PF)).getId();
+        UUID clienteId = clienteRepository.salvar(new Cliente("Maria", "20110101103", TipoCliente.PF)).getId();
 
         // OS válida: passa pelo fluxo único, ficando em AGUARDANDO_APROVACAO COM orçamento associado.
         UUID idValida = persistirOrdemEmDiagnosticoConcluido("OS-VALIDA", clienteId);
@@ -84,7 +84,7 @@ class RegularizacaoOrdensAguardandoAprovacaoIntegrationTest {
                 null,
                 numero,
                 Funcionario.reconstituir(UUID.fromString("71111111-1111-1111-1111-111111111111"), "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF),
                 Veiculo.reconstituir(
                         UUID.nameUUIDFromBytes(("veiculo-" + numero).getBytes(StandardCharsets.UTF_8)),
                         clienteId,

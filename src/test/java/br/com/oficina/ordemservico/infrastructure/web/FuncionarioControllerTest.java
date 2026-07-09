@@ -54,7 +54,7 @@ class FuncionarioControllerTest {
                         .content("""
                                 {
                                   "nome": "Joao Silva",
-                                  "cpf": "12345678901"
+                                  "cpf": "12345678909"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -69,7 +69,7 @@ class FuncionarioControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(funcionarioId))
                 .andExpect(jsonPath("$.nome").value("Joao Silva"))
-                .andExpect(jsonPath("$.cpf").value("12345678901"));
+                .andExpect(jsonPath("$.cpf").value("12345678909"));
     }
 
     @Test
@@ -105,7 +105,7 @@ class FuncionarioControllerTest {
                         .with(user("tester")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome": "%s", "cpf": "11122233344"}
+                                {"nome": "%s", "cpf": "20140404430"}
                                 """.formatted(nomeJoao)))
                 .andExpect(status().isCreated());
 
@@ -113,7 +113,7 @@ class FuncionarioControllerTest {
                         .with(user("tester")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome": "%s", "cpf": "55566677788"}
+                                {"nome": "%s", "cpf": "20150505582"}
                                 """.formatted(nomeMaria)))
                 .andExpect(status().isCreated());
 
@@ -133,7 +133,7 @@ class FuncionarioControllerTest {
                         .with(user("tester")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome": "Nome Original", "cpf": "12345678901"}
+                                {"nome": "Nome Original", "cpf": "12345678909"}
                                 """))
                 .andExpect(status().isCreated())
                 .andReturn();
@@ -145,14 +145,14 @@ class FuncionarioControllerTest {
                         .with(user("tester")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome": "Nome Atualizado", "cpf": "98765432100"}
+                                {"nome": "Nome Atualizado", "cpf": "20120202247"}
                                 """))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/funcionarios/" + funcionarioId).with(user("tester")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nome").value("Nome Atualizado"))
-                .andExpect(jsonPath("$.cpf").value("98765432100"));
+                .andExpect(jsonPath("$.cpf").value("20120202247"));
     }
 
     @Test
@@ -161,7 +161,7 @@ class FuncionarioControllerTest {
                         .with(user("tester")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome": "Para Excluir", "cpf": "11122233344"}
+                                {"nome": "Para Excluir", "cpf": "20140404430"}
                                 """))
                 .andExpect(status().isCreated())
                 .andReturn();
@@ -199,7 +199,7 @@ class FuncionarioControllerTest {
                         .with(user("tester")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome": "Primeiro Funcionario", "cpf": "12345678901"}
+                                {"nome": "Primeiro Funcionario", "cpf": "12345678909"}
                                 """))
                 .andExpect(status().isCreated());
 
@@ -207,7 +207,7 @@ class FuncionarioControllerTest {
                         .with(user("tester")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome": "Segundo Funcionario", "cpf": "12345678901"}
+                                {"nome": "Segundo Funcionario", "cpf": "12345678909"}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Ja existe funcionario cadastrado com o mesmo CPF."));

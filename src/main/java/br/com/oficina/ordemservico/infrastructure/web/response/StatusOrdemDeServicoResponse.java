@@ -16,7 +16,7 @@ public record StatusOrdemDeServicoResponse(
         MotivoEncerramento motivoEncerramento,
         @Schema(description = "Nome do cliente", example = "Maria da Silva")
         String nomeCliente,
-        @Schema(description = "Documento do cliente", example = "12345678901")
+        @Schema(description = "Documento do cliente", example = "12345678909")
         String documentoCliente,
         @Schema(description = "Placa do veículo", example = "ABC1D23")
         String placaVeiculo,

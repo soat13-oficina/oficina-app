@@ -33,7 +33,7 @@ class ListarFuncionariosServiceTest {
     @Test
     void deveListarFuncionariosFiltradosPorNomeParcial() {
         TestFuncionarioRepository repository = new TestFuncionarioRepository();
-        repository.salvar(Funcionario.reconstituir(UUID.randomUUID(), "Joao Silva", "12345678901"));
+        repository.salvar(Funcionario.reconstituir(UUID.randomUUID(), "Joao Silva", "12345678909"));
         repository.salvar(Funcionario.reconstituir(UUID.randomUUID(), "Maria Souza", null));
         repository.salvar(Funcionario.reconstituir(UUID.randomUUID(), "Joao Pereira", null));
         ListarFuncionariosService service = new ListarFuncionariosService(repository);

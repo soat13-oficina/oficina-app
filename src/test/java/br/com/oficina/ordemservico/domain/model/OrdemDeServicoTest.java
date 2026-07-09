@@ -19,7 +19,7 @@ class OrdemDeServicoTest {
     @Test
     void deveAbrirAlterarEExporDadosDaOrdemDeServico() {
         OrdemDeServico ordemDeServico = novaOrdem("OS-001");
-        Cliente novoCliente = Cliente.reconstituir(UUID.fromString("51111111-1111-1111-1111-111111111111"), "Bianca", "99999999999", TipoCliente.PF);
+        Cliente novoCliente = Cliente.reconstituir(UUID.fromString("51111111-1111-1111-1111-111111111111"), "Bianca", "20100000053", TipoCliente.PF);
         Veiculo novoVeiculo = Veiculo.reconstituir(
                 UUID.fromString("71111111-1111-1111-1111-111111111111"),
                 novoCliente.getId(),
@@ -114,7 +114,7 @@ class OrdemDeServicoTest {
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
                 () -> ordemDeServico.alterar(
-                        Cliente.reconstituir(UUID.fromString("53333333-3333-3333-3333-333333333333"), "Marcos", "22222222222", TipoCliente.PF),
+                        Cliente.reconstituir(UUID.fromString("53333333-3333-3333-3333-333333333333"), "Marcos", "20170707776", TipoCliente.PF),
                         Veiculo.reconstituir(
                                 UUID.fromString("73333333-3333-3333-3333-333333333333"),
                                 UUID.fromString("53333333-3333-3333-3333-333333333333"),
@@ -136,7 +136,7 @@ class OrdemDeServicoTest {
                 UUID.nameUUIDFromBytes(("ordem-" + numeroOrdemServico).getBytes()),
                 numeroOrdemServico,
                 Funcionario.reconstituir(UUID.nameUUIDFromBytes(("funcionario-" + numeroOrdemServico).getBytes()), "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF),
                 Veiculo.reconstituir(
                         UUID.nameUUIDFromBytes(("veiculo-" + numeroOrdemServico).getBytes()),
                         clienteId,

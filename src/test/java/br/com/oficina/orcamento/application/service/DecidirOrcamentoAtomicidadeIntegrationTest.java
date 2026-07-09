@@ -130,7 +130,7 @@ class DecidirOrcamentoAtomicidadeIntegrationTest {
     }
 
     private UUID seedOrdemEmAguardandoAprovacao() {
-        Cliente cliente = springDataClienteRepository.save(new Cliente("Maria", "11111111111", TipoCliente.PF));
+        Cliente cliente = springDataClienteRepository.save(new Cliente("Maria", "20110101103", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         Veiculo veiculo = springDataVeiculoRepository.save(new Veiculo(
                 cliente.getId(), "ATM1D23", "Toyota", "Corolla", "Toyota Motor Corporation",

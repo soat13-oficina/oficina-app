@@ -116,8 +116,8 @@ class TransicoesCicloDeVidaTest {
         return OrdemDeServico.abrir(
                 null,
                 "OS-CICLO01",
-                Funcionario.reconstituir(funcionarioId, "Joao", "12345678901"),
-                Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF),
+                Funcionario.reconstituir(funcionarioId, "Joao", "12345678909"),
+                Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF),
                 Veiculo.reconstituir(
                         veiculoId, clienteId, "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation",
                         2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));

@@ -22,7 +22,7 @@ class OrcamentoTest {
                 ordemDeServicoId,
                 funcionarioId,
                 "Joao Silva",
-                "12345678901",
+                "12345678909",
                 "ABC1D23",
                 "Toyota",
                 "Corolla",
@@ -42,7 +42,7 @@ class OrcamentoTest {
         assertEquals(ordemDeServicoId, orcamento.getOrdemDeServicoId());
         assertEquals(funcionarioId, orcamento.getFuncionarioId());
         assertEquals("Joao Silva", orcamento.getClienteNome());
-        assertEquals("12345678901", orcamento.getClienteCpf());
+        assertEquals("12345678909", orcamento.getClienteCpf());
         assertEquals("ABC1D23", orcamento.getPlacaVeiculo());
         assertEquals("Toyota", orcamento.getMarcaVeiculo());
         assertEquals("Corolla", orcamento.getModeloVeiculo());
@@ -72,7 +72,7 @@ class OrcamentoTest {
                 ordemDeServicoId,
                 funcionarioId,
                 "Maria Souza",
-                "99999999999",
+                "20100000053",
                 "XYZ9Z99",
                 "Honda",
                 "City",
@@ -98,7 +98,7 @@ class OrcamentoTest {
                 ordemDeServicoId,
                 funcionarioId,
                 "Maria Souza",
-                "99999999999",
+                "20100000053",
                 "XYZ9Z99",
                 "Honda",
                 "City",

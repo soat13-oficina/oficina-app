@@ -26,7 +26,7 @@ class ExcluirFuncionarioServiceTest {
     void deveExcluirFuncionarioExistente() {
         TestFuncionarioRepository funcionarioRepository = new TestFuncionarioRepository();
         UUID funcionarioId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678901"));
+        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678909"));
         ExcluirFuncionarioService service = new ExcluirFuncionarioService(
                 funcionarioRepository, new TestOrdemDeServicoRepository());
 
@@ -57,7 +57,7 @@ class ExcluirFuncionarioServiceTest {
         Funcionario funcionario = Funcionario.reconstituir(funcionarioId, "Mecanico Vinculado", null);
         funcionarioRepository.salvar(funcionario);
 
-        Cliente cliente = Cliente.reconstituir(UUID.randomUUID(), "Cliente Teste", "12345678901", TipoCliente.PF);
+        Cliente cliente = Cliente.reconstituir(UUID.randomUUID(), "Cliente Teste", "12345678909", TipoCliente.PF);
         Veiculo veiculo = Veiculo.reconstituir(UUID.randomUUID(), cliente.getId(), "ABC1234",
                 "Toyota", "Corolla", "Toyota", 2020, 132, "AUTOMATICO", TipoCombustivel.FLEX);
         ordemDeServicoRepository.salvar(

@@ -56,7 +56,7 @@ class ClienteControllerTest {
         String requestBody = """
                 {
                   "nome": "Maria",
-                  "cpfOuCnpj": "12345678901",
+                  "cpfOuCnpj": "12345678909",
                   "tipoCliente": "PF"
                 }
                 """;
@@ -78,7 +78,7 @@ class ClienteControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(clienteId))
                 .andExpect(jsonPath("$.nome").value("Maria"))
-                .andExpect(jsonPath("$.cpfOuCnpj").value("12345678901"))
+                .andExpect(jsonPath("$.cpfOuCnpj").value("12345678909"))
                 .andExpect(jsonPath("$.tipoCliente").value("PF"));
     }
 
@@ -94,7 +94,7 @@ class ClienteControllerTest {
                         .content("""
                                 {
                                   "nome": "%s",
-                                  "cpfOuCnpj": "12345678901",
+                                  "cpfOuCnpj": "12345678909",
                                   "tipoCliente": "PF"
                                 }
                                 """.formatted(nomeMaria)))
@@ -107,7 +107,7 @@ class ClienteControllerTest {
                         .content("""
                                 {
                                   "nome": "%s",
-                                  "cpfOuCnpj": "99999999999",
+                                  "cpfOuCnpj": "20100000053",
                                   "tipoCliente": "PF"
                                 }
                                 """.formatted(nomeJoao)))
@@ -115,17 +115,17 @@ class ClienteControllerTest {
 
         mockMvc.perform(get("/clientes")
                         .with(user("tester"))
-                        .param("termo", "123.456.789-01"))
+                        .param("termo", "123.456.789-09"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].nome", hasItem(nomeMaria)))
-                .andExpect(jsonPath("$[*].cpfOuCnpj", hasItem("12345678901")));
+                .andExpect(jsonPath("$[*].cpfOuCnpj", hasItem("12345678909")));
 
         mockMvc.perform(get("/clientes")
                         .with(user("tester"))
                         .param("termo", "Pereira"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].nome", hasItem(nomeJoao)))
-                .andExpect(jsonPath("$[*].cpfOuCnpj", hasItem("99999999999")));
+                .andExpect(jsonPath("$[*].cpfOuCnpj", hasItem("20100000053")));
     }
 
     @Test
@@ -149,7 +149,7 @@ class ClienteControllerTest {
         String requestBody = """
                 {
                   "nome": "Maria",
-                  "cpfOuCnpj": "12345678901",
+                  "cpfOuCnpj": "12345678909",
                   "tipoCliente": "TIPO_INVALIDO"
                 }
                 """;
@@ -165,7 +165,7 @@ class ClienteControllerTest {
 
     @Test
     void deveRetornar409AoCadastrarClienteComDocumentoDuplicado() throws Exception {
-        cadastrarClienteRetornandoId("Maria", "12345678901");
+        cadastrarClienteRetornandoId("Maria", "12345678909");
 
         mockMvc.perform(post("/clientes")
                         .with(user("tester"))
@@ -174,7 +174,7 @@ class ClienteControllerTest {
                         .content("""
                                 {
                                   "nome": "Ana",
-                                  "cpfOuCnpj": "12345678901",
+                                  "cpfOuCnpj": "12345678909",
                                   "tipoCliente": "PF"
                                 }
                                 """))
@@ -183,7 +183,7 @@ class ClienteControllerTest {
 
     @Test
     void deveExcluirClienteSemVinculos() throws Exception {
-        String clienteId = cadastrarClienteRetornandoId("Maria", "12345678901");
+        String clienteId = cadastrarClienteRetornandoId("Maria", "12345678909");
 
         mockMvc.perform(delete("/clientes/" + clienteId)
                         .with(user("tester"))
@@ -201,7 +201,7 @@ class ClienteControllerTest {
 
     @Test
     void deveRetornar409AoExcluirClienteComVeiculoVinculado() throws Exception {
-        String clienteId = cadastrarClienteRetornandoId("Maria", "12345678901");
+        String clienteId = cadastrarClienteRetornandoId("Maria", "12345678909");
         veiculoRepository.save(new Veiculo(
                 UUID.fromString(clienteId), "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation",
                 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));

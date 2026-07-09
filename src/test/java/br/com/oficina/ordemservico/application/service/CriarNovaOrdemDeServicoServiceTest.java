@@ -39,8 +39,8 @@ class CriarNovaOrdemDeServicoServiceTest {
         TestOrdemDeServicoRepository ordemDeServicoRepository = new TestOrdemDeServicoRepository();
         UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
         UUID funcionarioId = UUID.fromString("41111111-1111-1111-1111-111111111111");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
-        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678901"));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF));
+        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678909"));
         veiculoRepository.salvar(new Veiculo(
                 clienteId,
                 "ABC1D23",
@@ -77,8 +77,8 @@ class CriarNovaOrdemDeServicoServiceTest {
         TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
         UUID funcionarioId = UUID.fromString("41111111-1111-1111-1111-111111111111");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
-        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678901"));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF));
+        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678909"));
         veiculoRepository.salvar(new Veiculo(
                 clienteId, "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO",
                 TipoCombustivel.FLEX));
@@ -105,8 +105,8 @@ class CriarNovaOrdemDeServicoServiceTest {
         TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
         UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
         UUID funcionarioId = UUID.fromString("41111111-1111-1111-1111-111111111111");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
-        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678901"));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF));
+        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678909"));
         veiculoRepository.salvar(new Veiculo(
                 clienteId, "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO",
                 TipoCombustivel.FLEX));
@@ -150,7 +150,7 @@ class CriarNovaOrdemDeServicoServiceTest {
         TestClienteRepository clienteRepository = new TestClienteRepository();
         TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
         UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "11111111111", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
                 clienteId,
                 "ABC1D23",

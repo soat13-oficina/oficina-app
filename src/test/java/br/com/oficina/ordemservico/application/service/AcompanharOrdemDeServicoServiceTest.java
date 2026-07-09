@@ -23,11 +23,11 @@ class AcompanharOrdemDeServicoServiceTest {
     @Test
     void deveRetornarOrdemQuandoDocumentoClienteCorresponder() {
         TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
-        repository.salvar(novaOrdem("OS-CLIENTE-001", "Maria", "12345678901", "AAA1A11"));
+        repository.salvar(novaOrdem("OS-CLIENTE-001", "Maria", "12345678909", "AAA1A11"));
         AcompanharOrdemDeServicoService service = new AcompanharOrdemDeServicoService(repository);
 
         OrdemDeServico ordemDeServico = service.acompanhar(
-                new AcompanharOrdemDeServicoQuery("OS-CLIENTE-001", "12345678901"));
+                new AcompanharOrdemDeServicoQuery("OS-CLIENTE-001", "12345678909"));
 
         assertEquals("OS-CLIENTE-001", ordemDeServico.getNumeroOrdemServico());
         assertEquals("Maria", ordemDeServico.getCliente().getNome());
@@ -36,17 +36,17 @@ class AcompanharOrdemDeServicoServiceTest {
     @Test
     void deveFalharQuandoOrdemNaoExistirOuNaoPertencerAoCliente() {
         TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
-        repository.salvar(novaOrdem("OS-CLIENTE-001", "Maria", "12345678901", "AAA1A11"));
+        repository.salvar(novaOrdem("OS-CLIENTE-001", "Maria", "12345678909", "AAA1A11"));
         AcompanharOrdemDeServicoService service = new AcompanharOrdemDeServicoService(repository);
 
         RecursoNaoEncontradoException ordemNaoEncontrada = assertThrows(
                 RecursoNaoEncontradoException.class,
-                () -> service.acompanhar(new AcompanharOrdemDeServicoQuery("OS-404", "12345678901")));
+                () -> service.acompanhar(new AcompanharOrdemDeServicoQuery("OS-404", "12345678909")));
         assertEquals("Ordem de servico nao encontrada", ordemNaoEncontrada.getMessage());
 
         RecursoNaoEncontradoException clienteInvalido = assertThrows(
                 RecursoNaoEncontradoException.class,
-                () -> service.acompanhar(new AcompanharOrdemDeServicoQuery("OS-CLIENTE-001", "99999999999")));
+                () -> service.acompanhar(new AcompanharOrdemDeServicoQuery("OS-CLIENTE-001", "20100000053")));
         assertEquals("Ordem de servico nao encontrada", clienteInvalido.getMessage());
     }
 

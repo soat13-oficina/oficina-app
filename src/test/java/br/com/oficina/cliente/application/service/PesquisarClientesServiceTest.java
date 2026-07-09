@@ -17,11 +17,11 @@ class PesquisarClientesServiceTest {
     @Test
     void devePesquisarClientesPorCpf() {
         TestClienteRepository repository = new TestClienteRepository();
-        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Maria Silva", "12345678901", TipoCliente.PF));
-        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Jose Souza", "99999999999", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Maria Silva", "12345678909", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Jose Souza", "20100000053", TipoCliente.PF));
         PesquisarClientesService service = new PesquisarClientesService(repository);
 
-        List<Cliente> clientes = service.pesquisarClientes(new PesquisarClientesQuery("123.456.789-01"));
+        List<Cliente> clientes = service.pesquisarClientes(new PesquisarClientesQuery("123.456.789-09"));
 
         assertEquals(1, clientes.size());
         assertEquals("Maria Silva", clientes.getFirst().getNome());
@@ -30,8 +30,8 @@ class PesquisarClientesServiceTest {
     @Test
     void devePesquisarClientesPorPrimeiroNomeNomeCompletoOuSobrenome() {
         TestClienteRepository repository = new TestClienteRepository();
-        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Maria Silva", "12345678901", TipoCliente.PF));
-        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Joao Pereira", "99999999999", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Maria Silva", "12345678909", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Joao Pereira", "20100000053", TipoCliente.PF));
         PesquisarClientesService service = new PesquisarClientesService(repository);
 
         List<Cliente> porPrimeiroNome = service.pesquisarClientes(new PesquisarClientesQuery("Maria"));
