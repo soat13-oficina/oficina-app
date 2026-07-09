@@ -1,0 +1,83 @@
+name: Infraestrutura (Terraform)
+
+# Provisiona/destroi a infraestrutura AWS (VPC, EKS, ECR, RDS) sob demanda.
+# Criar EKS leva ~15 min - por isso e manual (workflow_dispatch) e nao roda
+# a cada push. O deploy da aplicacao fica no workflow CI/CD.
+#
+# Configuracao necessaria no repositorio:
+#   Secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+#   Variables: TF_STATE_BUCKET (bucket S3 do state, ver infra/README.md)
+#              AWS_REGION (opcional, default us-east-1)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Acao do Terraform
+        type: choice
+        required: true
+        default: plan
+        options: [plan, apply, destroy]
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+concurrency: terraform-infra
+
+jobs:
+  terraform:
+    name: terraform ${{ inputs.action }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/aws
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.15.7'
+
+      - name: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="region=$AWS_REGION"
+
+      # O NLB do Service oficina-api e criado pelo Kubernetes, fora do
+      # Terraform. Sem remover antes, o destroy da VPC trava em dependencias
+      # orfas (LB/ENIs). Best-effort: se o cluster nao existe, segue o jogo.
+      - name: Remove recursos k8s antes do destroy
+        if: inputs.action == 'destroy'
+        run: |
+          if aws eks update-kubeconfig --region "$AWS_REGION" --name oficina 2>/dev/null; then
+            kubectl delete -f ../../k8s/ --ignore-not-found --timeout=180s || true
+            sleep 30 # tempo para a AWS remover o NLB e liberar as ENIs
+          else
+            echo "Cluster inexistente ou inacessivel - seguindo para o destroy."
+          fi
+
+      - name: terraform plan
+        if: inputs.action == 'plan'
+        run: terraform plan -no-color
+
+      - name: terraform apply
+        if: inputs.action == 'apply'
+        run: terraform apply -auto-approve -no-color
+
+      - name: terraform destroy
+        if: inputs.action == 'destroy'
+        run: terraform destroy -auto-approve -no-color
+
+      - name: Outputs
+        if: inputs.action == 'apply'
+        run: terraform output -no-color
