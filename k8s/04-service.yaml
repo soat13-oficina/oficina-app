@@ -1,0 +1,23 @@
+# type LoadBalancer: a AWS provisiona um NLB publico automaticamente,
+# expondo a API na internet para a demo (URL em kubectl get svc -n oficina).
+#
+# IMPORTANTE: este NLB e criado pelo Kubernetes, FORA do Terraform. Antes de
+# rodar "terraform destroy", delete os recursos do k8s (kubectl delete -f k8s/)
+# ou o destroy da VPC trava com dependencias orfas. Ver infra/README.md.
+apiVersion: v1
+kind: Service
+metadata:
+  name: oficina-api
+  namespace: oficina
+  labels:
+    app: oficina-api
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+spec:
+  type: LoadBalancer
+  selector:
+    app: oficina-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

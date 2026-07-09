@@ -1,17 +1,21 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
     container_name: oficina_db
     environment:
-      POSTGRES_USER: oficina_user
-      POSTGRES_PASSWORD: oficina_123
-      POSTGRES_DB: oficina_db
+      POSTGRES_USER: ${DB_USER:-oficina_user}
+      POSTGRES_PASSWORD: ${DB_PASS:-oficina_123}
+      POSTGRES_DB: ${DB_NAME:-oficina_db}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-oficina_user} -d ${DB_NAME:-oficina_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   api:
     build: .
@@ -19,12 +23,14 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_URL=jdbc:postgresql://db:5432/oficina_db
-      - DB_USER=oficina_user
-      - DB_PASS=oficina_123
-      - JWT_SECRET=ASjhd8213u41jksaJD7HS8AJDkjsaDH871A2132KJDQ293N12BDKS
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-oficina_db}
+      DB_USER: ${DB_USER:-oficina_user}
+      DB_PASS: ${DB_PASS:-oficina_123}
+      JWT_SECRET: ${JWT_SECRET:-ASjhd8213u41jksaJD7HS8AJDkjsaDH871A2132KJDQ293N12BDKS}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:

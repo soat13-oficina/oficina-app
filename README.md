@@ -2,6 +2,20 @@
 
 Backend monolítico para gestão de Oficina Mecânica, desenvolvido com **Java 21 + Spring Boot 4 + PostgreSQL**.
 
+## Fase 2 — objetivo desta fase
+
+Na Fase 1 o foco foi o domínio (OS, clientes, veículos, peças). Nesta Fase 2 o
+objetivo é evoluir a base para suportar **maior demanda e múltiplas unidades**
+com resiliência e escalabilidade, incorporando:
+
+- Containerização revisada (Docker/Docker Compose).
+- Orquestração via Kubernetes na AWS — EKS (Deployments, Services, ConfigMaps/Secrets, HPA).
+- Infraestrutura como código via Terraform (VPC, cluster EKS, ECR e banco RDS).
+- Pipeline de CI/CD (build, testes, imagem Docker no ECR, deploy no EKS).
+
+A seção [Infraestrutura e Deploy](#infraestrutura-e-deploy) detalha os
+componentes provisionados e como executar cada etapa.
+
 ---
 
 ## Pré-requisitos
@@ -13,6 +27,15 @@ Backend monolítico para gestão de Oficina Mecânica, desenvolvido com **Java 2
 ---
 
 ## Subindo o ambiente
+
+### 0. (Opcional) Customizar credenciais locais
+
+```bash
+cp .env.example .env
+```
+
+O `docker-compose.yml` lê as variáveis do `.env` (se não existir, usa os
+defaults abaixo). O `.env` é ignorado pelo git.
 
 ### 1. Iniciar o banco de dados
 
@@ -31,6 +54,9 @@ Isso sobe um container PostgreSQL com as credenciais padrão:
 ```bash
 ./mvnw spring-boot:run
 ```
+
+Alternativamente, `docker-compose up -d` sobe banco **e** aplicação
+containerizados (usa o `Dockerfile` multi-stage do projeto).
 
 O Flyway executa as migrations automaticamente na inicialização. A aplicação fica disponível em `http://localhost:8080`.
 
@@ -177,6 +203,121 @@ src/main/java/br/com/oficina/
 Arquitetura hexagonal (ports & adapters) com estrutura `domain / application / infrastructure` por módulo.
 
 ---
+
+## Infraestrutura e Deploy
+
+### Desenho da arquitetura
+
+```mermaid
+flowchart TB
+    subgraph GH["GitHub Actions"]
+        direction LR
+        INFRA_WF["Infraestrutura (manual)\nterraform plan/apply/destroy"]
+        CI_WF["CI/CD (push na master)\nbuild -> testes -> imagem -> deploy"]
+    end
+
+    subgraph AWS["AWS (us-east-1) - Terraform em /infra/aws"]
+        ECR["ECR\nregistry de imagens"]
+        SM["Secrets Manager\ncredenciais do RDS"]
+
+        subgraph VPC["VPC 10.0.0.0/16 (2 AZs)"]
+            NLB["NLB publico\n(criado pelo Service)"]
+
+            subgraph EKS["EKS - namespace oficina (/k8s)"]
+                CM["ConfigMap"]
+                SEC["Secrets"]
+                DEP["Deployment oficina-api\n2-6 replicas"]
+                HPA["HPA\nCPU 70% / Mem 80%"]
+                MS["metrics-server\n(add-on EKS)"]
+            end
+
+            RDS[("RDS PostgreSQL 15\nsubnets privadas")]
+        end
+    end
+
+    CLIENT([Cliente HTTP]) --> NLB --> DEP
+    INFRA_WF -- provisiona --> AWS
+    CI_WF -- docker push --> ECR
+    CI_WF -- kubectl apply --> EKS
+    CI_WF -- le credenciais --> SM
+    CM --> DEP
+    SEC --> DEP
+    MS --> HPA
+    HPA -. escala .-> DEP
+    DEP --> RDS
+    ECR -. pull via IAM .-> DEP
+```
+
+**Componentes da aplicação:** API Spring Boot (`oficina-api`, arquitetura
+hexagonal — ver [Estrutura do projeto](#estrutura-do-projeto)) + PostgreSQL.
+
+**Infraestrutura provisionada (Terraform, [`infra/aws`](infra/README.md)):**
+VPC com subnets públicas/privadas/de banco em 2 AZs, cluster **EKS** com
+node group gerenciado (2–4× t3.medium) e metrics-server, registry **ECR** e
+banco **RDS PostgreSQL 15** com credenciais gerenciadas pelo Secrets Manager.
+
+**Fluxo de deploy:** push na `master` → build + testes (unitário e
+integração) → imagem Docker publicada no **ECR** (tag = sha do commit) →
+job de deploy aponta o `kubectl` para o EKS, materializa o Secret do banco a
+partir do Secrets Manager, injeta imagem/endpoint nos manifestos de `/k8s` e
+aplica, validando o rollout. A infraestrutura em si é provisionada à parte
+pelo workflow **Infraestrutura (Terraform)**, manual, porque criar EKS leva
+~15 min.
+
+### Containerização (Docker)
+
+- `Dockerfile`: build multi-stage (Maven → JRE 21 Alpine), usuário não-root,
+  `HEALTHCHECK` via `/v3/api-docs` (endpoint público do Swagger, não exige JWT).
+- `docker-compose.yml`: sobe banco + aplicação para desenvolvimento local
+  (ver [Subindo o ambiente](#subindo-o-ambiente)).
+
+### Kubernetes (`/k8s`)
+
+| Arquivo | Recurso |
+|---|---|
+| `00-namespace.yaml` | Namespace `oficina` |
+| `01-configmap.yaml` | `DB_URL` (placeholder `__RDS_ENDPOINT__`, preenchido pela pipeline com o endpoint do RDS) |
+| `02-secret.yaml` | `JWT_SECRET` (valor de demo — ver comentário no arquivo) |
+| `03-deployment.yaml` | Deployment da API (placeholder `__IMAGE__` → ECR), 2 réplicas, probes, requests/limits |
+| `04-service.yaml` | Service `LoadBalancer` — a AWS cria um NLB público para a demo |
+| `05-hpa.yaml` | HorizontalPodAutoscaler (2-6 réplicas, 70% CPU / 80% memória) |
+
+As credenciais do banco **não estão no repositório**: o RDS as gerencia no
+Secrets Manager, e o job de deploy cria o Secret `oficina-db-credentials` no
+cluster a cada deploy. Os comandos para aplicar manualmente (substituição dos
+placeholders) estão comentados nos próprios manifestos.
+
+### Infraestrutura como código (Terraform, `/infra/aws`)
+
+Recursos criados, custos estimados, bootstrap do state (S3) e instruções de
+apply/destroy: **[`infra/README.md`](infra/README.md)**.
+
+```bash
+cd infra/aws
+terraform init -backend-config=backend.hcl
+terraform apply    # VPC + EKS + ECR + RDS (~15-20 min)
+```
+
+> ⚠️ Custo: ~US$ 0,27/h com tudo ligado. Aplique quando for usar e destrua
+> depois (`terraform destroy` — ver ordem correta no infra/README).
+
+### CI/CD (`.github/workflows/`)
+
+**Secrets/variables do repositório** (Settings → Secrets and variables → Actions):
+`AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY` (secrets), `TF_STATE_BUCKET` e
+opcionalmente `AWS_REGION` (variables).
+
+**`infra.yml` — Infraestrutura (Terraform)**, manual (*Run workflow*):
+`plan`, `apply` ou `destroy` da infraestrutura AWS, com state remoto no S3.
+No `destroy`, remove antes os recursos do k8s (o NLB é criado fora do
+Terraform e travaria a exclusão da VPC).
+
+**`ci-cd.yml` — CI/CD**, a cada push/PR na `master`:
+
+1. **unit-tests** — `./mvnw clean verify` (build + testes unitários + gate de cobertura JaCoCo).
+2. **integration-tests** — `./mvnw test -Dspring.profiles.active=integration` contra um PostgreSQL real (service container).
+3. **build-image** — build e push da imagem para o **ECR** (tags: sha do commit e `latest`) — só em push, nunca em PR.
+4. **deploy** — `aws eks update-kubeconfig`, cria o Secret do banco a partir do Secrets Manager, injeta imagem/endpoint nos manifestos e `kubectl apply -f k8s/`, aguardando o rollout e imprimindo a URL pública do NLB.
 
 ## Variáveis de ambiente
 
