@@ -38,7 +38,7 @@ class AlterarOrcamentoServiceTest {
         UUID clienteId = UUID.fromString("55555555-5555-5555-5555-555555555555");
         UUID clienteAtualizadoId = UUID.fromString("66666666-6666-6666-6666-666666666666");
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678909", TipoCliente.PF));
-        clienteRepository.salvar(Cliente.reconstituir(clienteAtualizadoId, "Maria Souza", "52998224725", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteAtualizadoId, "Maria Souza", "20100000053", TipoCliente.PF));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID_2, "Fluido de freio", "TRW", new BigDecimal("100.00"), 10, 0, "REF-002", CategoriaPeca.LUBRIFICANTES));
         Orcamento orcamento = novoOrcamento();
@@ -65,9 +65,11 @@ class AlterarOrcamentoServiceTest {
         Orcamento atualizado = repository.buscarPorNumeroOrcamento("orc-1").orElseThrow();
         assertNotNull(atualizado.getId());
         assertEquals(UUID.fromString("77777777-7777-7777-7777-777777777777"), atualizado.getOrdemDeServicoId());
-        assertEquals(UUID.fromString("88888888-8888-8888-8888-888888888888"), atualizado.getFuncionarioId());
+        // Funcionario de origem e imutavel: a alteracao NAO troca o funcionario que abriu (FR-009/US4),
+        // mesmo o comando informando 88888888.
+        assertEquals(UUID.fromString("44444444-4444-4444-4444-444444444444"), atualizado.getFuncionarioId());
         assertEquals("Maria Souza", atualizado.getClienteNome());
-        assertEquals("52998224725", atualizado.getClienteCpf());
+        assertEquals("20100000053", atualizado.getClienteCpf());
         assertEquals(clienteAtualizadoId, atualizado.getClienteId());
         assertEquals("XYZ9Z99", atualizado.getPlacaVeiculo());
         assertEquals("Honda", atualizado.getMarcaVeiculo());

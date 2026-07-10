@@ -50,6 +50,10 @@ public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseC
         UUID clienteId = paraUuid(command.clienteId(), "Identificador do cliente invalido.");
         UUID ordemDeServicoId = paraUuid(command.ordemDeServicoId(), "Identificador da ordem de servico invalido.");
         UUID funcionarioId = paraUuid(command.funcionarioId(), "Identificador do funcionario invalido.");
+        // Cardinalidade 1:1 com a ordem de servico: no maximo um orcamento por OS (FR-004).
+        if (orcamentoRepository.buscarPorOrdemDeServicoId(ordemDeServicoId).isPresent()) {
+            throw new RegraDeNegocioException("Ja existe orcamento para a ordem de servico informada.");
+        }
         Cliente cliente = clienteRepository.buscarPorId(clienteId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado."));
 
@@ -74,6 +78,11 @@ public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseC
                 command.validade(),
                 command.observacoes(),
                 StatusOrcamento.AGUARDANDO_APROVACAO);
+
+        // Desconto nao pode tornar o total negativo (edge case da spec 014).
+        if (orcamento.getValorTotal() != null && orcamento.getValorTotal().signum() < 0) {
+            throw new RegraDeNegocioException("Desconto nao pode ser maior que o valor total do orcamento.");
+        }
 
         orcamentoRepository.salvar(orcamento);
         log.info("Orcamento cadastrado com sucesso. numeroOrcamento={}", command.numeroOrcamento());

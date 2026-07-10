@@ -32,26 +32,37 @@ public class Cliente {
     @Column(nullable = false)
     private String nome;
 
-    @Column(name = "cpf_ou_cnpj")
+    @Column(name = "cpf_ou_cnpj", unique = true)
     private String cpfOuCnpj;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_cliente")
     private TipoCliente tipoCliente;
 
+    @Column
+    private String email;
+
     protected Cliente() {
     }
 
     public Cliente(String nome) {
-        this(nome, null, null);
+        this(nome, null, null, null);
     }
 
     public Cliente(String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
-        definirDados(nome, cpfOuCnpj, tipoCliente);
+        this(nome, cpfOuCnpj, tipoCliente, null);
+    }
+
+    public Cliente(String nome, String cpfOuCnpj, TipoCliente tipoCliente, String email) {
+        definirDados(nome, cpfOuCnpj, tipoCliente, email);
     }
 
     public static Cliente reconstituir(UUID id, String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
-        Cliente cliente = new Cliente(nome, cpfOuCnpj, tipoCliente);
+        return reconstituir(id, nome, cpfOuCnpj, tipoCliente, null);
+    }
+
+    public static Cliente reconstituir(UUID id, String nome, String cpfOuCnpj, TipoCliente tipoCliente, String email) {
+        Cliente cliente = new Cliente(nome, cpfOuCnpj, tipoCliente, email);
         cliente.id = id;
         return cliente;
     }
@@ -78,16 +89,25 @@ public class Cliente {
         return tipoCliente;
     }
 
-    public void alterar(String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
-        definirDados(nome, cpfOuCnpj, tipoCliente);
+    public String getEmail() {
+        return email;
     }
 
-    private void definirDados(String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
+    public void alterar(String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
+        alterar(nome, cpfOuCnpj, tipoCliente, email);
+    }
+
+    public void alterar(String nome, String cpfOuCnpj, TipoCliente tipoCliente, String email) {
+        definirDados(nome, cpfOuCnpj, tipoCliente, email);
+    }
+
+    private void definirDados(String nome, String cpfOuCnpj, TipoCliente tipoCliente, String email) {
         validarNome(nome);
         validarDocumento(cpfOuCnpj, tipoCliente);
         this.nome = nome;
         this.cpfOuCnpj = cpfOuCnpj;
         this.tipoCliente = tipoCliente;
+        this.email = normalizarEmail(email);
     }
 
     private static void validarNome(String nome) {
@@ -129,5 +149,12 @@ public class Cliente {
 
     private static String apenasDigitos(String valor) {
         return valor.replaceAll("\\D", "");
+    }
+
+    private static String normalizarEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        return email.trim();
     }
 }

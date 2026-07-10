@@ -1,0 +1,92 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_source": "oficina:gerar-collection-insomnia",
+  "resources": [
+    {
+      "_id": "wrk_oficina",
+      "_type": "workspace",
+      "name": "Oficina API",
+      "description": "Collection gerada a partir do OpenAPI (não editar à mão).",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_oficina",
+      "name": "Base (placeholders — preencha um Sub Environment local)",
+      "data": {
+        "base_url": "http://localhost:8080",
+        "clienteid": "",
+        "token": ""
+      }
+    },
+    {
+      "_id": "fld_autentica_o",
+      "_type": "request_group",
+      "parentId": "wrk_oficina",
+      "name": "Autenticação"
+    },
+    {
+      "_id": "fld_clientes",
+      "_type": "request_group",
+      "parentId": "wrk_oficina",
+      "name": "Clientes"
+    },
+    {
+      "_id": "req_post_api_auth_login",
+      "_type": "request",
+      "parentId": "fld_autentica_o",
+      "name": "Login",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"login\": \"user\",\n  \"senha\": \"secret\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_clientes_clienteid",
+      "_type": "request",
+      "parentId": "fld_clientes",
+      "name": "Consultar cliente",
+      "method": "GET",
+      "url": "{{ _.base_url }}/clientes/{{ _.clienteid }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_clientes",
+      "_type": "request",
+      "parentId": "fld_clientes",
+      "name": "Cadastrar cliente",
+      "method": "POST",
+      "url": "{{ _.base_url }}/clientes",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Maria\",\n  \"documento\": \"11111111111\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    }
+  ]
+}

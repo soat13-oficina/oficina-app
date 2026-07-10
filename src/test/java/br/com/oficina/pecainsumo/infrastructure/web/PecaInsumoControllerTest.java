@@ -1,7 +1,5 @@
 package br.com.oficina.pecainsumo.infrastructure.web;
 
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -61,6 +59,25 @@ class PecaInsumoControllerTest {
         return result.getResponse().getHeader("Location");
     }
 
+    private String buscarIdPecaPorCodigoReferencia(String marca, String codigoReferencia) throws Exception {
+        MvcResult listResult = mockMvc.perform(get("/pecas-insumos")
+                        .param("marca", marca)
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String responseBody = listResult.getResponse().getContentAsString();
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        com.fasterxml.jackson.databind.JsonNode nodes = mapper.readTree(responseBody);
+        for (com.fasterxml.jackson.databind.JsonNode node : nodes) {
+            if (codigoReferencia.equals(node.get("codigoReferencia").asText())) {
+                return node.get("id").asText();
+            }
+        }
+
+        throw new IllegalStateException("Peça de teste não encontrada para o código: " + codigoReferencia);
+    }
+
     @Test
     void deveCadastrarPecaInsumo() throws Exception {
         String requestBody = """
@@ -117,12 +134,12 @@ class PecaInsumoControllerTest {
     }
 
     @Test
-    void deveRetornarErroQuandoPecaInsumoNaoExiste() {
-        Exception exception = assertThrows(Exception.class, () ->
-                mockMvc.perform(get("/pecas-insumos/id-inexistente-99999")
-                        .with(user("tester"))));
-
-        assertInstanceOf(jakarta.persistence.EntityNotFoundException.class, exception.getCause());
+    void deveRetornarNotFoundQuandoPecaInsumoNaoExiste() throws Exception {
+        mockMvc.perform(get("/pecas-insumos/id-inexistente-99999")
+                        .with(user("tester")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Peça/Insumo não encontrada com o ID: id-inexistente-99999"));
     }
 
     @Test
@@ -224,6 +241,41 @@ class PecaInsumoControllerTest {
                         .with(user("tester")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void deveBloquearExclusaoDePecaComReservaAtiva() throws Exception {
+        cadastrarPeca("Peca reservada CTRL", "MarcaReservaCtrl", "10.00", 5, "CTRL_DEL_RSV_001", "ESCAPAMENTO");
+        String idPeca = buscarIdPecaPorCodigoReferencia("MarcaReservaCtrl", "CTRL_DEL_RSV_001");
+
+        mockMvc.perform(post("/pecas-insumos/" + idPeca + "/reservar")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"quantidade\": 1}"))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(delete("/pecas-insumos/" + idPeca)
+                        .with(user("tester"))
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Não é possível excluir peça/insumo com reserva ativa."));
+
+        mockMvc.perform(get("/pecas-insumos/" + idPeca)
+                        .with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quantidadeReservada").value(1));
+    }
+
+    @Test
+    void deveRetornarNotFoundAoExcluirPecaInsumoInexistente() throws Exception {
+        mockMvc.perform(delete("/pecas-insumos/id-inexistente-delete")
+                        .with(user("tester"))
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Peça/Insumo não encontrada com o ID: id-inexistente-delete"));
     }
 
     @Test
@@ -604,5 +656,43 @@ class PecaInsumoControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"quantidade\": 5}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deveRetornarNotFoundAoReservarPecaInexistente() throws Exception {
+        mockMvc.perform(post("/pecas-insumos/id-inexistente-reservar/reservar")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"quantidade\": 1}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Peça/Insumo não encontrada com o ID: id-inexistente-reservar"));
+    }
+
+    @Test
+    void deveRetornarNotFoundAoConsumirPecaInexistente() throws Exception {
+        mockMvc.perform(post("/pecas-insumos/id-inexistente-consumir/consumir")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"quantidade\": 1}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Peça/Insumo não encontrada com o ID: id-inexistente-consumir"));
+    }
+
+    @Test
+    void deveManterBadRequestAoReservarSemEstoqueDisponivel() throws Exception {
+        cadastrarPeca("Peca sem estoque disponivel CTRL", "MarcaSemEstoqueCtrl", "10.00", 1, "CTRL_RSV_400_001", "ESCAPAMENTO");
+        String idPeca = buscarIdPecaPorCodigoReferencia("MarcaSemEstoqueCtrl", "CTRL_RSV_400_001");
+
+        mockMvc.perform(post("/pecas-insumos/" + idPeca + "/reservar")
+                        .with(user("tester"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"quantidade\": 2}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
     }
 }

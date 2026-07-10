@@ -1,6 +1,13 @@
-# Perfil de integração: o datasource (url/usuário/senha) é provido em tempo de execução
-# pelo container PostgreSQL do Testcontainers via @ServiceConnection (ver PostgresIntegrationTest).
+# Perfil de integração.
+# Infra de teste = lincolngadea (Testcontainers). Testes que estendem PostgresIntegrationTest
+# recebem o datasource via @ServiceConnection. Testes @SpringBootTest "puros" (vindos do os_branch)
+# obtêm um PostgreSQL efêmero via a JDBC URL do Testcontainers (jdbc:tc:...), sem depender de
+# um Postgres externo. App config (mail/webhook/notificação) preservada do os_branch.
 spring:
+  datasource:
+    url: jdbc:tc:postgresql:16-alpine:///oficina_db
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -11,3 +18,19 @@ spring:
 
   flyway:
     enabled: false
+
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+
+orcamento:
+  webhook:
+    secret: ${ORCAMENTO_WEBHOOK_SECRET:segredo-teste-integracao}
+
+notificacao:
+  reprocessamento:
+    max-tentativas: 3
+    intervalo: 300000
+    carencia-segundos: 60

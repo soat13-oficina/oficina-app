@@ -24,7 +24,10 @@
         "funcionario_id": "",
         "numero_os": "",
         "numero_orcamento": "",
-        "peca_id": ""
+        "peca_id": "",
+        "webhook_token": "dev-secret",
+        "webhook_token_invalido": "token-invalido",
+        "token_integracao_id": ""
       }
     },
 
@@ -64,6 +67,44 @@
         { "name": "Content-Type", "value": "application/json" }
       ]
     },
+    {
+      "_id": "req_token_integracao_gerar",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Gerar token de integração",
+      "method": "POST",
+      "url": "{{ _.base_url }}/integracoes/tokens",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"rotulo\": \"ERP do cliente X\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_token_integracao_listar",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Listar tokens de integração",
+      "method": "GET",
+      "url": "{{ _.base_url }}/integracoes/tokens",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_token_integracao_revogar",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Revogar token de integração",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/integracoes/tokens/{{ _.token_integracao_id }}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
 
     {
       "_id": "fld_clientes",
@@ -80,7 +121,7 @@
       "url": "{{ _.base_url }}/clientes",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"nome\": \"Maria da Silva\",\n  \"cpfOuCnpj\": \"12345678901\",\n  \"tipoCliente\": \"PF\"\n}"
+        "text": "{\n  \"nome\": \"Maria da Silva\",\n  \"cpfOuCnpj\": \"12345678901\",\n  \"tipoCliente\": \"PF\",\n  \"email\": \"maria.silva@email.com\"\n}"
       },
       "headers": [
         { "name": "Content-Type", "value": "application/json" },
@@ -96,7 +137,7 @@
       "url": "{{ _.base_url }}/clientes",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"nome\": \"Empresa ABC Ltda\",\n  \"cpfOuCnpj\": \"12345678000199\",\n  \"tipoCliente\": \"PJ\"\n}"
+        "text": "{\n  \"nome\": \"Empresa ABC Ltda\",\n  \"cpfOuCnpj\": \"12345678000199\",\n  \"tipoCliente\": \"PJ\",\n  \"email\": \"contato@empresaabc.com.br\"\n}"
       },
       "headers": [
         { "name": "Content-Type", "value": "application/json" },
@@ -137,7 +178,7 @@
       "url": "{{ _.base_url }}/clientes/{{ _.cliente_id }}",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"nome\": \"Maria da Silva Souza\",\n  \"cpfOuCnpj\": \"12345678901\",\n  \"tipoCliente\": \"PF\"\n}"
+        "text": "{\n  \"nome\": \"Maria da Silva Souza\",\n  \"cpfOuCnpj\": \"12345678901\",\n  \"tipoCliente\": \"PF\",\n  \"email\": \"maria.souza@email.com\"\n}"
       },
       "headers": [
         { "name": "Content-Type", "value": "application/json" },
@@ -332,7 +373,7 @@
       "url": "{{ _.base_url }}/ordens-servico",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"clienteId\": \"{{ _.cliente_id }}\",\n  \"funcionarioId\": \"11111111-1111-1111-1111-111111111111\",\n  \"placaVeiculo\": \"{{ _.veiculo_placa }}\"\n}"
+        "text": "{\n  \"clienteId\": \"{{ _.cliente_id }}\",\n  \"funcionarioId\": \"{{ _.funcionario_id }}\",\n  \"placaVeiculo\": \"{{ _.veiculo_placa }}\",\n  \"servicos\": [\n    {\n      \"descricao\": \"Troca de pastilhas de freio\",\n      \"valorMaoDeObra\": 150.00\n    }\n  ],\n  \"pecasPrevistas\": [\n    {\n      \"pecaInsumoId\": \"{{ _.peca_id }}\",\n      \"quantidade\": 2\n    }\n  ]\n}"
       },
       "headers": [
         { "name": "Content-Type", "value": "application/json" },
@@ -352,6 +393,17 @@
         { "name": "placaVeiculo", "value": "ABC1D23", "disabled": true },
         { "name": "documentoCliente", "value": "12345678901", "disabled": true }
       ],
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_os_status",
+      "_type": "request",
+      "parentId": "fld_ordens_servico",
+      "name": "Consultar status da OS",
+      "method": "GET",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}",
       "headers": [
         { "name": "Authorization", "value": "Bearer {{ _.token }}" }
       ]
@@ -379,7 +431,7 @@
       "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"clienteId\": \"{{ _.cliente_id }}\",\n  \"funcionarioId\": \"11111111-1111-1111-1111-111111111111\",\n  \"placaVeiculo\": \"{{ _.veiculo_placa }}\"\n}"
+        "text": "{\n  \"clienteId\": \"{{ _.cliente_id }}\",\n  \"funcionarioId\": \"{{ _.funcionario_id }}\",\n  \"placaVeiculo\": \"{{ _.veiculo_placa }}\"\n}"
       },
       "headers": [
         { "name": "Content-Type", "value": "application/json" },
@@ -416,8 +468,12 @@
       "name": "Concluir diagnóstico",
       "method": "POST",
       "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/diagnostico/concluir",
-      "body": { "mimeType": "application/json", "text": "" },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"descricaoServico\": \"Troca de pastilhas dianteiras e traseiras\",\n  \"pecas\": [\n    { \"pecaInsumoId\": \"{{ _.peca_id }}\", \"quantidade\": 2 }\n  ]\n}"
+      },
       "headers": [
+        { "name": "Content-Type", "value": "application/json" },
         { "name": "Authorization", "value": "Bearer {{ _.token }}" }
       ]
     },
@@ -430,10 +486,34 @@
       "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/diagnostico/enviar-para-orcamento",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"descricaoDiagnostico\": \"Desgaste nas pastilhas dianteiras e traseiras. Discos dentro da tolerância.\",\n  \"servicosPropostos\": [\n    \"Troca de pastilhas dianteiras\",\n    \"Troca de pastilhas traseiras\"\n  ],\n  \"pecasPrevistas\": [\n    { \"descricao\": \"Pastilha dianteira Bosch\", \"preco\": 280.00 },\n    { \"descricao\": \"Pastilha traseira Bosch\", \"preco\": 220.00 }\n  ],\n  \"valorMaoDeObra\": 350.00,\n  \"desconto\": 0.00,\n  \"validade\": \"2026-05-14T10:00:00\",\n  \"observacoes\": \"Verificar fluido de freio na próxima revisão\"\n}"
+        "text": "{\n  \"valorMaoDeObra\": 350.00,\n  \"desconto\": 0.00,\n  \"validade\": \"2030-05-14T10:00:00\",\n  \"observacoes\": \"Verificar fluido de freio na próxima revisão\"\n}"
       },
       "headers": [
         { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_os_execucao_iniciar",
+      "_type": "request",
+      "parentId": "fld_ordens_servico",
+      "name": "Iniciar execução (interno)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/execucao/iniciar",
+      "body": { "mimeType": "application/json", "text": "" },
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+    {
+      "_id": "req_os_servico_concluir",
+      "_type": "request",
+      "parentId": "fld_ordens_servico",
+      "name": "Concluir serviço",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/servico/concluir",
+      "body": { "mimeType": "application/json", "text": "" },
+      "headers": [
         { "name": "Authorization", "value": "Bearer {{ _.token }}" }
       ]
     },
@@ -449,28 +529,24 @@
         { "name": "Authorization", "value": "Bearer {{ _.token }}" }
       ]
     },
+    {
+      "_id": "req_os_entregar",
+      "_type": "request",
+      "parentId": "fld_ordens_servico",
+      "name": "Entregar ao cliente",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/entrega",
+      "body": { "mimeType": "application/json", "text": "" },
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
 
     {
       "_id": "fld_orcamentos",
       "_type": "request_group",
       "parentId": "wrk_oficina",
       "name": "Orçamentos"
-    },
-    {
-      "_id": "req_orcamento_cadastrar",
-      "_type": "request",
-      "parentId": "fld_orcamentos",
-      "name": "Cadastrar orçamento",
-      "method": "POST",
-      "url": "{{ _.base_url }}/orcamentos",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"numeroOrcamento\": \"ORC-2026-0001\",\n  \"clienteId\": \"{{ _.cliente_id }}\",\n  \"ordemDeServicoId\": \"11111111-1111-1111-1111-111111111111\",\n  \"funcionarioId\": \"22222222-2222-2222-2222-222222222222\",\n  \"placaVeiculo\": \"ABC1D23\",\n  \"marcaVeiculo\": \"Toyota\",\n  \"modeloVeiculo\": \"Corolla\",\n  \"descricaoDiagnostico\": \"Troca de pastilhas e discos de freio\",\n  \"servicosPropostos\": [\n    \"Troca de pastilhas dianteiras\",\n    \"Troca de pastilhas traseiras\"\n  ],\n  \"pecasPrevistas\": [\n    { \"descricao\": \"Pastilha dianteira Bosch\", \"preco\": 280.00 },\n    { \"descricao\": \"Disco de freio dianteiro\", \"preco\": 420.00 }\n  ],\n  \"valorMaoDeObra\": 350.00,\n  \"desconto\": 50.00,\n  \"validade\": \"2026-05-14T10:00:00\",\n  \"observacoes\": \"Aguardando aprovação do cliente\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
     },
     {
       "_id": "req_orcamento_consultar_filtros",
@@ -508,7 +584,7 @@
       "url": "{{ _.base_url }}/orcamentos/{{ _.numero_orcamento }}",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"clienteId\": \"{{ _.cliente_id }}\",\n  \"ordemDeServicoId\": \"11111111-1111-1111-1111-111111111111\",\n  \"funcionarioId\": \"22222222-2222-2222-2222-222222222222\",\n  \"placaVeiculo\": \"ABC1D23\",\n  \"marcaVeiculo\": \"Toyota\",\n  \"modeloVeiculo\": \"Corolla\",\n  \"descricaoDiagnostico\": \"Revisão completa de freios\",\n  \"servicosPropostos\": [\n    \"Troca de pastilhas\",\n    \"Sangria do sistema de freios\"\n  ],\n  \"pecasPrevistas\": [\n    { \"descricao\": \"Pastilha dianteira Bosch\", \"preco\": 280.00 },\n    { \"descricao\": \"Fluido de freio DOT4\", \"preco\": 45.00 }\n  ],\n  \"valorMaoDeObra\": 400.00,\n  \"desconto\": 0.00,\n  \"validade\": \"2026-06-01T10:00:00\",\n  \"observacoes\": \"Revisado após nova avaliação\"\n}"
+        "text": "{\n  \"clienteId\": \"{{ _.cliente_id }}\",\n  \"ordemDeServicoId\": \"11111111-1111-1111-1111-111111111111\",\n  \"placaVeiculo\": \"ABC1D23\",\n  \"marcaVeiculo\": \"Toyota\",\n  \"modeloVeiculo\": \"Corolla\",\n  \"descricaoDiagnostico\": \"Revisão completa de freios\",\n  \"servicosPropostos\": [\n    \"Troca de pastilhas\",\n    \"Sangria do sistema de freios\"\n  ],\n  \"pecasPrevistas\": [\n    { \"descricao\": \"Pastilha dianteira Bosch\", \"preco\": 280.00 },\n    { \"descricao\": \"Fluido de freio DOT4\", \"preco\": 45.00 }\n  ],\n  \"valorMaoDeObra\": 400.00,\n  \"desconto\": 0.00,\n  \"validade\": \"2026-06-01T10:00:00\",\n  \"observacoes\": \"Revisado após nova avaliação\"\n}"
       },
       "headers": [
         { "name": "Content-Type", "value": "application/json" },
@@ -524,6 +600,108 @@
       "url": "{{ _.base_url }}/orcamentos/{{ _.numero_orcamento }}",
       "headers": [
         { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ]
+    },
+
+    {
+      "_id": "fld_webhook_orcamento",
+      "_type": "request_group",
+      "parentId": "wrk_oficina",
+      "name": "Integração externa - Orçamento"
+    },
+    {
+      "_id": "req_webhook_orcamento_aprovar",
+      "_type": "request",
+      "parentId": "fld_webhook_orcamento",
+      "name": "Webhook - Aprovar orçamento",
+      "method": "POST",
+      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"decisao\": \"APROVADO\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Webhook-Token", "value": "{{ _.webhook_token }}" }
+      ]
+    },
+    {
+      "_id": "req_webhook_orcamento_aprovar_retry",
+      "_type": "request",
+      "parentId": "fld_webhook_orcamento",
+      "name": "Webhook - Retry idempotente aprovação",
+      "method": "POST",
+      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"decisao\": \"APROVADO\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Webhook-Token", "value": "{{ _.webhook_token }}" }
+      ]
+    },
+    {
+      "_id": "req_webhook_orcamento_rejeitar",
+      "_type": "request",
+      "parentId": "fld_webhook_orcamento",
+      "name": "Webhook - Rejeitar orçamento",
+      "method": "POST",
+      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"decisao\": \"REJEITADO\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Webhook-Token", "value": "{{ _.webhook_token }}" }
+      ]
+    },
+    {
+      "_id": "req_webhook_orcamento_divergente",
+      "_type": "request",
+      "parentId": "fld_webhook_orcamento",
+      "name": "Webhook - Decisão divergente",
+      "method": "POST",
+      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"decisao\": \"REJEITADO\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Webhook-Token", "value": "{{ _.webhook_token }}" }
+      ]
+    },
+    {
+      "_id": "req_webhook_orcamento_token_invalido",
+      "_type": "request",
+      "parentId": "fld_webhook_orcamento",
+      "name": "Webhook - Token inválido",
+      "method": "POST",
+      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"decisao\": \"APROVADO\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Webhook-Token", "value": "{{ _.webhook_token_invalido }}" }
+      ]
+    },
+    {
+      "_id": "req_webhook_orcamento_sem_token",
+      "_type": "request",
+      "parentId": "fld_webhook_orcamento",
+      "name": "Webhook - Sem token",
+      "method": "POST",
+      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"decisao\": \"APROVADO\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
       ]
     },
 

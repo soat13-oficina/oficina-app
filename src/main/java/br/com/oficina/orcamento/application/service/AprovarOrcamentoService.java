@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
@@ -28,6 +29,7 @@ public class AprovarOrcamentoService implements AprovarOrcamentoUseCase {
     private final ReservarPecaUseCase reservarPecaUseCase;
     private final LiberarReservaPecaUseCase liberarReservaPecaUseCase;
 
+    @Autowired
     public AprovarOrcamentoService(
             OrcamentoRepository orcamentoRepository,
             ReservarPecaUseCase reservarPecaUseCase,
@@ -35,6 +37,13 @@ public class AprovarOrcamentoService implements AprovarOrcamentoUseCase {
         this.orcamentoRepository = orcamentoRepository;
         this.reservarPecaUseCase = reservarPecaUseCase;
         this.liberarReservaPecaUseCase = liberarReservaPecaUseCase;
+    }
+
+    public AprovarOrcamentoService(
+            OrcamentoRepository orcamentoRepository,
+            ReservarPecaUseCase reservarPecaUseCase) {
+        this(orcamentoRepository, reservarPecaUseCase, command -> {
+        });
     }
 
     @Override
@@ -61,14 +70,14 @@ public class AprovarOrcamentoService implements AprovarOrcamentoUseCase {
         }
 
         if (!pecasSemEstoque.isEmpty()) {
-            // Desfazer reservas já feitas (rollback parcial) liberando-as de volta ao estoque
             for (PecaOrcamento pecaReservada : pecasReservadas) {
                 try {
                     liberarReservaPecaUseCase.liberarReserva(new LiberarReservaPecaCommand(
-                            pecaReservada.getPecaInsumoId(), pecaReservada.getQuantidade()));
-                } catch (RuntimeException excecao) {
+                            pecaReservada.getPecaInsumoId(),
+                            pecaReservada.getQuantidade()));
+                } catch (Exception ignored) {
                     log.warn("Falha ao desfazer reserva da peca {}. Pode ser necessario ajuste manual.",
-                            pecaReservada.getPecaInsumoId(), excecao);
+                            pecaReservada.getPecaInsumoId());
                 }
             }
             throw new RegraDeNegocioException(

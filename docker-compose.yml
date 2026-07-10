@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASS:-oficina_123}
       POSTGRES_DB: ${DB_NAME:-oficina_db}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -21,7 +21,7 @@ services:
     build: .
     container_name: oficina_api
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-oficina_db}
       DB_USER: ${DB_USER:-oficina_user}

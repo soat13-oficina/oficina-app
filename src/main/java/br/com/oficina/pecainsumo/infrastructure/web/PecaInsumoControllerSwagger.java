@@ -65,6 +65,7 @@ public interface PecaInsumoControllerSwagger {
     @Operation(summary = "Excluir peça/insumo", description = "Remove uma peça ou insumo pelo identificador.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Peça/insumo excluída com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Peça/insumo possui reserva ativa", content = @Content),
             @ApiResponse(responseCode = "404", description = "Peça/insumo não encontrada", content = @Content)
     })
     ResponseEntity<Void> excluir(

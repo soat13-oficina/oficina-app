@@ -46,7 +46,7 @@ class AcompanharOrdemDeServicoServiceTest {
 
         RecursoNaoEncontradoException clienteInvalido = assertThrows(
                 RecursoNaoEncontradoException.class,
-                () -> service.acompanhar(new AcompanharOrdemDeServicoQuery("OS-CLIENTE-001", "52998224725")));
+                () -> service.acompanhar(new AcompanharOrdemDeServicoQuery("OS-CLIENTE-001", "20100000053")));
         assertEquals("Ordem de servico nao encontrada", clienteInvalido.getMessage());
     }
 

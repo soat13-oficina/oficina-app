@@ -72,7 +72,7 @@ class OrcamentoTest {
                 ordemDeServicoId,
                 funcionarioId,
                 "Maria Souza",
-                "52998224725",
+                "20100000053",
                 "XYZ9Z99",
                 "Honda",
                 "City",
@@ -91,7 +91,28 @@ class OrcamentoTest {
         assertEquals(clienteId, orcamento.getClienteId());
         assertEquals(id, orcamento.getId());
 
-        orcamento.rejeitar();
-        assertEquals(StatusOrcamento.REJEITADO, orcamento.getStatus());
+        Orcamento orcamentoRejeitado = Orcamento.reconstituir(
+                id,
+                "orc-3",
+                clienteId,
+                ordemDeServicoId,
+                funcionarioId,
+                "Maria Souza",
+                "20100000053",
+                "XYZ9Z99",
+                "Honda",
+                "City",
+                "Revisao",
+                List.of("Revisao"),
+                List.of(new PecaOrcamento("peca-002", "Fluido", new BigDecimal("50.00"), 1)),
+                new BigDecimal("200.00"),
+                BigDecimal.ZERO,
+                LocalDateTime.of(2030, 2, 1, 10, 0),
+                LocalDateTime.of(2030, 2, 10, 10, 0),
+                "Sem observacoes",
+                StatusOrcamento.AGUARDANDO_APROVACAO);
+
+        orcamentoRejeitado.rejeitar();
+        assertEquals(StatusOrcamento.REJEITADO, orcamentoRejeitado.getStatus());
     }
 }
