@@ -314,7 +314,7 @@ hexagonal — ver [Estrutura do projeto](#estrutura-do-projeto)) + PostgreSQL.
 
 **Infraestrutura provisionada (Terraform, [`infra/aws`](infra/README.md)):**
 VPC com subnets públicas/privadas/de banco em 2 AZs, cluster **EKS** com
-node group gerenciado (2–4× t3.medium) e metrics-server, registry **ECR** e
+node group gerenciado (2–4× t3.small) e metrics-server, registry **ECR** e
 banco **RDS PostgreSQL 15** com credenciais gerenciadas pelo Secrets Manager.
 
 **Fluxo de deploy:** push na `master` → build + testes (unitário e
