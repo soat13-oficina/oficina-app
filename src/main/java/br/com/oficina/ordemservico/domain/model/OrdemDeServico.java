@@ -1,6 +1,9 @@
 package br.com.oficina.ordemservico.domain.model;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -8,13 +11,17 @@ import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 
 @Entity
@@ -84,6 +91,22 @@ public class OrdemDeServico {
 
     private LocalDateTime entregueEm;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "motivo_encerramento")
+    private MotivoEncerramento motivoEncerramento;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "ordem_servico_servicos",
+            joinColumns = @JoinColumn(name = "ordem_de_servico_id"))
+    private List<ServicoOrdem> servicos = new ArrayList<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "ordem_servico_pecas",
+            joinColumns = @JoinColumn(name = "ordem_de_servico_id"))
+    private List<PecaPrevistaOrdem> pecasPrevistas = new ArrayList<>();
+
     protected OrdemDeServico() {
     }
 
@@ -124,6 +147,24 @@ public class OrdemDeServico {
                 null);
     }
 
+    public static OrdemDeServico abrir(
+            UUID id,
+            String numeroOrdemServico,
+            Funcionario funcionario,
+            Cliente cliente,
+            Veiculo veiculo,
+            List<ServicoOrdem> servicos,
+            List<PecaPrevistaOrdem> pecasPrevistas) {
+        OrdemDeServico ordemDeServico = abrir(id, numeroOrdemServico, funcionario, cliente, veiculo);
+        if (servicos != null) {
+            ordemDeServico.servicos.addAll(servicos);
+        }
+        if (pecasPrevistas != null) {
+            ordemDeServico.pecasPrevistas.addAll(pecasPrevistas);
+        }
+        return ordemDeServico;
+    }
+
     public static OrdemDeServico reconstituir(
             UUID id,
             String numeroOrdemServico,
@@ -144,6 +185,39 @@ public class OrdemDeServico {
                 iniciadaEm,
                 finalizadaEm,
                 entregueEm);
+    }
+
+    public static OrdemDeServico reconstituir(
+            UUID id,
+            String numeroOrdemServico,
+            Funcionario funcionario,
+            Cliente cliente,
+            Veiculo veiculo,
+            StatusOrdemDeServico status,
+            LocalDateTime iniciadaEm,
+            LocalDateTime finalizadaEm,
+            LocalDateTime entregueEm,
+            MotivoEncerramento motivoEncerramento,
+            List<ServicoOrdem> servicos,
+            List<PecaPrevistaOrdem> pecasPrevistas) {
+        OrdemDeServico ordemDeServico = reconstituir(
+                id,
+                numeroOrdemServico,
+                funcionario,
+                cliente,
+                veiculo,
+                status,
+                iniciadaEm,
+                finalizadaEm,
+                entregueEm);
+        ordemDeServico.motivoEncerramento = motivoEncerramento;
+        if (servicos != null) {
+            ordemDeServico.servicos.addAll(servicos);
+        }
+        if (pecasPrevistas != null) {
+            ordemDeServico.pecasPrevistas.addAll(pecasPrevistas);
+        }
+        return ordemDeServico;
     }
 
     public void iniciarDiagnostico() {
@@ -168,6 +242,21 @@ public class OrdemDeServico {
         status = StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO;
     }
 
+    public void concluirDiagnostico(String descricaoServico, List<PecaPrevistaOrdem> pecas) {
+        if (status != StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO) {
+            throw new RegraDeNegocioException("Diagnostico so pode ser concluido em andamento");
+        }
+        if (descricaoServico == null || descricaoServico.isBlank()) {
+            throw new RegraDeNegocioException("Descricao do servico e obrigatoria no fechamento do diagnostico");
+        }
+        // Mao de obra nao e definida no fechamento (e financeiro do orcamento): registra apenas a descricao.
+        servicos.add(new ServicoOrdem(descricaoServico, null));
+        if (pecas != null) {
+            pecasPrevistas.addAll(pecas);
+        }
+        status = StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO;
+    }
+
     public void enviarParaOrcamento() {
         if (status != StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
             throw new RegraDeNegocioException("Diagnostico so pode ser enviado para orcamento quando concluido");
@@ -175,23 +264,41 @@ public class OrdemDeServico {
         status = StatusOrdemDeServico.ORCAMENTO_GERADO;
     }
 
-    public void aguardarAprovacao() {
-        if (status != StatusOrdemDeServico.ORCAMENTO_GERADO) {
-            throw new RegraDeNegocioException("Ordem de servico so pode aguardar aprovacao apos o orcamento ser gerado");
+    public void enviarParaAprovacao() {
+        if (status != StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
+            throw new RegraDeNegocioException("Ordem de servico so pode ser enviada para aprovacao com diagnostico concluido");
         }
         status = StatusOrdemDeServico.AGUARDANDO_APROVACAO;
     }
 
     public void iniciarExecucao() {
         if (status != StatusOrdemDeServico.AGUARDANDO_APROVACAO) {
-            throw new RegraDeNegocioException("Execucao so pode ser iniciada quando a ordem estiver aguardando aprovacao");
+            throw new RegraDeNegocioException("Execucao so pode iniciar quando a ordem estiver aguardando aprovacao");
         }
         status = StatusOrdemDeServico.SERVICO_EM_ANDAMENTO;
     }
 
-    public void finalizar() {
+    public void concluirServico() {
         if (status != StatusOrdemDeServico.SERVICO_EM_ANDAMENTO) {
-            throw new RegraDeNegocioException("Ordem de servico so pode ser finalizada quando o servico estiver em andamento");
+            throw new RegraDeNegocioException("Servico so pode ser concluido quando estiver em execucao");
+        }
+        status = StatusOrdemDeServico.OS_FINALIZADA;
+        motivoEncerramento = MotivoEncerramento.SERVICO_CONCLUIDO;
+        finalizadaEm = LocalDateTime.now();
+    }
+
+    public void recusarOrcamento() {
+        if (status != StatusOrdemDeServico.AGUARDANDO_APROVACAO) {
+            throw new RegraDeNegocioException("Orcamento so pode ser recusado quando a ordem estiver aguardando aprovacao");
+        }
+        status = StatusOrdemDeServico.OS_FINALIZADA;
+        motivoEncerramento = MotivoEncerramento.ORCAMENTO_RECUSADO;
+        finalizadaEm = LocalDateTime.now();
+    }
+
+    public void finalizar() {
+        if (status != StatusOrdemDeServico.ORCAMENTO_GERADO) {
+            throw new RegraDeNegocioException("Ordem de servico so pode ser finalizada com orcamento gerado");
         }
         status = StatusOrdemDeServico.OS_FINALIZADA;
         finalizadaEm = LocalDateTime.now();
@@ -253,6 +360,22 @@ public class OrdemDeServico {
 
     public LocalDateTime getEntregueEm() {
         return entregueEm;
+    }
+
+    public SituacaoOrdemDeServico getSituacao() {
+        return SituacaoOrdemDeServico.fromStatus(status);
+    }
+
+    public MotivoEncerramento getMotivoEncerramento() {
+        return motivoEncerramento;
+    }
+
+    public List<ServicoOrdem> getServicos() {
+        return Collections.unmodifiableList(servicos);
+    }
+
+    public List<PecaPrevistaOrdem> getPecasPrevistas() {
+        return Collections.unmodifiableList(pecasPrevistas);
     }
 
     private void definirDados(Funcionario funcionario, Cliente cliente, Veiculo veiculo) {

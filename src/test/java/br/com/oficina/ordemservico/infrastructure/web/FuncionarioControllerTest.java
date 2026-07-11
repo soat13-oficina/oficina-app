@@ -105,7 +105,7 @@ class FuncionarioControllerTest {
                         .with(user("tester")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome": "%s", "cpf": "11122233344"}
+                                {"nome": "%s", "cpf": "20140404430"}
                                 """.formatted(nomeJoao)))
                 .andExpect(status().isCreated());
 
@@ -113,7 +113,7 @@ class FuncionarioControllerTest {
                         .with(user("tester")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome": "%s", "cpf": "55566677788"}
+                                {"nome": "%s", "cpf": "20150505582"}
                                 """.formatted(nomeMaria)))
                 .andExpect(status().isCreated());
 
@@ -145,14 +145,14 @@ class FuncionarioControllerTest {
                         .with(user("tester")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome": "Nome Atualizado", "cpf": "98765432100"}
+                                {"nome": "Nome Atualizado", "cpf": "20120202247"}
                                 """))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/funcionarios/" + funcionarioId).with(user("tester")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nome").value("Nome Atualizado"))
-                .andExpect(jsonPath("$.cpf").value("98765432100"));
+                .andExpect(jsonPath("$.cpf").value("20120202247"));
     }
 
     @Test
@@ -161,7 +161,7 @@ class FuncionarioControllerTest {
                         .with(user("tester")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome": "Para Excluir", "cpf": "11122233344"}
+                                {"nome": "Para Excluir", "cpf": "20140404430"}
                                 """))
                 .andExpect(status().isCreated())
                 .andReturn();

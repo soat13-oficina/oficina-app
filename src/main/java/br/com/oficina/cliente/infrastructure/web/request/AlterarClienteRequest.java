@@ -7,7 +7,7 @@ import br.com.oficina.cliente.domain.model.TipoCliente;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(name = "AlterarClienteRequest", description = "Dados necessários para alterar um cliente")
-public record AlterarClienteRequest(String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
+public record AlterarClienteRequest(String nome, String cpfOuCnpj, TipoCliente tipoCliente, String email) {
     @Override
     @Schema(description = "Nome do cliente", example = "Maria de Souza")
     public String nome() {
@@ -26,7 +26,13 @@ public record AlterarClienteRequest(String nome, String cpfOuCnpj, TipoCliente t
         return tipoCliente;
     }
 
+    @Override
+    @Schema(description = "E-mail do cliente para notificações", example = "maria@email.com")
+    public String email() {
+        return email;
+    }
+
     public AlterarClienteCommand toCommand(UUID clienteId) {
-        return new AlterarClienteCommand(clienteId, nome, cpfOuCnpj, tipoCliente);
+        return new AlterarClienteCommand(clienteId, nome, cpfOuCnpj, tipoCliente, email);
     }
 }

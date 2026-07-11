@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -53,7 +54,7 @@ public class VeiculoController implements VeiculoControllerSwagger {
     }
 
     @PostMapping
-    public ResponseEntity<Void> cadastrar(@RequestBody CadastrarVeiculoRequest request) {
+    public ResponseEntity<Void> cadastrar(@Validated @RequestBody CadastrarVeiculoRequest request) {
         log.info("Recebida requisicao de cadastro de veiculo. placaInformada={}, marca={}, fabricante={}",
                 request.placa(),
                 request.marca(),
@@ -77,7 +78,7 @@ public class VeiculoController implements VeiculoControllerSwagger {
     }
 
     @PutMapping("/{placa}")
-    public ResponseEntity<Void> alterar(@PathVariable String placa, @RequestBody AlterarVeiculoRequest request) {
+    public ResponseEntity<Void> alterar(@PathVariable String placa, @Validated @RequestBody AlterarVeiculoRequest request) {
         log.info("Recebida requisicao de alteracao de veiculo. placaInformada={}, marca={}, fabricante={}",
                 placa,
                 request.marca(),

@@ -1,5 +1,6 @@
 package br.com.oficina.veiculo.domain.model;
 
+import java.time.Year;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -18,8 +19,10 @@ import jakarta.persistence.Table;
 public class Veiculo {
     private static final String MENSAGEM_PLACA_OBRIGATORIA = "Placa do veiculo e obrigatoria";
     private static final String MENSAGEM_PLACA_INVALIDA = "Placa do veiculo invalida";
+    private static final String MENSAGEM_POTENCIA_INVALIDA = "Potencia do veiculo deve ser maior que zero.";
     private static final String FORMATO_ANTIGO = "^[A-Z]{3}\\d{4}$";
     private static final String FORMATO_MERCOSUL = "^[A-Z]{3}\\d[A-Z]\\d{2}$";
+    private static final int ANO_MINIMO = 1886;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -78,6 +81,8 @@ public class Veiculo {
             int potencia,
             String cambio,
             TipoCombustivel tipo) {
+        validarAno(ano);
+        validarPotencia(potencia);
         this.clienteId = clienteId;
         this.placa = normalizarPlaca(placa);
         this.marca = marca;
@@ -126,6 +131,8 @@ public class Veiculo {
             int potencia,
             String cambio,
             TipoCombustivel tipo) {
+        validarAno(ano);
+        validarPotencia(potencia);
         this.marca = marca;
         this.modelo = modelo;
         this.fabricante = fabricante;
@@ -133,6 +140,20 @@ public class Veiculo {
         this.potencia = potencia;
         this.cambio = cambio;
         this.tipo = tipo;
+    }
+
+    private static void validarAno(int ano) {
+        int anoMaximo = Year.now().getValue() + 1;
+        if (ano < ANO_MINIMO || ano > anoMaximo) {
+            throw new RegraDeNegocioException(
+                    "Ano do veiculo deve estar entre " + ANO_MINIMO + " e " + anoMaximo + ".");
+        }
+    }
+
+    private static void validarPotencia(int potencia) {
+        if (potencia <= 0) {
+            throw new RegraDeNegocioException(MENSAGEM_POTENCIA_INVALIDA);
+        }
     }
 
     public static String normalizarPlaca(String placa) {

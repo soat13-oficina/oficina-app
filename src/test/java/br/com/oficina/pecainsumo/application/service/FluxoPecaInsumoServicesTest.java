@@ -62,6 +62,10 @@ class FluxoPecaInsumoServicesTest {
                 .listarPecasInsumos(new ListarPecasInsumosQuery(null, null, false));
         assertTrue(semReserva.isEmpty());
 
+        new LiberarReservaPecaService(repository)
+                .liberarReserva(new LiberarReservaPecaCommand(alterada.getId(), 1));
+        assertEquals(0, repository.buscarPorId(alterada.getId()).orElseThrow().getQuantidadeReservada());
+
         new ExcluirPecaInsumoService(repository).excluirPecaInsumo(new ExcluirPecaInsumoCommand(alterada.getId()));
 
         assertTrue(repository.buscarPorId(alterada.getId()).isEmpty());

@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
-import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -47,7 +46,8 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Orcamento nao encontrado para o numero informado."));
         UUID clienteId = paraUuid(command.clienteId(), "Identificador do cliente invalido.");
         UUID ordemDeServicoId = paraUuid(command.ordemDeServicoId(), "Identificador da ordem de servico invalido.");
-        UUID funcionarioId = paraUuid(command.funcionarioId(), "Identificador do funcionario invalido.");
+        // Funcionário de origem é imutável: preserva o que abriu o orçamento, ignorando o do comando (FR-009).
+        UUID funcionarioId = orcamentoAtual.getFuncionarioId();
         Cliente cliente = clienteRepository.buscarPorId(clienteId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente nao encontrado para o identificador informado."));
 
@@ -77,13 +77,6 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
         if (orcamentoAtual.getEnviadoParaAprovacaoEm() != null) {
             orcamentoAtualizado.enviarParaAprovacao(orcamentoAtual.getEnviadoParaAprovacaoEm());
         }
-        if (orcamentoAtual.getStatus() == StatusOrcamento.APROVADO) {
-            orcamentoAtualizado.aprovar();
-        }
-        if (orcamentoAtual.getStatus() == StatusOrcamento.REJEITADO) {
-            orcamentoAtualizado.rejeitar();
-        }
-
         orcamentoRepository.atualizar(orcamentoAtualizado);
         log.info("Orcamento alterado com sucesso. numeroOrcamento={}", command.numeroOrcamento());
     }

@@ -2,6 +2,7 @@ package br.com.oficina.pecainsumo.application.service;
 
 import org.springframework.stereotype.Service;
 
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.pecainsumo.application.command.ReservarPecaCommand;
 import br.com.oficina.pecainsumo.application.usecase.ReservarPecaUseCase;
@@ -23,7 +24,7 @@ public class ReservarPecaService implements ReservarPecaUseCase {
         }
 
         PecaInsumo pecaExistente = pecaInsumoRepository.buscarPorId(command.id())
-                .orElseThrow(() -> new RegraDeNegocioException("Peça/Insumo não encontrada com o ID: " + command.id()));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Peça/Insumo não encontrada com o ID: " + command.id()));
 
         int novaQuantidadeReservada = pecaExistente.getQuantidadeReservada() + command.quantidade();
 

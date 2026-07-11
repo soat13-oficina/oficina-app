@@ -5,6 +5,9 @@ import java.util.Arrays;
 import java.util.List;
 
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -13,14 +16,17 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import br.com.oficina.common.domain.exception.ConflitoDeRecursoException;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
     private static final String MENSAGEM_REQUISICAO_INVALIDA = "A requisicao enviada e invalida.";
     private static final String MENSAGEM_CORPO_INVALIDO = "Os dados enviados sao invalidos. Revise o corpo da requisicao.";
     private static final String MENSAGEM_VALIDACAO = "Erro de validação nos campos informados.";
+    private static final String MENSAGEM_ERRO_INESPERADO = "Erro inesperado ao processar a requisicao.";
 
     @ExceptionHandler(RecursoNaoEncontradoException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFound(RecursoNaoEncontradoException exception) {
@@ -32,6 +38,19 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBusinessRule(RegraDeNegocioException exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(Instant.now(), HttpStatus.BAD_REQUEST.value(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(Instant.now(), HttpStatus.CONFLICT.value(),
+                        "A operacao viola uma restricao de integridade de dados (registro duplicado ou vinculado)."));
+    }
+
+    @ExceptionHandler(ConflitoDeRecursoException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(ConflitoDeRecursoException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(Instant.now(), HttpStatus.CONFLICT.value(), exception.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -78,6 +97,13 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(Instant.now(), HttpStatus.BAD_REQUEST.value(), MENSAGEM_REQUISICAO_INVALIDA));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
+        log.error("Erro inesperado nao tratado ao processar a requisicao.", exception);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(Instant.now(), HttpStatus.INTERNAL_SERVER_ERROR.value(), MENSAGEM_ERRO_INESPERADO));
     }
 
     record ErrorResponse(Instant timestamp, int status, String message) {

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.cliente.application.command.AlterarClienteCommand;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
+import br.com.oficina.common.domain.exception.ConflitoDeRecursoException;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.support.persistence.TestClienteRepository;
@@ -37,7 +38,7 @@ class AlterarClienteServiceTest {
 
         RecursoNaoEncontradoException exception = assertThrows(
                 RecursoNaoEncontradoException.class,
-                () -> service.alterarCliente(new AlterarClienteCommand(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"), "Bianca", "52998224725", TipoCliente.PF)));
+                () -> service.alterarCliente(new AlterarClienteCommand(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"), "Bianca", "20100000053", TipoCliente.PF)));
 
         assertEquals("Cliente nao encontrado para o identificador informado.", exception.getMessage());
     }
@@ -62,13 +63,13 @@ class AlterarClienteServiceTest {
         UUID clienteId = UUID.fromString("13131313-1313-1313-1313-131313131313");
         UUID outroClienteId = UUID.fromString("14141414-1414-1414-1414-141414141414");
         repository.salvar(Cliente.reconstituir(clienteId, "Maria Oliveira", "12345678909", TipoCliente.PF));
-        repository.salvar(Cliente.reconstituir(outroClienteId, "Joao Silva", "52998224725", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(outroClienteId, "Joao Silva", "20100000053", TipoCliente.PF));
         AlterarClienteService service = new AlterarClienteService(repository);
 
-        RegraDeNegocioException exception = assertThrows(
-                RegraDeNegocioException.class,
+        ConflitoDeRecursoException exception = assertThrows(
+                ConflitoDeRecursoException.class,
                 () -> service.alterarCliente(new AlterarClienteCommand(
-                        outroClienteId, "Cliente Outro Nome", "123.456.789-09", TipoCliente.PF)));
+                        outroClienteId, "Cliente Outro Nome", "12345678909", TipoCliente.PF)));
 
         assertEquals("Ja existe cliente cadastrado com o mesmo CPF ou CNPJ.", exception.getMessage());
     }

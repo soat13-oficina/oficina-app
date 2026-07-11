@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 
 import org.junit.jupiter.api.Test;
 
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.pecainsumo.application.command.ReservarPecaCommand;
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
@@ -97,8 +98,8 @@ class ReservarPecaServiceTest {
         TestPecaInsumoRepository repository = new TestPecaInsumoRepository();
         ReservarPecaService service = new ReservarPecaService(repository);
 
-        RegraDeNegocioException exception = assertThrows(
-                RegraDeNegocioException.class,
+        RecursoNaoEncontradoException exception = assertThrows(
+                RecursoNaoEncontradoException.class,
                 () -> service.reservarPeca(new ReservarPecaCommand("id-inexistente", 5)));
 
         assertEquals("Peça/Insumo não encontrada com o ID: id-inexistente", exception.getMessage());

@@ -77,7 +77,7 @@ class JpaOrcamentoRepositoryIntegrationTest extends PostgresIntegrationTest {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 "Carlos",
-                "98765432100",
+                "20120202247",
                 "DEF2G34",
                 "Honda",
                 "Civic",

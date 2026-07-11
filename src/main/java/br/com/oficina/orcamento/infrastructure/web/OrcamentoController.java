@@ -1,6 +1,5 @@
 package br.com.oficina.orcamento.infrastructure.web;
 
-import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,24 +15,20 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.AprovarOrcamentoCommand;
-import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.ExcluirOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.RejeitarOrcamentoCommand;
 import br.com.oficina.orcamento.application.query.ConsultarOrcamentoQuery;
 import br.com.oficina.orcamento.application.usecase.AlterarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.AprovarOrcamentoUseCase;
-import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ConsultarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ExcluirOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.RejeitarOrcamentoUseCase;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.infrastructure.web.request.AlterarOrcamentoRequest;
-import br.com.oficina.orcamento.infrastructure.web.request.CadastrarOrcamentoRequest;
 import br.com.oficina.orcamento.infrastructure.web.response.OrcamentoResponse;
 
 @RestController
@@ -41,7 +36,6 @@ import br.com.oficina.orcamento.infrastructure.web.response.OrcamentoResponse;
 public class OrcamentoController implements OrcamentoControllerSwagger {
     private static final Logger log = LoggerFactory.getLogger(OrcamentoController.class);
 
-    private final CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase;
     private final ConsultarOrcamentoUseCase consultarOrcamentoUseCase;
     private final AlterarOrcamentoUseCase alterarOrcamentoUseCase;
     private final ExcluirOrcamentoUseCase excluirOrcamentoUseCase;
@@ -49,13 +43,11 @@ public class OrcamentoController implements OrcamentoControllerSwagger {
     private final RejeitarOrcamentoUseCase rejeitarOrcamentoUseCase;
 
     public OrcamentoController(
-            CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase,
             ConsultarOrcamentoUseCase consultarOrcamentoUseCase,
             AlterarOrcamentoUseCase alterarOrcamentoUseCase,
             ExcluirOrcamentoUseCase excluirOrcamentoUseCase,
             AprovarOrcamentoUseCase aprovarOrcamentoUseCase,
             RejeitarOrcamentoUseCase rejeitarOrcamentoUseCase) {
-        this.cadastrarNovoOrcamentoUseCase = cadastrarNovoOrcamentoUseCase;
         this.consultarOrcamentoUseCase = consultarOrcamentoUseCase;
         this.alterarOrcamentoUseCase = alterarOrcamentoUseCase;
         this.excluirOrcamentoUseCase = excluirOrcamentoUseCase;
@@ -63,33 +55,6 @@ public class OrcamentoController implements OrcamentoControllerSwagger {
         this.rejeitarOrcamentoUseCase = rejeitarOrcamentoUseCase;
     }
 
-    @PostMapping
-    public ResponseEntity<Void> cadastrar(@RequestBody CadastrarOrcamentoRequest request) {
-        log.info("Recebida requisicao de cadastro de orcamento. numeroOrcamento={}, clienteId={}, ordemDeServicoId={}",
-                request.numeroOrcamento(), request.clienteId(), request.ordemDeServicoId());
-        cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
-                request.numeroOrcamento(),
-                validarClienteId(request.clienteId()),
-                request.ordemDeServicoId(),
-                request.funcionarioId(),
-                request.placaVeiculo(),
-                request.marcaVeiculo(),
-                request.modeloVeiculo(),
-                request.descricaoDiagnostico(),
-                request.servicosPropostos(),
-                request.toPecasInput(),
-                request.valorMaoDeObra(),
-                request.desconto(),
-                request.validade(),
-                request.observacoes()));
-
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(request.numeroOrcamento())
-                .toUri();
-        log.info("Requisicao de cadastro de orcamento concluida. numeroOrcamento={}", request.numeroOrcamento());
-        return ResponseEntity.created(location).build();
-    }
 
     @GetMapping("/{orcamentoId}")
     public ResponseEntity<OrcamentoResponse> consultar(@PathVariable String orcamentoId) {

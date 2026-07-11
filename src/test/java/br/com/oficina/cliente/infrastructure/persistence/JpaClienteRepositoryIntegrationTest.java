@@ -6,14 +6,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
-import br.com.oficina.support.PostgresIntegrationTest;
 
+@SpringBootTest
+@ActiveProfiles("integration")
 @Transactional
-class JpaClienteRepositoryIntegrationTest extends PostgresIntegrationTest {
+class JpaClienteRepositoryIntegrationTest {
 
     @Autowired
     private JpaClienteRepository repository;
@@ -25,12 +28,12 @@ class JpaClienteRepositoryIntegrationTest extends PostgresIntegrationTest {
         assertTrue(repository.buscarPorId(salvo.getId()).isPresent());
         assertEquals(1, repository.buscarTodos().size());
 
-        salvo.alterar("Maria Souza", "11.444.777/0001-61", TipoCliente.PJ);
+        salvo.alterar("Maria Souza", "11.222.333/0001-81", TipoCliente.PJ);
         repository.atualizar(salvo);
 
         Cliente atualizado = repository.buscarPorId(salvo.getId()).orElseThrow();
         assertEquals("Maria Souza", atualizado.getNome());
-        assertEquals("11.444.777/0001-61", atualizado.getCpfOuCnpj());
+        assertEquals("11.222.333/0001-81", atualizado.getCpfOuCnpj());
         assertEquals(TipoCliente.PJ, atualizado.getTipoCliente());
 
         repository.excluirPorId(salvo.getId());
