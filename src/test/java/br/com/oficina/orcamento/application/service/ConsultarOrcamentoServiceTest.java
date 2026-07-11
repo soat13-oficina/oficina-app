@@ -31,7 +31,7 @@ class ConsultarOrcamentoServiceTest {
     void deveConsultarOrcamentoPorCpfClienteOuPlacaVeiculo() {
         TestOrcamentoRepository repository = new TestOrcamentoRepository();
         repository.salvar(novoOrcamento());
-        repository.salvar(novoOrcamento("orc-2", "Maria Souza", "52998224725", "XYZ1A23"));
+        repository.salvar(novoOrcamento("orc-2", "Maria Souza", "20100000053", "XYZ1A23"));
         ConsultarOrcamentoService service = new ConsultarOrcamentoService(repository);
 
         List<Orcamento> porCpf = service.consultarOrcamento(new ConsultarOrcamentoQuery(null, "12345678909", null));

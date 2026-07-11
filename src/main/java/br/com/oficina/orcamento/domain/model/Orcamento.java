@@ -1,5 +1,6 @@
 package br.com.oficina.orcamento.domain.model;
 
+import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -263,10 +264,16 @@ public class Orcamento {
     }
 
     public void aprovar() {
+        if (status != StatusOrcamento.AGUARDANDO_APROVACAO) {
+            throw new RegraDeNegocioException("Orcamento so pode ser aprovado quando estiver aguardando aprovacao.");
+        }
         this.status = StatusOrcamento.APROVADO;
     }
 
     public void rejeitar() {
+        if (status != StatusOrcamento.AGUARDANDO_APROVACAO) {
+            throw new RegraDeNegocioException("Orcamento so pode ser rejeitado quando estiver aguardando aprovacao.");
+        }
         this.status = StatusOrcamento.REJEITADO;
     }
 

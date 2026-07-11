@@ -60,6 +60,28 @@ containerizados (usa o `Dockerfile` multi-stage do projeto).
 
 O Flyway executa as migrations automaticamente na inicialização. A aplicação fica disponível em `http://localhost:8080`.
 
+### 3. (Opcional) Visualizar e-mails com o Mailhog
+
+O `docker-compose.yml` também sobe um serviço `mailhog` — um servidor SMTP
+falso para desenvolvimento local. Ele **não envia e-mails de verdade**: toda
+notificação disparada pela aplicação (via outbox, a cada mudança de status da
+OS) é capturada por ele e exibida em uma UI web, em vez de ir para uma caixa
+de entrada real.
+
+```bash
+docker-compose up -d mailhog
+```
+
+- **SMTP (usado pela aplicação):** `localhost:1025` — já é o default de
+  `SMTP_HOST`/`SMTP_PORT` no `application.yml`, então nenhuma configuração
+  extra é necessária.
+- **UI web (para inspecionar os e-mails capturados):** http://localhost:8025
+
+Para testar: dispare qualquer ação que gere notificação (ex.: uma mudança de
+status de OS) e abra a UI do Mailhog em `http://localhost:8025` — o e-mail
+capturado aparece na lista, com assunto, corpo e destinatário, sem precisar de
+nenhuma conta de e-mail real.
+
 ---
 
 ## Usando o Swagger
@@ -183,6 +205,26 @@ Authorization: Bearer <token>
 ```
 
 O token expira em **24 horas**. Para renovar, basta fazer login novamente.
+
+---
+
+## Endpoints REST
+
+| Domínio | Endpoints |
+|---|---|
+| Autenticação (`/api/auth`) | `POST /register`, `POST /login` |
+| Clientes (`/clientes`) | `POST`, `GET`, `GET /{clienteId}`, `PUT /{clienteId}`, `DELETE /{clienteId}` |
+| Veículos (`/veiculos`) | `POST`, `GET`, `PUT /{placa}`, `DELETE /{placa}` |
+| Funcionários (`/funcionarios`) | `POST`, `GET`, `GET /{funcionarioId}`, `PUT /{funcionarioId}`, `DELETE /{funcionarioId}` |
+| Ordens de Serviço (`/ordens-servico`) | `POST`, `GET`, `GET /{numeroOrdemServico}`, `PUT /{numeroOrdemServico}`, `DELETE /{numeroOrdemServico}`, `GET /metricas/tempo-medio`, `GET /{numeroOrdemServico}/acompanhamento` |
+| Diagnóstico da OS | `POST /ordens-servico/{numeroOrdemServico}/diagnostico/iniciar`, `POST /ordens-servico/{numeroOrdemServico}/diagnostico/concluir`, `POST /ordens-servico/{numeroOrdemServico}/diagnostico/enviar-para-orcamento` |
+| Execução e entrega da OS | `POST /ordens-servico/{numeroOrdemServico}/execucao/iniciar`, `POST /ordens-servico/{numeroOrdemServico}/servico/concluir`, `POST /ordens-servico/{numeroOrdemServico}/finalizacao`, `POST /ordens-servico/{numeroOrdemServico}/entrega` |
+| Orçamentos (`/orcamentos`) | `POST /{orcamentoId}/aprovacao`, `POST /{orcamentoId}/rejeicao`, `GET /{orcamentoId}`, `GET`, `PUT /{orcamentoId}`, `DELETE /{orcamentoId}` |
+| Peças e Insumos (`/pecas-insumos`) | `POST`, `GET`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/adicionar-estoque`, `POST /{id}/remover-estoque`, `POST /{id}/reservar`, `POST /{id}/liberar-reserva`, `POST /{id}/consumir` |
+| Webhook de decisão de orçamento (`/integracoes/orcamentos`) | `POST /{numeroOrcamento}/decisao` — exige o header `X-Webhook-Token`, aceitando um token de integração gerado (ver abaixo) ou o segredo estático `ORCAMENTO_WEBHOOK_SECRET` (coexistência temporária) |
+| Tokens de integração (`/integracoes/tokens`) | `POST` (gerar), `GET` (listar), `DELETE /{id}` (revogar) — autenticado via JWT, como as demais rotas |
+
+> **Notificações**: não expõem endpoint REST. São disparadas internamente (padrão outbox) a cada mudança de status da OS e reprocessadas por um scheduler em caso de falha de envio (SMTP configurado via `SMTP_HOST`/`SMTP_PORT`).
 
 ---
 

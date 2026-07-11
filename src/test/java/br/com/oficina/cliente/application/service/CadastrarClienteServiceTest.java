@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.cliente.application.command.CadastrarClienteCommand;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
+import br.com.oficina.common.domain.exception.ConflitoDeRecursoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.support.persistence.TestClienteRepository;
 
@@ -82,9 +83,9 @@ class CadastrarClienteServiceTest {
                 java.util.UUID.randomUUID(), "Maria Silva", "12345678909", TipoCliente.PF));
         CadastrarClienteService service = new CadastrarClienteService(repository);
 
-        RegraDeNegocioException exception = assertThrows(
-                RegraDeNegocioException.class,
-                () -> service.cadastrarCliente(new CadastrarClienteCommand("Ana Souza", "123.456.789-09", TipoCliente.PF)));
+        ConflitoDeRecursoException exception = assertThrows(
+                ConflitoDeRecursoException.class,
+                () -> service.cadastrarCliente(new CadastrarClienteCommand("Ana Souza", "12345678909", TipoCliente.PF)));
 
         assertEquals("Ja existe cliente cadastrado com o mesmo CPF ou CNPJ.", exception.getMessage());
     }

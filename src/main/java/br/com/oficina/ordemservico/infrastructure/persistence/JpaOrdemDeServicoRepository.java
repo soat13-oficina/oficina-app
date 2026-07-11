@@ -1,6 +1,7 @@
 package br.com.oficina.ordemservico.infrastructure.persistence;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,6 +28,11 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
     }
 
     @Override
+    public Optional<OrdemDeServico> buscarPorId(UUID ordemDeServicoId) {
+        return repository.findById(ordemDeServicoId);
+    }
+
+    @Override
     public Optional<OrdemDeServico> buscarPorNumero(String numeroOrdemServico) {
         return repository.findByNumeroOrdemServico(numeroOrdemServico);
     }
@@ -42,6 +48,19 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
                 .and(campoIgual("veiculoPlaca", placaVeiculo))
                 .and(campoIgual("clienteDocumento", documentoCliente));
         return repository.findAll(specification);
+    }
+
+    @Override
+    public List<OrdemDeServico> buscarAtivasPriorizadasPorFiltros(
+            String numeroOrdemServico,
+            String nomeCliente,
+            String placaVeiculo,
+            String documentoCliente) {
+        return repository.buscarAtivasPriorizadasPorFiltros(
+                normalizarFiltro(numeroOrdemServico),
+                normalizarFiltro(nomeCliente),
+                normalizarFiltro(placaVeiculo),
+                documentoCliente);
     }
 
     @Override
@@ -65,7 +84,16 @@ public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
         return repository.existsByFuncionarioId(funcionarioId);
     }
 
+    @Override
+    public boolean existePorVeiculoId(UUID veiculoId) {
+        return repository.existsByVeiculoId(veiculoId);
+    }
+
     private static <T> Specification<OrdemDeServico> campoIgual(String campo, T valor) {
         return (root, query, criteriaBuilder) -> valor == null ? null : criteriaBuilder.equal(root.get(campo), valor);
+    }
+
+    private static String normalizarFiltro(String valor) {
+        return valor == null ? null : valor.toLowerCase(Locale.ROOT);
     }
 }

@@ -3,9 +3,9 @@ package br.com.oficina.pecainsumo.infrastructure.web;
 import java.net.URI;
 import java.util.List;
 
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.pecainsumo.application.usecase.*;
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -113,7 +113,7 @@ public class PecaInsumoController implements PecaInsumoControllerSwagger {
         PecaInsumoResponse response = buscarPecaInsumoPorIdUseCase
                 .buscar(id)
                 .map(PecaInsumoResponse::from)
-                .orElseThrow(() -> new EntityNotFoundException("Peça/Insumo não encontrada com o ID: " + id));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Peça/Insumo não encontrada com o ID: " + id));
 
         return ResponseEntity.ok(response);
     }

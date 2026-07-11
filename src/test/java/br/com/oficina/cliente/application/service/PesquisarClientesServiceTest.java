@@ -18,7 +18,7 @@ class PesquisarClientesServiceTest {
     void devePesquisarClientesPorCpf() {
         TestClienteRepository repository = new TestClienteRepository();
         repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Maria Silva", "12345678909", TipoCliente.PF));
-        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Jose Souza", "52998224725", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Jose Souza", "20100000053", TipoCliente.PF));
         PesquisarClientesService service = new PesquisarClientesService(repository);
 
         List<Cliente> clientes = service.pesquisarClientes(new PesquisarClientesQuery("123.456.789-09"));
@@ -31,7 +31,7 @@ class PesquisarClientesServiceTest {
     void devePesquisarClientesPorPrimeiroNomeNomeCompletoOuSobrenome() {
         TestClienteRepository repository = new TestClienteRepository();
         repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Maria Silva", "12345678909", TipoCliente.PF));
-        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Joao Pereira", "52998224725", TipoCliente.PF));
+        repository.salvar(Cliente.reconstituir(UUID.randomUUID(), "Joao Pereira", "20100000053", TipoCliente.PF));
         PesquisarClientesService service = new PesquisarClientesService(repository);
 
         List<Cliente> porPrimeiroNome = service.pesquisarClientes(new PesquisarClientesQuery("Maria"));

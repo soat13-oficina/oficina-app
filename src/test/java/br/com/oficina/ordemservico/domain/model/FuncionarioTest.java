@@ -80,10 +80,10 @@ class FuncionarioTest {
     void deveAlterarNomeECpfDoFuncionario() {
         Funcionario funcionario = new Funcionario("Joao", "12345678909");
 
-        funcionario.alterar("Joao Atualizado", "98765432100");
+        funcionario.alterar("Joao Atualizado", "20120202247");
 
         assertEquals("Joao Atualizado", funcionario.getNome());
-        assertEquals("98765432100", funcionario.getCpf());
+        assertEquals("20120202247", funcionario.getCpf());
     }
 
     @Test

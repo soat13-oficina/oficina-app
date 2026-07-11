@@ -49,7 +49,7 @@ class CadastrarVeiculoServiceTest {
         UUID clienteId1 = UUID.fromString("22222222-2222-2222-2222-222222222222");
         UUID clienteId2 = UUID.fromString("33333333-3333-3333-3333-333333333333");
         clienteRepository.salvar(Cliente.reconstituir(clienteId1, "Maria", "12345678909", TipoCliente.PF));
-        clienteRepository.salvar(Cliente.reconstituir(clienteId2, "Joao", "52998224725", TipoCliente.PF));
+        clienteRepository.salvar(Cliente.reconstituir(clienteId2, "Joao", "20100000053", TipoCliente.PF));
         repository.salvar(new Veiculo(
                 clienteId1,
                 "ABC1D23",

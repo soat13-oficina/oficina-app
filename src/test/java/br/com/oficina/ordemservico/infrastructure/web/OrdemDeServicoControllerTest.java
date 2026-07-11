@@ -1,5 +1,6 @@
 package br.com.oficina.ordemservico.infrastructure.web;
 
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -93,7 +94,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveCriarOrdemDeServico() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11144477735", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "20110101103", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", "12345678909"));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
@@ -112,7 +113,9 @@ class OrdemDeServicoControllerTest {
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
-                .andExpect(status().isAccepted());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.numeroOrdemServico").exists())
+                .andExpect(jsonPath("$.situacao").value("Recebida"));
 
         OrdemDeServico ordemCriada = ordemDeServicoRepository.buscarTodas().get(0);
         assert ordemCriada.getFuncionario().getId().equals(funcionario.getId());
@@ -120,8 +123,87 @@ class OrdemDeServicoControllerTest {
     }
 
     @Test
+    void deveConduzirCicloDeVidaEConsultarSituacao() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "20110101103", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", "12345678909"));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "CIC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        String requestBody = """
+                { "clienteId": "%s", "funcionarioId": "%s", "placaVeiculo": "CIC1D23" }
+                """.formatted(cliente.getId(), funcionario.getId());
+        mockMvc.perform(post("/ordens-servico").with(user("tester")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(requestBody))
+                .andExpect(status().isCreated());
+        String numero = ordemDeServicoRepository.buscarTodas().get(0).getNumeroOrdemServico();
+
+        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situacao").value("Recebida"));
+
+        transicao(numero, "/diagnostico/iniciar");
+        String concluirBody = """
+                { "descricaoServico": "Troca de oleo e revisao", "pecas": [] }
+                """;
+        mockMvc.perform(post("/ordens-servico/" + numero + "/diagnostico/concluir")
+                .with(user("tester")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(concluirBody))
+                .andExpect(status().isNoContent());
+        String orcamentoBody = """
+                { "valorMaoDeObra": 200.00, "desconto": 0, "validade": "2030-01-01T00:00:00", "observacoes": null }
+                """;
+        mockMvc.perform(post("/ordens-servico/" + numero + "/diagnostico/enviar-para-orcamento")
+                .with(user("tester")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(orcamentoBody))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situacao").value("Aguardando Aprovação"));
+
+        transicao(numero, "/execucao/iniciar");
+        transicao(numero, "/servico/concluir");
+        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situacao").value("Finalizada"))
+                .andExpect(jsonPath("$.motivoEncerramento").value("SERVICO_CONCLUIDO"));
+    }
+
+    @Test
+    void deveRetornarBadRequestEmTransicaoInvalida() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "20110101103", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", "12345678909"));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "INV1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        String requestBody = """
+                { "clienteId": "%s", "funcionarioId": "%s", "placaVeiculo": "INV1D23" }
+                """.formatted(cliente.getId(), funcionario.getId());
+        mockMvc.perform(post("/ordens-servico").with(user("tester")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(requestBody))
+                .andExpect(status().isCreated());
+        String numero = ordemDeServicoRepository.buscarTodas().get(0).getNumeroOrdemServico();
+
+        mockMvc.perform(post("/ordens-servico/" + numero + "/execucao/iniciar").with(user("tester")).with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void naoDeveExporEndpointLegadoDeEnvioParaAprovacaoSemOrcamento() throws Exception {
+        // O caminho legado foi removido: não deve mais responder com o 204 de sucesso de antes.
+        // (A ausência de handler para rota inexistente é tratada pelo framework — gap pré-existente.)
+        mockMvc.perform(post("/ordens-servico/OS-QUALQUER/orcamento/enviar-aprovacao")
+                .with(user("tester")).with(csrf()))
+                .andExpect(status().is(not(204)));
+    }
+
+    private void transicao(String numero, String caminho) throws Exception {
+        mockMvc.perform(post("/ordens-servico/" + numero + caminho).with(user("tester")).with(csrf()))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     void deveRetornarBadRequestQuandoFuncionarioIdForInvalidoAoCriarOrdem() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "11144477735", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "20110101103", TipoCliente.PF));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
                 "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX));
@@ -146,7 +228,7 @@ class OrdemDeServicoControllerTest {
     @Test
     void deveAlterarOrdemDeServico() throws Exception {
         Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678909", TipoCliente.PF));
-        Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberta", "52998224725", TipoCliente.PF));
+        Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberta", "20100000053", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente1.getId(),
@@ -214,7 +296,7 @@ class OrdemDeServicoControllerTest {
     @Test
     void deveConsultarOrdemDeServicoPorFiltros() throws Exception {
         Cliente cliente1 = clienteRepository.salvar(new Cliente("Marina", "12345678909", TipoCliente.PF));
-        Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberto", "52998224725", TipoCliente.PF));
+        Cliente cliente2 = clienteRepository.salvar(new Cliente("Roberto", "20100000053", TipoCliente.PF));
         Funcionario funcionario1 = springDataFuncionarioRepository.save(new Funcionario("Joao", null));
         Funcionario funcionario2 = springDataFuncionarioRepository.save(new Funcionario("Paulo", null));
         veiculoRepository.salvar(new Veiculo(
@@ -350,7 +432,7 @@ class OrdemDeServicoControllerTest {
 
         mockMvc.perform(get("/ordens-servico/OS-CLIENTE-002/acompanhamento")
                         .with(user("tester"))
-                        .param("documentoCliente", "00000000000"))
+                        .param("documentoCliente", "20211112100"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Ordem de servico nao encontrada"));
     }
@@ -403,7 +485,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveFinalizarOrdemDeServico() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "55544433380", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "20160606624", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
@@ -423,8 +505,6 @@ class OrdemDeServicoControllerTest {
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();
         ordemDeServico.enviarParaOrcamento();
-        ordemDeServico.aguardarAprovacao();
-        ordemDeServico.iniciarExecucao();
         ordemDeServicoRepository.salvar(ordemDeServico);
         springDataOrcamentoRepository.save(new Orcamento(
                 "ORC-001",
@@ -468,7 +548,7 @@ class OrdemDeServicoControllerTest {
 
     @Test
     void deveEntregarOrdemDeServicoAoCliente() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "55544433380", TipoCliente.PF));
+        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "20160606624", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
@@ -483,8 +563,6 @@ class OrdemDeServicoControllerTest {
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();
         ordemDeServico.enviarParaOrcamento();
-        ordemDeServico.aguardarAprovacao();
-        ordemDeServico.iniciarExecucao();
         ordemDeServico.finalizar();
         ordemDeServicoRepository.salvar(ordemDeServico);
 
@@ -497,40 +575,6 @@ class OrdemDeServicoControllerTest {
                 .orElseThrow();
         assert ordemAtualizada.getStatus() == StatusOrdemDeServico.ENTREGUE;
         assert ordemAtualizada.getEntregueEm() != null;
-    }
-
-    @Test
-    void deveAguardarAprovacaoEIniciarExecucao() throws Exception {
-        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "55544433380", TipoCliente.PF));
-        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
-        veiculoRepository.salvar(new Veiculo(
-                cliente.getId(),
-                "EXE4M56", "Jeep", "Renegade", "Stellantis", 2024, 185, "AUTOMATICO", TipoCombustivel.DIESEL));
-
-        OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
-                null,
-                "os-execucao-1",
-                Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
-                cliente,
-                veiculoRepository.buscarPorPlaca("EXE4M56").orElseThrow());
-        ordemDeServico.iniciarDiagnostico();
-        ordemDeServico.concluirDiagnostico();
-        ordemDeServico.enviarParaOrcamento();
-        ordemDeServicoRepository.salvar(ordemDeServico);
-
-        mockMvc.perform(post("/ordens-servico/os-execucao-1/aguardar-aprovacao")
-                        .with(user("tester"))
-                        .with(csrf()))
-                .andExpect(status().isNoContent());
-        assert ordemDeServicoRepository.buscarPorNumero("os-execucao-1").orElseThrow().getStatus()
-                == StatusOrdemDeServico.AGUARDANDO_APROVACAO;
-
-        mockMvc.perform(post("/ordens-servico/os-execucao-1/execucao/iniciar")
-                        .with(user("tester"))
-                        .with(csrf()))
-                .andExpect(status().isNoContent());
-        assert ordemDeServicoRepository.buscarPorNumero("os-execucao-1").orElseThrow().getStatus()
-                == StatusOrdemDeServico.SERVICO_EM_ANDAMENTO;
     }
 
     @Test

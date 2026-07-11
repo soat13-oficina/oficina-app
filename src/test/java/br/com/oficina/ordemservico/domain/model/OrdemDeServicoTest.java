@@ -19,7 +19,7 @@ class OrdemDeServicoTest {
     @Test
     void deveAbrirAlterarEExporDadosDaOrdemDeServico() {
         OrdemDeServico ordemDeServico = novaOrdem("OS-001");
-        Cliente novoCliente = Cliente.reconstituir(UUID.fromString("51111111-1111-1111-1111-111111111111"), "Bianca", "52998224725", TipoCliente.PF);
+        Cliente novoCliente = Cliente.reconstituir(UUID.fromString("51111111-1111-1111-1111-111111111111"), "Bianca", "20100000053", TipoCliente.PF);
         Veiculo novoVeiculo = Veiculo.reconstituir(
                 UUID.fromString("71111111-1111-1111-1111-111111111111"),
                 novoCliente.getId(),
@@ -52,10 +52,6 @@ class OrdemDeServicoTest {
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();
         ordemDeServico.enviarParaOrcamento();
-        ordemDeServico.aguardarAprovacao();
-        assertEquals(StatusOrdemDeServico.AGUARDANDO_APROVACAO, ordemDeServico.getStatus());
-        ordemDeServico.iniciarExecucao();
-        assertEquals(StatusOrdemDeServico.SERVICO_EM_ANDAMENTO, ordemDeServico.getStatus());
         ordemDeServico.finalizar();
         ordemDeServico.entregarAoCliente();
 
@@ -63,31 +59,6 @@ class OrdemDeServicoTest {
         assertNotNull(ordemDeServico.getIniciadaEm());
         assertNotNull(ordemDeServico.getFinalizadaEm());
         assertNotNull(ordemDeServico.getEntregueEm());
-    }
-
-    @Test
-    void naoDeveAguardarAprovacaoSemOrcamentoGerado() {
-        OrdemDeServico ordemDeServico = novaOrdem("OS-002A");
-
-        RegraDeNegocioException exception = assertThrows(
-                RegraDeNegocioException.class,
-                ordemDeServico::aguardarAprovacao);
-
-        assertEquals("Ordem de servico so pode aguardar aprovacao apos o orcamento ser gerado", exception.getMessage());
-    }
-
-    @Test
-    void naoDeveIniciarExecucaoSemAguardarAprovacao() {
-        OrdemDeServico ordemDeServico = novaOrdem("OS-002B");
-        ordemDeServico.iniciarDiagnostico();
-        ordemDeServico.concluirDiagnostico();
-        ordemDeServico.enviarParaOrcamento();
-
-        RegraDeNegocioException exception = assertThrows(
-                RegraDeNegocioException.class,
-                ordemDeServico::iniciarExecucao);
-
-        assertEquals("Execucao so pode ser iniciada quando a ordem estiver aguardando aprovacao", exception.getMessage());
     }
 
     @Test
@@ -114,14 +85,14 @@ class OrdemDeServicoTest {
     }
 
     @Test
-    void naoDeveFinalizarQuandoServicoNaoEstiverEmAndamento() {
+    void naoDeveFinalizarSemDiagnosticoConcluido() {
         OrdemDeServico ordemDeServico = novaOrdem("OS-005");
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
                 ordemDeServico::finalizar);
 
-        assertEquals("Ordem de servico so pode ser finalizada quando o servico estiver em andamento", exception.getMessage());
+        assertEquals("Ordem de servico so pode ser finalizada com orcamento gerado", exception.getMessage());
     }
 
     @Test
@@ -143,7 +114,7 @@ class OrdemDeServicoTest {
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
                 () -> ordemDeServico.alterar(
-                        Cliente.reconstituir(UUID.fromString("53333333-3333-3333-3333-333333333333"), "Marcos", "39053344705", TipoCliente.PF),
+                        Cliente.reconstituir(UUID.fromString("53333333-3333-3333-3333-333333333333"), "Marcos", "20170707776", TipoCliente.PF),
                         Veiculo.reconstituir(
                                 UUID.fromString("73333333-3333-3333-3333-333333333333"),
                                 UUID.fromString("53333333-3333-3333-3333-333333333333"),
@@ -165,7 +136,7 @@ class OrdemDeServicoTest {
                 UUID.nameUUIDFromBytes(("ordem-" + numeroOrdemServico).getBytes()),
                 numeroOrdemServico,
                 Funcionario.reconstituir(UUID.nameUUIDFromBytes(("funcionario-" + numeroOrdemServico).getBytes()), "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "11144477735", TipoCliente.PF),
+                Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF),
                 Veiculo.reconstituir(
                         UUID.nameUUIDFromBytes(("veiculo-" + numeroOrdemServico).getBytes()),
                         clienteId,
