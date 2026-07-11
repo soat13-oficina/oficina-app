@@ -29,7 +29,7 @@ public class ConsultarOrdensDeServicoService implements ConsultarOrdensDeServico
                 query.nomeCliente(),
                 query.placaVeiculo(),
                 query.documentoCliente() != null);
-        List<OrdemDeServico> ordens = ordemDeServicoRepository.buscarPorFiltros(
+        List<OrdemDeServico> ordens = ordemDeServicoRepository.buscarAtivasPriorizadasPorFiltros(
                 query.numeroOrdemServico(),
                 query.nomeCliente(),
                 query.placaVeiculo(),

@@ -60,6 +60,28 @@ containerizados (usa o `Dockerfile` multi-stage do projeto).
 
 O Flyway executa as migrations automaticamente na inicialização. A aplicação fica disponível em `http://localhost:8080`.
 
+### 3. (Opcional) Visualizar e-mails com o Mailhog
+
+O `docker-compose.yml` também sobe um serviço `mailhog` — um servidor SMTP
+falso para desenvolvimento local. Ele **não envia e-mails de verdade**: toda
+notificação disparada pela aplicação (via outbox, a cada mudança de status da
+OS) é capturada por ele e exibida em uma UI web, em vez de ir para uma caixa
+de entrada real.
+
+```bash
+docker-compose up -d mailhog
+```
+
+- **SMTP (usado pela aplicação):** `localhost:1025` — já é o default de
+  `SMTP_HOST`/`SMTP_PORT` no `application.yml`, então nenhuma configuração
+  extra é necessária.
+- **UI web (para inspecionar os e-mails capturados):** http://localhost:8025
+
+Para testar: dispare qualquer ação que gere notificação (ex.: uma mudança de
+status de OS) e abra a UI do Mailhog em `http://localhost:8025` — o e-mail
+capturado aparece na lista, com assunto, corpo e destinatário, sem precisar de
+nenhuma conta de e-mail real.
+
 ---
 
 ## Usando o Swagger
@@ -186,6 +208,26 @@ O token expira em **24 horas**. Para renovar, basta fazer login novamente.
 
 ---
 
+## Endpoints REST
+
+| Domínio | Endpoints |
+|---|---|
+| Autenticação (`/api/auth`) | `POST /register`, `POST /login` |
+| Clientes (`/clientes`) | `POST`, `GET`, `GET /{clienteId}`, `PUT /{clienteId}`, `DELETE /{clienteId}` |
+| Veículos (`/veiculos`) | `POST`, `GET`, `PUT /{placa}`, `DELETE /{placa}` |
+| Funcionários (`/funcionarios`) | `POST`, `GET`, `GET /{funcionarioId}`, `PUT /{funcionarioId}`, `DELETE /{funcionarioId}` |
+| Ordens de Serviço (`/ordens-servico`) | `POST`, `GET`, `GET /{numeroOrdemServico}`, `PUT /{numeroOrdemServico}`, `DELETE /{numeroOrdemServico}`, `GET /metricas/tempo-medio`, `GET /{numeroOrdemServico}/acompanhamento` |
+| Diagnóstico da OS | `POST /ordens-servico/{numeroOrdemServico}/diagnostico/iniciar`, `POST /ordens-servico/{numeroOrdemServico}/diagnostico/concluir`, `POST /ordens-servico/{numeroOrdemServico}/diagnostico/enviar-para-orcamento` |
+| Execução e entrega da OS | `POST /ordens-servico/{numeroOrdemServico}/execucao/iniciar`, `POST /ordens-servico/{numeroOrdemServico}/servico/concluir`, `POST /ordens-servico/{numeroOrdemServico}/finalizacao`, `POST /ordens-servico/{numeroOrdemServico}/entrega` |
+| Orçamentos (`/orcamentos`) | `POST /{orcamentoId}/aprovacao`, `POST /{orcamentoId}/rejeicao`, `GET /{orcamentoId}`, `GET`, `PUT /{orcamentoId}`, `DELETE /{orcamentoId}` |
+| Peças e Insumos (`/pecas-insumos`) | `POST`, `GET`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/adicionar-estoque`, `POST /{id}/remover-estoque`, `POST /{id}/reservar`, `POST /{id}/liberar-reserva`, `POST /{id}/consumir` |
+| Webhook de decisão de orçamento (`/integracoes/orcamentos`) | `POST /{numeroOrcamento}/decisao` — exige o header `X-Webhook-Token`, aceitando um token de integração gerado (ver abaixo) ou o segredo estático `ORCAMENTO_WEBHOOK_SECRET` (coexistência temporária) |
+| Tokens de integração (`/integracoes/tokens`) | `POST` (gerar), `GET` (listar), `DELETE /{id}` (revogar) — autenticado via JWT, como as demais rotas |
+
+> **Notificações**: não expõem endpoint REST. São disparadas internamente (padrão outbox) a cada mudança de status da OS e reprocessadas por um scheduler em caso de falha de envio (SMTP configurado via `SMTP_HOST`/`SMTP_PORT`).
+
+---
+
 ## Estrutura do projeto
 
 ```
@@ -210,43 +252,62 @@ Arquitetura hexagonal (ports & adapters) com estrutura `domain / application / i
 
 ```mermaid
 flowchart TB
-    subgraph GH["GitHub Actions"]
+    DEV(["👨‍💻 Dev<br/><i>git push / PR</i>"])
+    CLIENT(["🌐 Cliente HTTP<br/><i>Swagger / Insomnia</i>"])
+
+    subgraph GH["⚙️ GitHub Actions"]
         direction LR
-        INFRA_WF["Infraestrutura (manual)\nterraform plan/apply/destroy"]
-        CI_WF["CI/CD (push na master)\nbuild -> testes -> imagem -> deploy"]
+        INFRA_WF["🏗️ Infraestrutura<br/><b>manual</b><br/>terraform plan · apply · destroy"]
+        CI_WF["🔄 CI/CD<br/><b>push na master</b><br/>testes → imagem → deploy"]
     end
 
-    subgraph AWS["AWS (us-east-1) - Terraform em /infra/aws"]
-        ECR["ECR\nregistry de imagens"]
-        SM["Secrets Manager\ncredenciais do RDS"]
+    subgraph AWS["☁️ AWS · us-east-1 · Terraform em /infra/aws"]
+        direction TB
+        ECR["📦 ECR<br/>registry de imagens"]
+        SM["🔐 Secrets Manager<br/>credenciais do RDS"]
 
-        subgraph VPC["VPC 10.0.0.0/16 (2 AZs)"]
-            NLB["NLB publico\n(criado pelo Service)"]
+        subgraph VPC["🕸️ VPC 10.0.0.0/16 · 2 AZs"]
+            direction TB
+            NLB["⚖️ NLB público<br/><i>criado pelo Service</i>"]
 
-            subgraph EKS["EKS - namespace oficina (/k8s)"]
-                CM["ConfigMap"]
-                SEC["Secrets"]
-                DEP["Deployment oficina-api\n2-6 replicas"]
-                HPA["HPA\nCPU 70% / Mem 80%"]
-                MS["metrics-server\n(add-on EKS)"]
+            subgraph EKS["☸️ EKS · namespace oficina · /k8s"]
+                direction TB
+                DEP["🚀 Deployment <b>oficina-api</b><br/>2–6 réplicas · probes Actuator"]
+                CFG["📄 ConfigMap · 🔑 Secrets"]
+                HPA["📈 HPA<br/>CPU 70% · Mem 80%"]
+                MS["📊 metrics-server<br/><i>add-on EKS</i>"]
             end
 
-            RDS[("RDS PostgreSQL 15\nsubnets privadas")]
+            RDS[("🐘 RDS PostgreSQL 15<br/><i>subnets privadas</i>")]
         end
     end
 
-    CLIENT([Cliente HTTP]) --> NLB --> DEP
-    INFRA_WF -- provisiona --> AWS
-    CI_WF -- docker push --> ECR
-    CI_WF -- kubectl apply --> EKS
-    CI_WF -- le credenciais --> SM
-    CM --> DEP
-    SEC --> DEP
+    DEV --> GH
+    INFRA_WF -. "🏗️ provisiona" .-> AWS
+    CI_WF -- "docker push" --> ECR
+    CI_WF -- "kubectl apply" --> EKS
+    CI_WF -- "lê credenciais" --> SM
+    CLIENT ==> NLB ==> DEP
+    CFG --> DEP
     MS --> HPA
-    HPA -. escala .-> DEP
-    DEP --> RDS
-    ECR -. pull via IAM .-> DEP
+    HPA -. "escala" .-> DEP
+    ECR -. "pull via IAM" .-> DEP
+    DEP ==> RDS
+
+    classDef pipeline fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
+    classDef awsmanaged fill:#ffedd5,stroke:#ea580c,stroke-width:2px,color:#7c2d12
+    classDef k8s fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
+    classDef data fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef actor fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#581c87
+
+    class INFRA_WF,CI_WF pipeline
+    class ECR,SM,NLB awsmanaged
+    class DEP,CFG,HPA,MS k8s
+    class RDS data
+    class DEV,CLIENT actor
 ```
+
+> 🟣 atores · 🔵 pipelines · 🟠 serviços gerenciados AWS · 💧 Kubernetes · 🟢 dados
 
 **Componentes da aplicação:** API Spring Boot (`oficina-api`, arquitetura
 hexagonal — ver [Estrutura do projeto](#estrutura-do-projeto)) + PostgreSQL.
@@ -267,7 +328,7 @@ pelo workflow **Infraestrutura (Terraform)**, manual, porque criar EKS leva
 ### Containerização (Docker)
 
 - `Dockerfile`: build multi-stage (Maven → JRE 21 Alpine), usuário não-root,
-  `HEALTHCHECK` via `/v3/api-docs` (endpoint público do Swagger, não exige JWT).
+  `HEALTHCHECK` via `/actuator/health/liveness` (Spring Boot Actuator, público).
 - `docker-compose.yml`: sobe banco + aplicação para desenvolvimento local
   (ver [Subindo o ambiente](#subindo-o-ambiente)).
 
@@ -278,7 +339,7 @@ pelo workflow **Infraestrutura (Terraform)**, manual, porque criar EKS leva
 | `00-namespace.yaml` | Namespace `oficina` |
 | `01-configmap.yaml` | `DB_URL` (placeholder `__RDS_ENDPOINT__`, preenchido pela pipeline com o endpoint do RDS) |
 | `02-secret.yaml` | `JWT_SECRET` (valor de demo — ver comentário no arquivo) |
-| `03-deployment.yaml` | Deployment da API (placeholder `__IMAGE__` → ECR), 2 réplicas, probes, requests/limits |
+| `03-deployment.yaml` | Deployment da API (placeholder `__IMAGE__` → ECR), 2 réplicas, probes de startup/readiness/liveness via Actuator, requests/limits |
 | `04-service.yaml` | Service `LoadBalancer` — a AWS cria um NLB público para a demo |
 | `05-hpa.yaml` | HorizontalPodAutoscaler (2-6 réplicas, 70% CPU / 80% memória) |
 
@@ -312,7 +373,7 @@ opcionalmente `AWS_REGION` (variables).
 No `destroy`, remove antes os recursos do k8s (o NLB é criado fora do
 Terraform e travaria a exclusão da VPC).
 
-**`ci-cd.yml` — CI/CD**, a cada push/PR na `master`:
+**`ci-cd.yml` — CI/CD**, em push na `master` e PRs para `master`/`desenvolvimento`:
 
 1. **unit-tests** — `./mvnw clean verify` (build + testes unitários + gate de cobertura JaCoCo).
 2. **integration-tests** — `./mvnw test -Dspring.profiles.active=integration` contra um PostgreSQL real (service container).

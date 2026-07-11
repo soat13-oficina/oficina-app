@@ -11,4 +11,6 @@ public interface SpringDataVeiculoRepository extends JpaRepository<Veiculo, UUID
     Optional<Veiculo> findByPlaca(String placa);
 
     void deleteByPlaca(String placa);
+
+    boolean existsByClienteId(UUID clienteId);
 }

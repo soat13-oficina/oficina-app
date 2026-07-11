@@ -48,3 +48,20 @@ backend.hcl
 crash.log
 crash.*.log
 **/kubeconfig
+
+### Ferramentas / agentes ###
+/.agents/
+/.claude/
+/.specify/
+/AGENTS.md
+/specs/
+/openspec/
+/_bmad/
+/_bmad-output/
+
+### OS / tooling ###
+.DS_Store
+**/.DS_Store
+/.tokensave/
+__pycache__/
+*.pyc

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
 
 @Component
@@ -33,6 +34,10 @@ public class JwtUtil {
 
     public String extractEmail(String token) {
         return getClaims(token).getSubject();
+    }
+
+    public Instant extractExpiration(String token) {
+        return getClaims(token).getExpiration().toInstant();
     }
 
     public boolean validateToken(String token, String username) {

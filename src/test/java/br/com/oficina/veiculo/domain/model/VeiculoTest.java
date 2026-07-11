@@ -2,6 +2,9 @@ package br.com.oficina.veiculo.domain.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
+import java.time.Year;
 
 import org.junit.jupiter.api.Test;
 
@@ -86,5 +89,80 @@ class VeiculoTest {
                         TipoCombustivel.FLEX));
 
         assertEquals("Placa do veiculo invalida", exception.getMessage());
+    }
+
+    @Test
+    void deveAceitarAnoNosLimitesValidos() {
+        int anoMaximo = Year.now().getValue() + 1;
+
+        assertDoesNotThrow(() -> new Veiculo(
+                "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation",
+                1886, 1, "AUTOMATICO", TipoCombustivel.FLEX));
+        assertDoesNotThrow(() -> new Veiculo(
+                "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation",
+                anoMaximo, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+    }
+
+    @Test
+    void deveFalharQuandoAnoForMenorQueOMinimo() {
+        int anoMaximo = Year.now().getValue() + 1;
+
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
+                () -> new Veiculo(
+                        "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation",
+                        1885, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+
+        assertEquals("Ano do veiculo deve estar entre 1886 e " + anoMaximo + ".", exception.getMessage());
+    }
+
+    @Test
+    void deveFalharQuandoAnoForMaiorQueOMaximo() {
+        int anoMaximo = Year.now().getValue() + 1;
+
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
+                () -> new Veiculo(
+                        "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation",
+                        anoMaximo + 1, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+
+        assertEquals("Ano do veiculo deve estar entre 1886 e " + anoMaximo + ".", exception.getMessage());
+    }
+
+    @Test
+    void deveFalharQuandoPotenciaNaoForPositiva() {
+        RegraDeNegocioException zero = assertThrows(
+                RegraDeNegocioException.class,
+                () -> new Veiculo(
+                        "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation",
+                        2024, 0, "AUTOMATICO", TipoCombustivel.FLEX));
+        assertEquals("Potencia do veiculo deve ser maior que zero.", zero.getMessage());
+
+        RegraDeNegocioException negativa = assertThrows(
+                RegraDeNegocioException.class,
+                () -> new Veiculo(
+                        "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation",
+                        2024, -100, "AUTOMATICO", TipoCombustivel.FLEX));
+        assertEquals("Potencia do veiculo deve ser maior que zero.", negativa.getMessage());
+    }
+
+    @Test
+    void deveValidarAnoEPotenciaAoAlterar() {
+        Veiculo veiculo = new Veiculo(
+                "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation",
+                2024, 177, "AUTOMATICO", TipoCombustivel.FLEX);
+
+        RegraDeNegocioException anoInvalido = assertThrows(
+                RegraDeNegocioException.class,
+                () -> veiculo.alterar("Toyota", "Corolla", "Toyota Motor Corporation",
+                        1885, 177, "AUTOMATICO", TipoCombustivel.FLEX));
+        assertEquals("Ano do veiculo deve estar entre 1886 e " + (Year.now().getValue() + 1) + ".",
+                anoInvalido.getMessage());
+
+        RegraDeNegocioException potenciaInvalida = assertThrows(
+                RegraDeNegocioException.class,
+                () -> veiculo.alterar("Toyota", "Corolla", "Toyota Motor Corporation",
+                        2024, 0, "AUTOMATICO", TipoCombustivel.FLEX));
+        assertEquals("Potencia do veiculo deve ser maior que zero.", potenciaInvalida.getMessage());
     }
 }

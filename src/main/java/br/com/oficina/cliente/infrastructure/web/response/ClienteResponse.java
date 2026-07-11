@@ -7,7 +7,7 @@ import br.com.oficina.cliente.domain.model.TipoCliente;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(name = "ClienteResponse", description = "Representação de um cliente")
-public record ClienteResponse(UUID id, String nome, String cpfOuCnpj, TipoCliente tipoCliente) {
+public record ClienteResponse(UUID id, String nome, String cpfOuCnpj, TipoCliente tipoCliente, String email) {
     @Override
     @Schema(description = "Identificador do cliente", example = "8e221ff7-71b9-4c22-8a8d-f94b6fd897cd")
     public UUID id() {
@@ -32,11 +32,18 @@ public record ClienteResponse(UUID id, String nome, String cpfOuCnpj, TipoClient
         return tipoCliente;
     }
 
+    @Override
+    @Schema(description = "E-mail do cliente para notificações", example = "maria@email.com")
+    public String email() {
+        return email;
+    }
+
     public static ClienteResponse from(Cliente cliente) {
         return new ClienteResponse(
                 cliente.getId(),
                 cliente.getNome(),
                 cliente.getCpfOuCnpj(),
-                cliente.getTipoCliente());
+                cliente.getTipoCliente(),
+                cliente.getEmail());
     }
 }

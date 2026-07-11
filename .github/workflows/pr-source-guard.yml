@@ -1,0 +1,30 @@
+name: PR Source Guard
+
+# Impõe o fluxo de promoção entre branches protegidas:
+#   feature/*  -> desenvolvimento   (qualquer origem)
+#   desenvolvimento -> master        (somente desta origem)
+#
+# O GitHub não restringe a branch de ORIGEM de um PR nativamente; este job
+# reprova o PR quando a origem não é a permitida. Marque o job "guard" como
+# status check obrigatório na proteção de 'master'.
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar branch de origem do PR
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          echo "PR: $HEAD -> $BASE"
+          if [ "$BASE" = "master" ] && [ "$HEAD" != "desenvolvimento" ]; then
+            echo "::error::A branch 'master' só aceita PR vindo de 'desenvolvimento' (origem recebida: '$HEAD')."
+            exit 1
+          fi
+          echo "Origem permitida. ✅"

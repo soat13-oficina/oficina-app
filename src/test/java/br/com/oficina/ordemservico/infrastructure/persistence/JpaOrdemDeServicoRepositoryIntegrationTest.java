@@ -10,20 +10,25 @@ import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.PecaPrevistaOrdem;
+import br.com.oficina.ordemservico.domain.model.ServicoOrdem;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
-import br.com.oficina.support.PostgresIntegrationTest;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.infrastructure.persistence.SpringDataVeiculoRepository;
 
+@SpringBootTest
+@ActiveProfiles("integration")
 @Transactional
-class JpaOrdemDeServicoRepositoryIntegrationTest extends PostgresIntegrationTest {
+class JpaOrdemDeServicoRepositoryIntegrationTest {
 
     @Autowired
     private JpaOrdemDeServicoRepository repository;
@@ -68,8 +73,8 @@ class JpaOrdemDeServicoRepositoryIntegrationTest extends PostgresIntegrationTest
     @Test
     void devePersistirDataDeEntregaQuandoOrdemForEntregue() {
         UUID clienteId = UUID.randomUUID();
-        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Larissa", "12312312387");
-        Cliente cliente = Cliente.reconstituir(clienteId, "Claudio", "12312312387", TipoCliente.PF);
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Larissa", "20130303399");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Claudio", "20130303399", TipoCliente.PF);
         Veiculo veiculo = veiculoRepository.save(new Veiculo(
                 clienteId,
                 "ENT1R23",
@@ -84,8 +89,6 @@ class JpaOrdemDeServicoRepositoryIntegrationTest extends PostgresIntegrationTest
         ordem.iniciarDiagnostico();
         ordem.concluirDiagnostico();
         ordem.enviarParaOrcamento();
-        ordem.aguardarAprovacao();
-        ordem.iniciarExecucao();
         ordem.finalizar();
         ordem.entregarAoCliente();
 
@@ -100,8 +103,8 @@ class JpaOrdemDeServicoRepositoryIntegrationTest extends PostgresIntegrationTest
     @Test
     void deveBuscarOrdensComExecucaoFinalizada() {
         UUID clienteId = UUID.randomUUID();
-        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Larissa", "12312312387");
-        Cliente cliente = Cliente.reconstituir(clienteId, "Claudio", "12312312387", TipoCliente.PF);
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Larissa", "20130303399");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Claudio", "20130303399", TipoCliente.PF);
         Veiculo veiculo1 = veiculoRepository.save(new Veiculo(
                 clienteId,
                 "MET1R23",
@@ -151,10 +154,33 @@ class JpaOrdemDeServicoRepositoryIntegrationTest extends PostgresIntegrationTest
     }
 
     @Test
+    void devePersistirServicosEPecasNaOrdemDeServico() {
+        UUID clienteId = UUID.randomUUID();
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Pedro", "20150505582");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Lucia", "20150505582", TipoCliente.PF);
+        Veiculo veiculo = veiculoRepository.save(new Veiculo(
+                clienteId, "SVC1A23", "Honda", "Fit", "Honda", 2022, 120, "AUTOMATICO", TipoCombustivel.FLEX));
+
+        OrdemDeServico ordem = OrdemDeServico.abrir(
+                null, "OS-SERVICOS-001", funcionario, cliente, veiculo,
+                List.of(new ServicoOrdem("Troca de filtro", new java.math.BigDecimal("80.00"))),
+                List.of(new PecaPrevistaOrdem("peca-insumo-filtro-001", 2)));
+
+        repository.salvar(ordem);
+
+        OrdemDeServico encontrada = repository.buscarPorNumero("OS-SERVICOS-001").orElseThrow();
+        assertEquals(1, encontrada.getServicos().size());
+        assertEquals("Troca de filtro", encontrada.getServicos().get(0).getDescricao());
+        assertEquals(1, encontrada.getPecasPrevistas().size());
+        assertEquals("peca-insumo-filtro-001", encontrada.getPecasPrevistas().get(0).getPecaInsumoId());
+        assertEquals(2, encontrada.getPecasPrevistas().get(0).getQuantidade());
+    }
+
+    @Test
     void deveExcluirOrdemDeServicoPorNumero() {
         UUID clienteId = UUID.randomUUID();
-        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Julia", "10987654357");
-        Cliente cliente = Cliente.reconstituir(clienteId, "Carlos", "10987654357", TipoCliente.PF);
+        Funcionario funcionario = Funcionario.reconstituir(UUID.randomUUID(), "Julia", "20180808818");
+        Cliente cliente = Cliente.reconstituir(clienteId, "Carlos", "20180808818", TipoCliente.PF);
         Veiculo veiculo = veiculoRepository.save(new Veiculo(
                 clienteId,
                 "DEF2G34",

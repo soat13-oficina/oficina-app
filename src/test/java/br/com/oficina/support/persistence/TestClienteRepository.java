@@ -15,7 +15,7 @@ public class TestClienteRepository implements ClienteRepository {
     @Override
     public Cliente salvar(Cliente cliente) {
         Cliente clientePersistido = cliente.getId() == null
-                ? Cliente.reconstituir(UUID.randomUUID(), cliente.getNome(), cliente.getCpfOuCnpj(), cliente.getTipoCliente())
+                ? Cliente.reconstituir(UUID.randomUUID(), cliente.getNome(), cliente.getCpfOuCnpj(), cliente.getTipoCliente(), cliente.getEmail())
                 : cliente;
         clientes.put(clientePersistido.getId(), clientePersistido);
         return clientePersistido;

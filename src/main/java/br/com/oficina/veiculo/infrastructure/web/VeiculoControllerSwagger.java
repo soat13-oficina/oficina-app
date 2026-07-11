@@ -26,7 +26,7 @@ public interface VeiculoControllerSwagger {
             description = "Cria um novo veículo vinculado a um cliente proprietário existente. A placa aceita formato Mercosul e formato antigo, e sempre é normalizada sem espaços, sem hífen e em caixa alta. Não são permitidos veículos com a mesma placa.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Veículo cadastrado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro, placa inválida ou placa já cadastrada", content = @Content),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para cadastro, placa inválida ou já cadastrada, ano fora do intervalo [1886, ano corrente + 1] ou potência não positiva", content = @Content),
             @ApiResponse(responseCode = "404", description = "Cliente proprietário não encontrado", content = @Content)
     })
     ResponseEntity<Void> cadastrar(CadastrarVeiculoRequest request);
@@ -36,10 +36,13 @@ public interface VeiculoControllerSwagger {
             description = "Atualiza os dados de um veículo existente identificado pela placa. A placa informada na URL pode ser enviada com espaços ou hífen, pois será normalizada antes da consulta.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Veículo alterado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos para alteração ou placa inválida", content = @Content),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos para alteração, placa inválida, ano fora do intervalo [1886, ano corrente + 1] ou potência não positiva", content = @Content),
             @ApiResponse(responseCode = "404", description = "Veículo não encontrado", content = @Content)
     })
-    ResponseEntity<Void> alterar(String placa, AlterarVeiculoRequest request);
+    ResponseEntity<Void> alterar(
+            @Parameter(description = "Placa do veículo. Aceita formatos como `ABC1D23`, `ABC-1234` ou `abc-1d23`.", example = "ABC1D23")
+            String placa,
+            AlterarVeiculoRequest request);
 
     @Operation(
             summary = "Consultar veiculos",
@@ -64,8 +67,10 @@ public interface VeiculoControllerSwagger {
             description = "Remove um veículo pela placa. A placa informada pode ser enviada com espaços ou hífen, pois será normalizada antes da exclusão.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Veículo excluído com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Placa inválida", content = @Content),
+            @ApiResponse(responseCode = "400", description = "Placa inválida ou veículo possui ordens de serviço vinculadas", content = @Content),
             @ApiResponse(responseCode = "404", description = "Veículo não encontrado", content = @Content)
     })
-    ResponseEntity<Void> excluir(String placa);
+    ResponseEntity<Void> excluir(
+            @Parameter(description = "Placa do veículo. Aceita formatos como `ABC1D23`, `ABC-1234` ou `abc-1d23`.", example = "ABC1D23")
+            String placa);
 }

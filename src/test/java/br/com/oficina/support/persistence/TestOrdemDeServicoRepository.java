@@ -6,8 +6,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Comparator;
 
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 
 public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
@@ -25,9 +27,19 @@ public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
                         ordemDeServico.getStatus(),
                         ordemDeServico.getIniciadaEm(),
                         ordemDeServico.getFinalizadaEm(),
-                        ordemDeServico.getEntregueEm())
+                        ordemDeServico.getEntregueEm(),
+                        ordemDeServico.getMotivoEncerramento(),
+                        ordemDeServico.getServicos(),
+                        ordemDeServico.getPecasPrevistas())
                 : ordemDeServico;
         ordens.put(ordemPersistida.getNumeroOrdemServico(), ordemPersistida);
+    }
+
+    @Override
+    public Optional<OrdemDeServico> buscarPorId(UUID ordemDeServicoId) {
+        return ordens.values().stream()
+                .filter(ordem -> Objects.equals(ordem.getId(), ordemDeServicoId))
+                .findFirst();
     }
 
     @Override
@@ -55,6 +67,22 @@ public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
     }
 
     @Override
+    public List<OrdemDeServico> buscarAtivasPriorizadasPorFiltros(
+            String numeroOrdemServico,
+            String nomeCliente,
+            String placaVeiculo,
+            String documentoCliente) {
+        return buscarPorFiltros(numeroOrdemServico, nomeCliente, placaVeiculo, documentoCliente).stream()
+                .filter(ordem -> ordem.getStatus() != StatusOrdemDeServico.OS_FINALIZADA
+                        && ordem.getStatus() != StatusOrdemDeServico.ENTREGUE)
+                .sorted(Comparator
+                        .comparingInt((OrdemDeServico ordem) -> prioridade(ordem.getStatus()))
+                        .thenComparing(ordem -> ordem.getIniciadaEm(), Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(OrdemDeServico::getNumeroOrdemServico))
+                .toList();
+    }
+
+    @Override
     public List<OrdemDeServico> buscarTodas() {
         return ordens.values().stream().toList();
     }
@@ -76,5 +104,21 @@ public class TestOrdemDeServicoRepository implements OrdemDeServicoRepository {
         return ordens.values().stream()
                 .anyMatch(os -> os.getFuncionario() != null
                         && Objects.equals(funcionarioId, os.getFuncionario().getId()));
+    }
+
+    @Override
+    public boolean existePorVeiculoId(UUID veiculoId) {
+        return ordens.values().stream()
+                .anyMatch(os -> Objects.equals(veiculoId, os.getVeiculoId()));
+    }
+
+    private static int prioridade(StatusOrdemDeServico status) {
+        return switch (status) {
+            case SERVICO_EM_ANDAMENTO -> 1;
+            case AGUARDANDO_APROVACAO -> 2;
+            case DIAGNOSTICO_EM_ANDAMENTO, DIAGNOSTICO_CONCLUIDO -> 3;
+            case OS_ABERTA -> 4;
+            default -> 5;
+        };
     }
 }
