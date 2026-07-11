@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,14 +67,29 @@ class WebhookDecisaoOrcamentoControllerTest {
 
     @BeforeEach
     void setUp() {
+        limparTabelas();
+        mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .apply(springSecurity())
+                .build();
+    }
+
+    // Sem @Transactional (as requisicoes MockMvc percorrem o filtro de
+    // seguranca e o webhook de verdade). A limpeza do @BeforeEach so cobre
+    // o INICIO de cada teste; sem isso aqui, a ultima OS/cliente ("Maria"/
+    // 20110101103) desta classe fica commitada e pode colidir com outras
+    // classes de integracao que compartilham o mesmo banco (H2 ou Postgres,
+    // dependendo do profile ativo na execucao).
+    @AfterEach
+    void tearDown() {
+        limparTabelas();
+    }
+
+    private void limparTabelas() {
         springDataOrcamentoRepository.deleteAll();
         springDataOrdemDeServicoRepository.deleteAll();
         springDataVeiculoRepository.deleteAll();
         springDataClienteRepository.deleteAll();
         springDataFuncionarioRepository.deleteAll();
-        mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .apply(springSecurity())
-                .build();
     }
 
     @Test

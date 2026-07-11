@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,6 +82,20 @@ class DecidirOrcamentoAtomicidadeIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        limparTabelas();
+    }
+
+    // Sem @Transactional (proposital: o teste precisa que o setup esteja
+    // realmente commitado para exercitar o rollback do use case como uma
+    // transacao separada). Por isso a limpeza tem que rodar tambem depois,
+    // senao a ultima OS/cliente ("Maria"/20110101103) fica commitada e
+    // polui outras classes de integracao que dividem o mesmo Postgres.
+    @AfterEach
+    void tearDown() {
+        limparTabelas();
+    }
+
+    private void limparTabelas() {
         springDataOrcamentoRepository.deleteAll();
         springDataOrdemDeServicoRepository.deleteAll();
         springDataPecaInsumoRepository.deleteAll();

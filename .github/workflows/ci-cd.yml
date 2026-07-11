@@ -78,8 +78,13 @@ jobs:
           java-version: '21'
           cache: maven
 
+      # Restrito as classes *IntegrationTest: rodar a suite inteira sob o profile
+      # "integration" arrasta tambem os *ControllerTest (H2, sem @Transactional,
+      # limpam so as proprias tabelas no @BeforeEach) para o mesmo Postgres real
+      # das *IntegrationTest, poluindo dados entre classes (ex.: contagem de
+      # clientes divergente conforme a ordem de execucao).
       - name: Testes de integracao contra PostgreSQL real
-        run: ./mvnw --batch-mode test -Dspring.profiles.active=integration
+        run: ./mvnw --batch-mode test -Dtest='**/*IntegrationTest' -Dspring.profiles.active=integration
 
   build-image:
     name: Build e push da imagem para o ECR

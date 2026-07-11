@@ -27,7 +27,7 @@ spring:
 
 orcamento:
   webhook:
-    secret: ${ORCAMENTO_WEBHOOK_SECRET:segredo-teste-integracao}
+    secret: ${ORCAMENTO_WEBHOOK_SECRET:segredo-teste}
 
 notificacao:
   reprocessamento:
