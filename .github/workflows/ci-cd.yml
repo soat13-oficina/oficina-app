@@ -11,8 +11,11 @@ name: CI/CD
 on:
   push:
     branches: [master]
+  # PRs para master e desenvolvimento rodam apenas os jobs de teste;
+  # build da imagem e deploy so acontecem em push na master (gate no
+  # build-image: github.event_name != 'pull_request').
   pull_request:
-    branches: [master]
+    branches: [master, desenvolvimento]
   workflow_dispatch: {}
 
 permissions:
