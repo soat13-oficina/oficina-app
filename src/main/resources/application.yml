@@ -26,3 +26,20 @@ spring:
 jwt:
   secret: ${JWT_SECRET:SUA_CHAVE_SECRETA_MUITO_SEGURA_E_LONGA_PARA_O_JWT_DA_OFICINA_2026}
   expiration: 86400000 # 1 dia em milissegundos
+
+# Health checks consumidos pelos probes do Kubernetes (k8s/03-deployment.yaml)
+# e pelo HEALTHCHECK do Dockerfile:
+#   /actuator/health/liveness  - processo vivo (nao inclui dependencias)
+#   /actuator/health/readiness - pronto para receber trafego (inclui o banco)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
