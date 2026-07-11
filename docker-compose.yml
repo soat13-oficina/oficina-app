@@ -17,6 +17,14 @@ services:
       retries: 5
     restart: unless-stopped
 
+  mailhog:
+    image: mailhog/mailhog
+    container_name: oficina_mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
   api:
     build: .
     container_name: oficina_api
@@ -27,9 +35,13 @@ services:
       DB_USER: ${DB_USER:-oficina_user}
       DB_PASS: ${DB_PASS:-oficina_123}
       JWT_SECRET: ${JWT_SECRET:-ASjhd8213u41jksaJD7HS8AJDkjsaDH871A2132KJDQ293N12BDKS}
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
     depends_on:
       db:
         condition: service_healthy
+      mailhog:
+        condition: service_started
     restart: unless-stopped
 
 volumes:

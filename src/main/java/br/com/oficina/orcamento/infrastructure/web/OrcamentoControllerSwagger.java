@@ -51,7 +51,7 @@ public interface OrcamentoControllerSwagger {
 
     @Operation(
             summary = "Aprovar orçamento",
-            description = "Aprova um orçamento aguardando aprovação. As peças previstas são reservadas automaticamente no estoque. Se alguma peça não tiver estoque suficiente, a resposta indicará status AGUARDANDO_PECA.")
+            description = "Aprova um orçamento aguardando aprovação. As peças previstas são reservadas automaticamente no estoque. Se alguma peça não tiver estoque suficiente, a aprovação falha (400) e o orçamento permanece com status AGUARDANDO_APROVACAO.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Orçamento aprovado com sucesso e peças reservadas",
                     content = @Content(schema = @Schema(implementation = OrcamentoResponse.class))),

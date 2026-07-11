@@ -75,14 +75,14 @@ public class AprovarOrcamentoService implements AprovarOrcamentoUseCase {
                     liberarReservaPecaUseCase.liberarReserva(new LiberarReservaPecaCommand(
                             pecaReservada.getPecaInsumoId(),
                             pecaReservada.getQuantidade()));
-                } catch (Exception ignored) {
+                } catch (Exception excecao) {
                     log.warn("Falha ao desfazer reserva da peca {}. Pode ser necessario ajuste manual.",
-                            pecaReservada.getPecaInsumoId());
+                            pecaReservada.getPecaInsumoId(), excecao);
                 }
             }
             throw new RegraDeNegocioException(
                     "Estoque insuficiente para as seguintes pecas: " + String.join(", ", pecasSemEstoque)
-                    + ". O orcamento permanece aguardando aprovacao (AGUARDANDO_PECA).");
+                    + ". O orcamento permanece aguardando aprovacao (AGUARDANDO_APROVACAO).");
         }
 
         orcamento.aprovar();

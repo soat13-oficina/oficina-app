@@ -16,3 +16,7 @@ metadata:
     app: oficina-api
 data:
   DB_URL: "jdbc:postgresql://__RDS_ENDPOINT__/oficina_db"
+  # SMTP local/demo (Mailhog). Para um provedor real, sobrescreva estes
+  # valores no ConfigMap antes do deploy.
+  SMTP_HOST: "localhost"
+  SMTP_PORT: "1025"

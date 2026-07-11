@@ -61,6 +61,24 @@ class ClienteTest {
     }
 
     @Test
+    void deveRejeitarCpfComDigitosRepetidos() {
+        RegraDeNegocioException exception = assertThrows(
+                RegraDeNegocioException.class,
+                () -> Cliente.reconstituir(UUID.fromString("99999999-9999-9999-9999-999999999999"), "Carlos", "11111111111", TipoCliente.PF));
+
+        assertEquals("CPF informado e invalido", exception.getMessage());
+    }
+
+    @Test
+    void deveAceitarCnpjValido() {
+        Cliente cliente = Cliente.reconstituir(
+                UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), "Oficina", "11444777000161", TipoCliente.PJ);
+
+        assertEquals("11444777000161", cliente.getCpfOuCnpj());
+        assertEquals(TipoCliente.PJ, cliente.getTipoCliente());
+    }
+
+    @Test
     void deveFalharQuandoTipoForInformadoSemDocumento() {
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
