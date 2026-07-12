@@ -10,7 +10,7 @@ pipeline de CI/CD (ou manualmente via `kubectl`) **depois** deste Terraform.
 | Arquivo | Recursos | O que é |
 |---|---|---|
 | `vpc.tf` | `module.vpc` | VPC `10.0.0.0/16` em 2 AZs: subnets públicas (LoadBalancers), privadas (nodes do EKS) e de banco (RDS), com 1 NAT Gateway |
-| `eks.tf` | `module.eks` | Cluster EKS (Kubernetes gerenciado) + node group (2–4× `t3.medium`) + add-ons `coredns`, `kube-proxy`, `vpc-cni` e **`metrics-server`** (alimenta o HPA) |
+| `eks.tf` | `module.eks` | Cluster EKS (Kubernetes gerenciado) + node group (2–4× `t3.small`) + add-ons `coredns`, `kube-proxy`, `vpc-cni` e **`metrics-server`** (alimenta o HPA) |
 | `ecr.tf` | `aws_ecr_repository` | Repositório de imagens Docker `oficina`, com scan on push e política de reter só as 10 últimas imagens |
 | `rds.tf` | `aws_db_instance` + SG | PostgreSQL 15 gerenciado (`db.t3.micro`, 20 GiB), acessível **apenas** a partir dos nodes do EKS; senha gerada e guardada pela AWS no Secrets Manager |
 | `ses.tf` | `aws_iam_role` + `aws_iam_policy` | IAM Role assumível via IRSA pelo `ServiceAccount` `oficina-api`, com permissão única `ses:SendEmail` — usada pelo profile `ses` da aplicação. Verificação do remetente no console do SES é manual, fora do Terraform (ver [README principal](../README.md#configuração-de-e-mail-em-produção-amazon-ses)) |
@@ -25,11 +25,11 @@ cluster na hora do deploy.
 | Recurso | ~US$/hora |
 |---|---|
 | EKS control plane | 0,10 |
-| 2× t3.medium | 0,083 |
+| 2× t3.small | 0,042 |
 | NAT Gateway | 0,045 |
 | RDS db.t3.micro | 0,017 |
 | NLB (criado pelo Service da API) | 0,0225 |
-| **Total ligado** | **≈ 0,27/h (~US$ 6,50/dia)** |
+| **Total ligado** | **≈ 0,23/h (~US$ 5,50/dia)** |
 
 **Não deixe ligado sem uso.** O fluxo saudável é `apply` quando for usar e
 `destroy` ao terminar. Versões antigas de Kubernetes caem em *extended

@@ -256,42 +256,59 @@ Arquitetura hexagonal (ports & adapters) com estrutura `domain / application / i
 
 ```mermaid
 flowchart TB
-    subgraph GH["GitHub Actions"]
+    DEV(["👨‍💻 Dev<br/><i>git push / PR</i>"])
+    CLIENT(["🌐 Cliente HTTP<br/><i>Swagger / Insomnia</i>"])
+
+    subgraph GH["⚙️ GitHub Actions"]
         direction LR
-        INFRA_WF["Infraestrutura (manual)\nterraform plan/apply/destroy"]
-        CI_WF["CI/CD (push na master)\nbuild -> testes -> imagem -> deploy"]
+        INFRA_WF["🏗️ Infraestrutura<br/><b>manual</b><br/>terraform plan · apply · destroy"]
+        CI_WF["🔄 CI/CD<br/><b>push na master</b><br/>testes → imagem → deploy"]
     end
 
-    subgraph AWS["AWS (us-east-1) - Terraform em /infra/aws"]
-        ECR["ECR\nregistry de imagens"]
-        SM["Secrets Manager\ncredenciais do RDS"]
+    subgraph AWS["☁️ AWS · us-east-1 · Terraform em /infra/aws"]
+        direction TB
+        ECR["📦 ECR<br/>registry de imagens"]
+        SM["🔐 Secrets Manager<br/>credenciais do RDS"]
 
-        subgraph VPC["VPC 10.0.0.0/16 (2 AZs)"]
-            NLB["NLB publico\n(criado pelo Service)"]
+        subgraph VPC["🕸️ VPC 10.0.0.0/16 · 2 AZs"]
+            direction TB
+            NLB["⚖️ NLB público<br/><i>criado pelo Service</i>"]
 
-            subgraph EKS["EKS - namespace oficina (/k8s)"]
-                CM["ConfigMap"]
-                SEC["Secrets"]
-                DEP["Deployment oficina-api\n2-6 replicas"]
-                HPA["HPA\nCPU 70% / Mem 80%"]
-                MS["metrics-server\n(add-on EKS)"]
+            subgraph EKS["☸️ EKS · namespace oficina · /k8s"]
+                direction TB
+                DEP["🚀 Deployment <b>oficina-api</b><br/>2–6 réplicas · probes Actuator"]
+                CFG["📄 ConfigMap · 🔑 Secrets"]
+                HPA["📈 HPA<br/>CPU 70% · Mem 80%"]
+                MS["📊 metrics-server<br/><i>add-on EKS</i>"]
             end
 
-            RDS[("RDS PostgreSQL 15\nsubnets privadas")]
+            RDS[("🐘 RDS PostgreSQL 15<br/><i>subnets privadas</i>")]
         end
     end
 
-    CLIENT([Cliente HTTP]) --> NLB --> DEP
-    INFRA_WF -- provisiona --> AWS
-    CI_WF -- docker push --> ECR
-    CI_WF -- kubectl apply --> EKS
-    CI_WF -- le credenciais --> SM
-    CM --> DEP
-    SEC --> DEP
+    DEV --> GH
+    INFRA_WF -. "🏗️ provisiona" .-> AWS
+    CI_WF -- "docker push" --> ECR
+    CI_WF -- "kubectl apply" --> EKS
+    CI_WF -- "lê credenciais" --> SM
+    CLIENT ==> NLB ==> DEP
+    CFG --> DEP
     MS --> HPA
-    HPA -. escala .-> DEP
-    DEP --> RDS
-    ECR -. pull via IAM .-> DEP
+    HPA -. "escala" .-> DEP
+    ECR -. "pull via IAM" .-> DEP
+    DEP ==> RDS
+
+    classDef pipeline fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
+    classDef awsmanaged fill:#ffedd5,stroke:#ea580c,stroke-width:2px,color:#7c2d12
+    classDef k8s fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
+    classDef data fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef actor fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#581c87
+
+    class INFRA_WF,CI_WF pipeline
+    class ECR,SM,NLB awsmanaged
+    class DEP,CFG,HPA,MS k8s
+    class RDS data
+    class DEV,CLIENT actor
 ```
 
 **Componentes da aplicação:** API Spring Boot (`oficina-api`, arquitetura
@@ -315,7 +332,7 @@ pelo workflow **Infraestrutura (Terraform)**, manual, porque criar EKS leva
 ### Containerização (Docker)
 
 - `Dockerfile`: build multi-stage (Maven → JRE 21 Alpine), usuário não-root,
-  `HEALTHCHECK` via `/v3/api-docs` (endpoint público do Swagger, não exige JWT).
+  `HEALTHCHECK` via `/actuator/health/liveness` (Spring Boot Actuator, público).
 - `docker-compose.yml`: sobe banco + aplicação para desenvolvimento local
   (ver [Subindo o ambiente](#subindo-o-ambiente)).
 
@@ -361,7 +378,7 @@ opcionalmente `AWS_REGION` (variables).
 No `destroy`, remove antes os recursos do k8s (o NLB é criado fora do
 Terraform e travaria a exclusão da VPC).
 
-**`ci-cd.yml` — CI/CD**, a cada push/PR na `master`:
+**`ci-cd.yml` — CI/CD**, em push na `master` e PRs para `master`/`desenvolvimento`:
 
 1. **unit-tests** — `./mvnw clean verify` (build + testes unitários + gate de cobertura JaCoCo).
 2. **integration-tests** — `./mvnw test -Dspring.profiles.active=integration` contra um PostgreSQL real (service container).
