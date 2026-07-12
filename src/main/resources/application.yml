@@ -35,6 +35,11 @@ spring:
           starttls:
             enable: ${SMTP_STARTTLS:false}
 
+aws:
+  ses:
+    region: ${AWS_SES_REGION:us-east-1}
+    remetente: ${AWS_SES_REMETENTE:}
+
 jwt:
   secret: ${JWT_SECRET:SUA_CHAVE_SECRETA_MUITO_SEGURA_E_LONGA_PARA_O_JWT_DA_OFICINA_2026}
   expiration: 86400000 # 1 dia em milissegundos
