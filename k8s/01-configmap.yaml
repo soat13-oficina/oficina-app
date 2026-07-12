@@ -16,7 +16,14 @@ metadata:
     app: oficina-api
 data:
   DB_URL: "jdbc:postgresql://__RDS_ENDPOINT__/oficina_db"
-  # SMTP local/demo (Mailhog). Para um provedor real, sobrescreva estes
-  # valores no ConfigMap antes do deploy.
+  # SMTP local/demo (Mailhog). Valido apenas para desenvolvimento local
+  # (docker-compose.yml); em producao o envio de e-mail usa o profile "ses"
+  # (ver AWS_SES_REGION/AWS_SES_REMETENTE abaixo e SPRING_PROFILES_ACTIVE em
+  # 03-deployment.yaml), que nao depende de SMTP.
   SMTP_HOST: "localhost"
   SMTP_PORT: "1025"
+  # Amazon SES (profile "ses", producao). AWS_SES_REMETENTE precisa ser um
+  # endereco/dominio ja verificado no SES antes do deploy; autenticacao via
+  # IAM Role (IRSA) na Service Account do pod, sem credenciais estaticas.
+  AWS_SES_REGION: "us-east-1"
+  AWS_SES_REMETENTE: "__AWS_SES_REMETENTE__"

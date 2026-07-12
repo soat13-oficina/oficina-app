@@ -13,6 +13,7 @@ pipeline de CI/CD (ou manualmente via `kubectl`) **depois** deste Terraform.
 | `eks.tf` | `module.eks` | Cluster EKS (Kubernetes gerenciado) + node group (2–4× `t3.small`) + add-ons `coredns`, `kube-proxy`, `vpc-cni` e **`metrics-server`** (alimenta o HPA) |
 | `ecr.tf` | `aws_ecr_repository` | Repositório de imagens Docker `oficina`, com scan on push e política de reter só as 10 últimas imagens |
 | `rds.tf` | `aws_db_instance` + SG | PostgreSQL 15 gerenciado (`db.t3.micro`, 20 GiB), acessível **apenas** a partir dos nodes do EKS; senha gerada e guardada pela AWS no Secrets Manager |
+| `ses.tf` | `aws_iam_role` + `aws_iam_policy` | IAM Role assumível via IRSA pelo `ServiceAccount` `oficina-api`, com permissão única `ses:SendEmail` — usada pelo profile `ses` da aplicação. Verificação do remetente no console do SES é manual, fora do Terraform (ver [README principal](../README.md#configuração-de-e-mail-em-produção-amazon-ses)) |
 
 A senha do banco **não passa pelo state do Terraform** nem pelo repositório:
 o RDS gerencia usuário/senha no Secrets Manager (`manage_master_user_password`),

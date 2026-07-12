@@ -25,3 +25,8 @@ output "rds_master_secret_arn" {
   description = "ARN do secret (Secrets Manager) com usuario/senha do banco, gerenciado pelo RDS."
   value       = aws_db_instance.oficina.master_user_secret[0].secret_arn
 }
+
+output "ses_role_arn" {
+  description = "ARN da IAM Role (IRSA) com permissao ses:SendEmail, usada pelo ServiceAccount oficina-api."
+  value       = aws_iam_role.ses_send_email.arn
+}

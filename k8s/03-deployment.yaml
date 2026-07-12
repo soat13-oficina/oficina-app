@@ -20,6 +20,9 @@ spec:
       labels:
         app: oficina-api
     spec:
+      # ServiceAccount anotada com eks.amazonaws.com/role-arn (00b-serviceaccount.yaml),
+      # usada pelo SesClient (profile "ses") para resolver credenciais via IRSA.
+      serviceAccountName: oficina-api
       containers:
         - name: oficina-api
           # __IMAGE__ e substituido pela pipeline com a URL do ECR + tag do
@@ -36,6 +39,12 @@ spec:
             - configMapRef:
                 name: oficina-config
           env:
+            # Ativa NotificadorEmailSes (Amazon SES) neste ambiente de producao.
+            # docker-compose.yml (dev local) nao define esta variavel e continua
+            # resolvendo NotificadorEmailSpringMail contra o Mailhog.
+            # Rollback: remover esta variavel volta ao SMTP/Mailhog anterior.
+            - name: SPRING_PROFILES_ACTIVE
+              value: "ses"
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
@@ -56,16 +65,6 @@ spec:
                 secretKeyRef:
                   name: oficina-app-secrets
                   key: ORCAMENTO_WEBHOOK_SECRET
-            - name: SMTP_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: oficina-app-secrets
-                  key: SMTP_USERNAME
-            - name: SMTP_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: oficina-app-secrets
-                  key: SMTP_PASSWORD
           resources:
             requests:
               cpu: "250m"
