@@ -68,6 +68,10 @@ notificação disparada pela aplicação (via outbox, a cada mudança de status 
 OS) é capturada por ele e exibida em uma UI web, em vez de ir para uma caixa
 de entrada real.
 
+> Mailhog/SMTP é usado apenas em desenvolvimento local. Em produção o envio
+> de e-mail usa Amazon SES via o profile `ses` — ver
+> [Configuração de e-mail em produção (Amazon SES)](#configuração-de-e-mail-em-produção-amazon-ses).
+
 ```bash
 docker-compose up -d mailhog
 ```
@@ -224,7 +228,7 @@ O token expira em **24 horas**. Para renovar, basta fazer login novamente.
 | Webhook de decisão de orçamento (`/integracoes/orcamentos`) | `POST /{numeroOrcamento}/decisao` — exige o header `X-Webhook-Token`, aceitando um token de integração gerado (ver abaixo) ou o segredo estático `ORCAMENTO_WEBHOOK_SECRET` (coexistência temporária) |
 | Tokens de integração (`/integracoes/tokens`) | `POST` (gerar), `GET` (listar), `DELETE /{id}` (revogar) — autenticado via JWT, como as demais rotas |
 
-> **Notificações**: não expõem endpoint REST. São disparadas internamente (padrão outbox) a cada mudança de status da OS e reprocessadas por um scheduler em caso de falha de envio (SMTP configurado via `SMTP_HOST`/`SMTP_PORT`).
+> **Notificações**: não expõem endpoint REST. São disparadas internamente (padrão outbox) a cada mudança de status da OS e reprocessadas por um scheduler em caso de falha de envio. O transporte de e-mail é resolvido por Spring Profile: SMTP/Mailhog (`SMTP_HOST`/`SMTP_PORT`, default) em desenvolvimento, ou Amazon SES com o profile `ses` em produção — ver [Configuração de e-mail em produção (Amazon SES)](#configuração-de-e-mail-em-produção-amazon-ses).
 
 ---
 
@@ -295,8 +299,10 @@ hexagonal — ver [Estrutura do projeto](#estrutura-do-projeto)) + PostgreSQL.
 
 **Infraestrutura provisionada (Terraform, [`infra/aws`](infra/README.md)):**
 VPC com subnets públicas/privadas/de banco em 2 AZs, cluster **EKS** com
-node group gerenciado (2–4× t3.medium) e metrics-server, registry **ECR** e
-banco **RDS PostgreSQL 15** com credenciais gerenciadas pelo Secrets Manager.
+node group gerenciado (2–4× t3.medium) e metrics-server, registry **ECR**,
+banco **RDS PostgreSQL 15** com credenciais gerenciadas pelo Secrets Manager,
+e uma **IAM Role/Policy para SES** (`infra/aws/ses.tf`, permissão única
+`ses:SendEmail`, assumível via IRSA pelo `ServiceAccount` `oficina-api`).
 
 **Fluxo de deploy:** push na `master` → build + testes (unitário e
 integração) → imagem Docker publicada no **ECR** (tag = sha do commit) →
@@ -318,9 +324,10 @@ pelo workflow **Infraestrutura (Terraform)**, manual, porque criar EKS leva
 | Arquivo | Recurso |
 |---|---|
 | `00-namespace.yaml` | Namespace `oficina` |
-| `01-configmap.yaml` | `DB_URL` (placeholder `__RDS_ENDPOINT__`, preenchido pela pipeline com o endpoint do RDS) |
-| `02-secret.yaml` | `JWT_SECRET` (valor de demo — ver comentário no arquivo) |
-| `03-deployment.yaml` | Deployment da API (placeholder `__IMAGE__` → ECR), 2 réplicas, probes, requests/limits |
+| `00b-serviceaccount.yaml` | ServiceAccount `oficina-api`, anotada com `eks.amazonaws.com/role-arn` (placeholder `__SES_IAM_ROLE_ARN__`) para IRSA — usada pelo `SesClient` em produção |
+| `01-configmap.yaml` | `DB_URL` (placeholder `__RDS_ENDPOINT__`, preenchido pela pipeline com o endpoint do RDS); `AWS_SES_REGION`/`AWS_SES_REMETENTE` (placeholder `__AWS_SES_REMETENTE__`) |
+| `02-secret.yaml` | `JWT_SECRET` e `ORCAMENTO_WEBHOOK_SECRET` (valores de demo — ver comentário no arquivo) |
+| `03-deployment.yaml` | Deployment da API (placeholder `__IMAGE__` → ECR), 2 réplicas, probes, requests/limits, `serviceAccountName: oficina-api`, `SPRING_PROFILES_ACTIVE=ses` |
 | `04-service.yaml` | Service `LoadBalancer` — a AWS cria um NLB público para a demo |
 | `05-hpa.yaml` | HorizontalPodAutoscaler (2-6 réplicas, 70% CPU / 80% memória) |
 
@@ -369,3 +376,75 @@ Terraform e travaria a exclusão da VPC).
 | `DB_USER` | `oficina_user` |
 | `DB_PASS` | `oficina_123` |
 | `JWT_SECRET` | chave hardcoded de fallback |
+| `SPRING_PROFILES_ACTIVE` | não definido (SMTP/Mailhog); `ses` ativa o envio via Amazon SES em produção |
+| `AWS_SES_REGION` | *(apenas com profile `ses`)* região AWS do SES, ex. `us-east-1` |
+| `AWS_SES_REMETENTE` | *(apenas com profile `ses`)* endereço remetente, já verificado no SES |
+
+## Configuração de e-mail em produção (Amazon SES)
+
+Em produção (Kubernetes, `k8s/`), o envio de e-mail é feito por `NotificadorEmailSes`,
+ativado pelo Spring Profile `ses` (ver `SPRING_PROFILES_ACTIVE` em
+[`03-deployment.yaml`](k8s/03-deployment.yaml)). Em desenvolvimento local
+(`docker-compose.yml`) esse profile não é definido e a aplicação continua usando
+`NotificadorEmailSpringMail` contra o Mailhog — nenhum dos dois ambientes precisa
+de configuração adicional para manter seu comportamento atual.
+
+**Variáveis do profile `ses`:**
+
+- `AWS_SES_REGION` — região AWS do SES (ex. `us-east-1`), configurada no `ConfigMap` (`01-configmap.yaml`).
+- `AWS_SES_REMETENTE` — endereço de e-mail remetente, configurado no mesmo `ConfigMap` (placeholder `__AWS_SES_REMETENTE__`, substituído pela pipeline ou manualmente).
+
+**Pré-requisitos antes do primeiro deploy do profile `ses`:**
+
+1. **Verificação de domínio ou endereço no console do Amazon SES** — o remetente que for
+   configurado em `AWS_SES_REMETENTE` (passo 3 abaixo) precisa estar verificado na conta AWS/região
+   usada (`us-east-1`); sem isso o SES rejeita o envio. Esta é uma ação manual no console AWS, fora
+   deste repositório.
+2. **Decisão sandbox vs. saída do sandbox** — contas novas do SES operam em modo sandbox (só
+   enviam para endereços/domínios *também* verificados). Para testar, use o
+   [mailbox simulator do SES](https://docs.aws.amazon.com/ses/latest/dg/send-an-email-from-console.html#send-email-simulator)
+   (ex. `success@simulator.amazonses.com`) ou destinatários verificados manualmente. Para enviar a
+   destinatários arbitrários em produção, solicite a saída do sandbox à AWS.
+
+**Infraestrutura automatizada (nada manual a partir daqui):**
+
+3. **IAM Role via IRSA, provisionada pelo Terraform** — `infra/aws/ses.tf` cria uma IAM Policy
+   (permissão única `ses:SendEmail`) e uma IAM Role assumível pelo `ServiceAccount` `oficina-api`
+   via IRSA, expondo o ARN como `output "ses_role_arn"`. O `SesClient` resolve essas credenciais
+   automaticamente via `DefaultCredentialsProvider` — nenhuma credencial estática é armazenada em
+   Secret do Kubernetes.
+4. **Placeholders substituídos automaticamente no deploy** — o job `deploy` de
+   [`ci-cd.yml`](.github/workflows/ci-cd.yml) descobre o ARN da Role via
+   `aws iam get-role --role-name oficina-ses-send-email` e substitui `__SES_IAM_ROLE_ARN__` em
+   [`00b-serviceaccount.yaml`](k8s/00b-serviceaccount.yaml); e substitui `__AWS_SES_REMETENTE__` em
+   `01-configmap.yaml` pela variável de repositório `AWS_SES_REMETENTE` (GitHub → Settings →
+   Secrets and variables → Actions → *Variables*). Se essa variável não estiver configurada, o job
+   falha explicitamente em vez de aplicar um manifesto quebrado.
+
+**Runbook — ordem de operações para habilitar o profile `ses` pela primeira vez:**
+
+```
+1. Verificar o domínio/endereço remetente no console do Amazon SES        (passo 1, manual)
+2. terraform apply em infra/aws (ou workflow "Infraestrutura (Terraform)") (cria a IAM Role)
+3. Configurar a variável de repositório AWS_SES_REMETENTE no GitHub       (passo manual, uma vez)
+4. Merge/push para master                                                (job "deploy" aplica tudo)
+```
+
+### Rollback
+
+Se o envio via SES apresentar problemas em produção, o rollback é reverter para o
+transporte SMTP/Mailhog anterior:
+
+1. Remover (ou definir como vazio) `SPRING_PROFILES_ACTIVE=ses` em
+   [`03-deployment.yaml`](k8s/03-deployment.yaml) — isso faz `NotificadorEmailSpringMail`
+   (`@Profile("!ses")`) voltar a ser o bean resolvido.
+2. Reaplicar o manifesto (`kubectl apply -f k8s/03-deployment.yaml` ou via pipeline) e
+   confirmar o rollout (`kubectl rollout status deployment/oficina-api -n oficina`).
+3. Nenhuma outra alteração é necessária: `ConfigMap`, `Secret` e `ServiceAccount`
+   permanecem inertes sem o profile `ses` ativo (a configuração SMTP em
+   `01-configmap.yaml` já está sempre presente).
+
+Reverter a infraestrutura (`infra/aws/ses.tf`) é independente e opcional: remover o arquivo e
+rodar `terraform apply` (ou `terraform destroy -target=aws_iam_role.ses_send_email` pontualmente)
+não afeta o profile padrão (`!ses`/Mailhog) nem nenhum outro recurso — a Role só é referenciada
+pelo profile `ses`.
