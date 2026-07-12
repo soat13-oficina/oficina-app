@@ -78,20 +78,41 @@ def carregar_openapi(input_path, base_url):
     return dado
 
 
-def exige_auth(operacao, seguranca_global):
-    """Determina se a operacao exige autenticacao (Bearer)."""
-    if "security" in operacao:
-        return bool(operacao["security"])  # [] explicito = publico
-    return bool(seguranca_global)
-
-
 def variavel_de_param(nome_param):
     return slug(nome_param)
+
+
+def construir_headers_auth(operacao, seguranca_global, esquemas_seguranca, variaveis):
+    """Gera os headers de autenticacao da operacao a partir do security requirement
+    (proprio da operacao, com override total sobre o global) e do tipo declarado em
+    components.securitySchemes: 'apiKey'/header vira o header nomeado; qualquer outro
+    tipo (ou ausencia de esquemas declarados) assume Bearer em Authorization."""
+    requirement = operacao["security"] if "security" in operacao else seguranca_global
+    if not requirement:
+        return []
+
+    nomes_esquema = [nome for req in requirement for nome in req.keys()]
+    if not nomes_esquema:
+        return []
+
+    headers = []
+    for nome_esquema in nomes_esquema:
+        esquema = (esquemas_seguranca or {}).get(nome_esquema, {})
+        if esquema.get("type") == "apiKey" and esquema.get("in") == "header":
+            nome_header = esquema.get("name", nome_esquema)
+            var = variavel_de_param(nome_header)
+            variaveis.add(var)
+            headers.append({"name": nome_header, "value": "{{ _." + var + " }}"})
+        else:
+            variaveis.add("token")
+            headers.append({"name": "Authorization", "value": "Bearer {{ _.token }}"})
+    return headers
 
 
 def construir(openapi, base_url):
     """Monta a lista de resources da collection a partir do OpenAPI."""
     seguranca_global = openapi.get("security")
+    esquemas_seguranca = (openapi.get("components") or {}).get("securitySchemes") or {}
     metodos_http = ["get", "post", "put", "patch", "delete", "head", "options"]
 
     variaveis = {"base_url"}  # sempre presente
@@ -138,10 +159,7 @@ def construir(openapi, base_url):
                 url_path = url_path.replace("{" + nome_param + "}", "{{ _." + var + " }}")
             url = "{{ _.base_url }}" + url_path
 
-            headers = []
-            if exige_auth(operacao, seguranca_global):
-                variaveis.add("token")
-                headers.append({"name": "Authorization", "value": "Bearer {{ _.token }}"})
+            headers = construir_headers_auth(operacao, seguranca_global, esquemas_seguranca, variaveis)
 
             body = {}
             req_body = operacao.get("requestBody", {})

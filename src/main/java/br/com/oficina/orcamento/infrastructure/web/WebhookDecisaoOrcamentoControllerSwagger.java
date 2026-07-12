@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 
@@ -19,7 +20,10 @@ public interface WebhookDecisaoOrcamentoControllerSwagger {
             summary = "Registrar decisão externa de orçamento",
             description = "Processa a decisão (APROVADO/REJEITADO) de um orçamento. A operação é atômica "
                     + "(decisão do orçamento, reserva de peças e atualização da OS). Decisões idênticas a uma "
-                    + "já registrada são idempotentes; decisões divergentes resultam em conflito (409).")
+                    + "já registrada são idempotentes; decisões divergentes resultam em conflito (409). "
+                    + "Autenticado via header X-Webhook-Token (token de integração gerado ou o segredo "
+                    + "estático ORCAMENTO_WEBHOOK_SECRET) — não usa o Bearer JWT das demais rotas.",
+            security = @SecurityRequirement(name = "webhookToken"))
     @ApiResponses({
             @ApiResponse(responseCode = "200",
                     description = "Decisão processada com sucesso, ou decisão idêntica à já registrada (idempotente)",

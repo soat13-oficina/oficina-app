@@ -95,6 +95,34 @@ class TestGeracao(unittest.TestCase):
         with self.assertRaises(gc.ErroGeracao):
             gc.carregar_openapi(os.path.join(AQUI, "nao-existe.json"), "http://localhost:8080")
 
+    # FR-005 — esquema apiKey em header (ex.: webhook token) vira o header nomeado,
+    # nao "Authorization: Bearer" (bug real corrigido: webhook usa X-Webhook-Token)
+    def test_security_scheme_apikey_header(self):
+        openapi = {
+            "openapi": "3.0.1",
+            "paths": {
+                "/integracoes/orcamentos/{numeroOrcamento}/decisao": {
+                    "post": {
+                        "tags": ["Webhook"],
+                        "summary": "Decisao webhook",
+                        "security": [{"webhookToken": []}],
+                        "responses": {"200": {"description": "ok"}},
+                    }
+                }
+            },
+            "components": {
+                "securitySchemes": {
+                    "webhookToken": {"type": "apiKey", "in": "header", "name": "X-Webhook-Token"}
+                }
+            },
+        }
+        gerado = self._gerar(openapi)
+        req = next(r for r in gerado["resources"] if r["_type"] == "request")
+        self.assertEqual(req["headers"], [{"name": "X-Webhook-Token", "value": "{{ _.x_webhook_token }}"}])
+        env = next(r for r in gerado["resources"] if r["_id"] == gc.ENV_BASE_ID)
+        self.assertIn("x_webhook_token", env["data"])
+        self.assertEqual(env["data"]["x_webhook_token"], "")
+
     def test_openapi_sem_paths_falha(self):
         import tempfile
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
