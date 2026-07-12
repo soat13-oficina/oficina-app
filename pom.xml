@@ -23,6 +23,7 @@
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <sonar.language>java</sonar.language>
         <testcontainers.version>1.21.4</testcontainers.version>
+        <aws-java-sdk-v2.version>2.46.6</aws-java-sdk-v2.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -30,6 +31,13 @@
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
                 <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws-java-sdk-v2.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -93,6 +101,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>ses</artifactId>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>

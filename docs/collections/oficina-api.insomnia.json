@@ -1,111 +1,38 @@
 {
   "_type": "export",
   "__export_format": 4,
-  "__export_date": "2026-04-14",
-  "__export_source": "insomnia.desktop.app",
+  "__export_source": "oficina:gerar-collection-insomnia",
   "resources": [
     {
       "_id": "wrk_oficina",
       "_type": "workspace",
       "name": "Oficina API",
-      "description": "Collection completa da API de gestão de oficina mecânica",
+      "description": "Collection gerada a partir do OpenAPI (não editar à mão).",
       "scope": "collection"
     },
     {
       "_id": "env_base",
       "_type": "environment",
       "parentId": "wrk_oficina",
-      "name": "Local",
+      "name": "Base (placeholders — preencha um Sub Environment local)",
       "data": {
         "base_url": "http://localhost:8080",
-        "token": "",
-        "cliente_id": "",
-        "veiculo_placa": "ABC1D23",
-        "funcionario_id": "",
-        "numero_os": "",
-        "numero_orcamento": "",
-        "peca_id": "",
-        "webhook_token": "dev-secret",
-        "webhook_token_invalido": "token-invalido",
-        "token_integracao_id": ""
+        "clienteid": "",
+        "funcionarioid": "",
+        "id": "",
+        "numeroorcamento": "",
+        "numeroordemservico": "",
+        "orcamentoid": "",
+        "placa": "",
+        "token": ""
       }
     },
-
     {
-      "_id": "fld_auth",
+      "_id": "fld_autentica_o",
       "_type": "request_group",
       "parentId": "wrk_oficina",
       "name": "Autenticação"
     },
-    {
-      "_id": "req_auth_register",
-      "_type": "request",
-      "parentId": "fld_auth",
-      "name": "Registrar usuário",
-      "method": "POST",
-      "url": "{{ _.base_url }}/api/auth/register",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"email\": \"admin@oficina.com\",\n  \"senha\": \"senha123\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" }
-      ]
-    },
-    {
-      "_id": "req_auth_login",
-      "_type": "request",
-      "parentId": "fld_auth",
-      "name": "Login",
-      "method": "POST",
-      "url": "{{ _.base_url }}/api/auth/login",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"email\": \"admin@oficina.com\",\n  \"senha\": \"senha123\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" }
-      ]
-    },
-    {
-      "_id": "req_token_integracao_gerar",
-      "_type": "request",
-      "parentId": "fld_auth",
-      "name": "Gerar token de integração",
-      "method": "POST",
-      "url": "{{ _.base_url }}/integracoes/tokens",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"rotulo\": \"ERP do cliente X\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_token_integracao_listar",
-      "_type": "request",
-      "parentId": "fld_auth",
-      "name": "Listar tokens de integração",
-      "method": "GET",
-      "url": "{{ _.base_url }}/integracoes/tokens",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_token_integracao_revogar",
-      "_type": "request",
-      "parentId": "fld_auth",
-      "name": "Revogar token de integração",
-      "method": "DELETE",
-      "url": "{{ _.base_url }}/integracoes/tokens/{{ _.token_integracao_id }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-
     {
       "_id": "fld_clientes",
       "_type": "request_group",
@@ -113,752 +40,949 @@
       "name": "Clientes"
     },
     {
-      "_id": "req_cliente_cadastrar",
-      "_type": "request",
-      "parentId": "fld_clientes",
-      "name": "Cadastrar cliente (PF)",
-      "method": "POST",
-      "url": "{{ _.base_url }}/clientes",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"nome\": \"Maria da Silva\",\n  \"cpfOuCnpj\": \"12345678901\",\n  \"tipoCliente\": \"PF\",\n  \"email\": \"maria.silva@email.com\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_cliente_cadastrar_pj",
-      "_type": "request",
-      "parentId": "fld_clientes",
-      "name": "Cadastrar cliente (PJ)",
-      "method": "POST",
-      "url": "{{ _.base_url }}/clientes",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"nome\": \"Empresa ABC Ltda\",\n  \"cpfOuCnpj\": \"12345678000199\",\n  \"tipoCliente\": \"PJ\",\n  \"email\": \"contato@empresaabc.com.br\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_cliente_pesquisar",
-      "_type": "request",
-      "parentId": "fld_clientes",
-      "name": "Pesquisar clientes",
-      "method": "GET",
-      "url": "{{ _.base_url }}/clientes",
-      "parameters": [
-        { "name": "termo", "value": "Maria", "disabled": true }
-      ],
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_cliente_consultar",
-      "_type": "request",
-      "parentId": "fld_clientes",
-      "name": "Consultar cliente por ID",
-      "method": "GET",
-      "url": "{{ _.base_url }}/clientes/{{ _.cliente_id }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_cliente_alterar",
-      "_type": "request",
-      "parentId": "fld_clientes",
-      "name": "Alterar cliente",
-      "method": "PUT",
-      "url": "{{ _.base_url }}/clientes/{{ _.cliente_id }}",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"nome\": \"Maria da Silva Souza\",\n  \"cpfOuCnpj\": \"12345678901\",\n  \"tipoCliente\": \"PF\",\n  \"email\": \"maria.souza@email.com\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_cliente_excluir",
-      "_type": "request",
-      "parentId": "fld_clientes",
-      "name": "Excluir cliente",
-      "method": "DELETE",
-      "url": "{{ _.base_url }}/clientes/{{ _.cliente_id }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-
-    {
-      "_id": "fld_veiculos",
-      "_type": "request_group",
-      "parentId": "wrk_oficina",
-      "name": "Veículos"
-    },
-    {
-      "_id": "req_veiculo_cadastrar",
-      "_type": "request",
-      "parentId": "fld_veiculos",
-      "name": "Cadastrar veículo",
-      "method": "POST",
-      "url": "{{ _.base_url }}/veiculos",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"placa\": \"ABC1D23\",\n  \"marca\": \"Toyota\",\n  \"modelo\": \"Corolla\",\n  \"fabricante\": \"Toyota Motor Corporation\",\n  \"ano\": 2024,\n  \"potencia\": 177,\n  \"cambio\": \"AUTOMATICO\",\n  \"tipo\": \"FLEX\",\n  \"clienteId\": \"{{ _.cliente_id }}\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_veiculo_consultar",
-      "_type": "request",
-      "parentId": "fld_veiculos",
-      "name": "Consultar veículos",
-      "method": "GET",
-      "url": "{{ _.base_url }}/veiculos",
-      "parameters": [
-        { "name": "placa", "value": "ABC1D23", "disabled": true },
-        { "name": "marca", "value": "Toyota", "disabled": true },
-        { "name": "fabricante", "value": "Toyota", "disabled": true },
-        { "name": "ano", "value": "2024", "disabled": true },
-        { "name": "potencia", "value": "177", "disabled": true },
-        { "name": "cambio", "value": "AUTOMATICO", "disabled": true },
-        { "name": "tipo", "value": "FLEX", "disabled": true }
-      ],
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_veiculo_alterar",
-      "_type": "request",
-      "parentId": "fld_veiculos",
-      "name": "Alterar veículo",
-      "method": "PUT",
-      "url": "{{ _.base_url }}/veiculos/{{ _.veiculo_placa }}",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"marca\": \"Toyota\",\n  \"modelo\": \"Corolla XEi\",\n  \"fabricante\": \"Toyota Motor Corporation\",\n  \"ano\": 2024,\n  \"potencia\": 177,\n  \"cambio\": \"AUTOMATICO\",\n  \"tipo\": \"FLEX\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_veiculo_excluir",
-      "_type": "request",
-      "parentId": "fld_veiculos",
-      "name": "Excluir veículo",
-      "method": "DELETE",
-      "url": "{{ _.base_url }}/veiculos/{{ _.veiculo_placa }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-
-    {
-      "_id": "fld_funcionarios",
+      "_id": "fld_funcion_rios",
       "_type": "request_group",
       "parentId": "wrk_oficina",
       "name": "Funcionários"
     },
     {
-      "_id": "req_funcionario_cadastrar",
-      "_type": "request",
-      "parentId": "fld_funcionarios",
-      "name": "Cadastrar funcionário (com CPF)",
-      "method": "POST",
-      "url": "{{ _.base_url }}/funcionarios",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"nome\": \"João da Silva\",\n  \"cpf\": \"12345678901\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_funcionario_cadastrar_sem_cpf",
-      "_type": "request",
-      "parentId": "fld_funcionarios",
-      "name": "Cadastrar funcionário (sem CPF)",
-      "method": "POST",
-      "url": "{{ _.base_url }}/funcionarios",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"nome\": \"Maria Oliveira\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_funcionario_listar",
-      "_type": "request",
-      "parentId": "fld_funcionarios",
-      "name": "Listar funcionários",
-      "method": "GET",
-      "url": "{{ _.base_url }}/funcionarios",
-      "parameters": [
-        { "name": "nome", "value": "João", "disabled": true }
-      ],
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_funcionario_consultar",
-      "_type": "request",
-      "parentId": "fld_funcionarios",
-      "name": "Consultar funcionário por ID",
-      "method": "GET",
-      "url": "{{ _.base_url }}/funcionarios/{{ _.funcionario_id }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_funcionario_alterar",
-      "_type": "request",
-      "parentId": "fld_funcionarios",
-      "name": "Alterar funcionário",
-      "method": "PUT",
-      "url": "{{ _.base_url }}/funcionarios/{{ _.funcionario_id }}",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"nome\": \"João da Silva Souza\",\n  \"cpf\": \"12345678901\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_funcionario_excluir",
-      "_type": "request",
-      "parentId": "fld_funcionarios",
-      "name": "Excluir funcionário",
-      "method": "DELETE",
-      "url": "{{ _.base_url }}/funcionarios/{{ _.funcionario_id }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-
-    {
-      "_id": "fld_ordens_servico",
-      "_type": "request_group",
-      "parentId": "wrk_oficina",
-      "name": "Ordens de Serviço"
-    },
-    {
-      "_id": "req_os_criar",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Criar OS",
-      "method": "POST",
-      "url": "{{ _.base_url }}/ordens-servico",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"clienteId\": \"{{ _.cliente_id }}\",\n  \"funcionarioId\": \"{{ _.funcionario_id }}\",\n  \"placaVeiculo\": \"{{ _.veiculo_placa }}\",\n  \"servicos\": [\n    {\n      \"descricao\": \"Troca de pastilhas de freio\",\n      \"valorMaoDeObra\": 150.00\n    }\n  ],\n  \"pecasPrevistas\": [\n    {\n      \"pecaInsumoId\": \"{{ _.peca_id }}\",\n      \"quantidade\": 2\n    }\n  ]\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_consultar",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Consultar ordens de serviço",
-      "method": "GET",
-      "url": "{{ _.base_url }}/ordens-servico",
-      "parameters": [
-        { "name": "numeroOrdemServico", "value": "OS-ABC12345", "disabled": true },
-        { "name": "nomeCliente", "value": "Maria", "disabled": true },
-        { "name": "placaVeiculo", "value": "ABC1D23", "disabled": true },
-        { "name": "documentoCliente", "value": "12345678901", "disabled": true }
-      ],
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_status",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Consultar status da OS",
-      "method": "GET",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_acompanhar",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Acompanhar OS (visão cliente)",
-      "method": "GET",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/acompanhamento",
-      "parameters": [
-        { "name": "documentoCliente", "value": "12345678901" }
-      ],
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_alterar",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Alterar OS",
-      "method": "PUT",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"clienteId\": \"{{ _.cliente_id }}\",\n  \"funcionarioId\": \"{{ _.funcionario_id }}\",\n  \"placaVeiculo\": \"{{ _.veiculo_placa }}\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_excluir",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Excluir OS",
-      "method": "DELETE",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_diagnostico_iniciar",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Iniciar diagnóstico",
-      "method": "POST",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/diagnostico/iniciar",
-      "body": { "mimeType": "application/json", "text": "" },
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_diagnostico_concluir",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Concluir diagnóstico",
-      "method": "POST",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/diagnostico/concluir",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"descricaoServico\": \"Troca de pastilhas dianteiras e traseiras\",\n  \"pecas\": [\n    { \"pecaInsumoId\": \"{{ _.peca_id }}\", \"quantidade\": 2 }\n  ]\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_diagnostico_enviar_orcamento",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Enviar diagnóstico para orçamento",
-      "method": "POST",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/diagnostico/enviar-para-orcamento",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"valorMaoDeObra\": 350.00,\n  \"desconto\": 0.00,\n  \"validade\": \"2030-05-14T10:00:00\",\n  \"observacoes\": \"Verificar fluido de freio na próxima revisão\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_execucao_iniciar",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Iniciar execução (interno)",
-      "method": "POST",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/execucao/iniciar",
-      "body": { "mimeType": "application/json", "text": "" },
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_servico_concluir",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Concluir serviço",
-      "method": "POST",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/servico/concluir",
-      "body": { "mimeType": "application/json", "text": "" },
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_finalizar",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Finalizar OS",
-      "method": "POST",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/finalizacao",
-      "body": { "mimeType": "application/json", "text": "" },
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_os_entregar",
-      "_type": "request",
-      "parentId": "fld_ordens_servico",
-      "name": "Entregar ao cliente",
-      "method": "POST",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numero_os }}/entrega",
-      "body": { "mimeType": "application/json", "text": "" },
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-
-    {
       "_id": "fld_orcamentos",
       "_type": "request_group",
       "parentId": "wrk_oficina",
-      "name": "Orçamentos"
+      "name": "Orcamentos"
     },
     {
-      "_id": "req_orcamento_consultar_filtros",
-      "_type": "request",
-      "parentId": "fld_orcamentos",
-      "name": "Consultar orçamentos",
-      "method": "GET",
-      "url": "{{ _.base_url }}/orcamentos",
-      "parameters": [
-        { "name": "numeroOrcamento", "value": "ORC-2026-0001", "disabled": true },
-        { "name": "cpfCliente", "value": "12345678901", "disabled": true },
-        { "name": "placaVeiculo", "value": "ABC1D23", "disabled": true }
-      ],
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_orcamento_consultar",
-      "_type": "request",
-      "parentId": "fld_orcamentos",
-      "name": "Consultar orçamento por número",
-      "method": "GET",
-      "url": "{{ _.base_url }}/orcamentos/{{ _.numero_orcamento }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_orcamento_alterar",
-      "_type": "request",
-      "parentId": "fld_orcamentos",
-      "name": "Alterar orçamento",
-      "method": "PUT",
-      "url": "{{ _.base_url }}/orcamentos/{{ _.numero_orcamento }}",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"clienteId\": \"{{ _.cliente_id }}\",\n  \"ordemDeServicoId\": \"11111111-1111-1111-1111-111111111111\",\n  \"placaVeiculo\": \"ABC1D23\",\n  \"marcaVeiculo\": \"Toyota\",\n  \"modeloVeiculo\": \"Corolla\",\n  \"descricaoDiagnostico\": \"Revisão completa de freios\",\n  \"servicosPropostos\": [\n    \"Troca de pastilhas\",\n    \"Sangria do sistema de freios\"\n  ],\n  \"pecasPrevistas\": [\n    { \"descricao\": \"Pastilha dianteira Bosch\", \"preco\": 280.00 },\n    { \"descricao\": \"Fluido de freio DOT4\", \"preco\": 45.00 }\n  ],\n  \"valorMaoDeObra\": 400.00,\n  \"desconto\": 0.00,\n  \"validade\": \"2026-06-01T10:00:00\",\n  \"observacoes\": \"Revisado após nova avaliação\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_orcamento_excluir",
-      "_type": "request",
-      "parentId": "fld_orcamentos",
-      "name": "Excluir orçamento",
-      "method": "DELETE",
-      "url": "{{ _.base_url }}/orcamentos/{{ _.numero_orcamento }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-
-    {
-      "_id": "fld_webhook_orcamento",
+      "_id": "fld_ordens_de_servico",
       "_type": "request_group",
       "parentId": "wrk_oficina",
-      "name": "Integração externa - Orçamento"
+      "name": "Ordens de Servico"
     },
     {
-      "_id": "req_webhook_orcamento_aprovar",
-      "_type": "request",
-      "parentId": "fld_webhook_orcamento",
-      "name": "Webhook - Aprovar orçamento",
-      "method": "POST",
-      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"decisao\": \"APROVADO\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "X-Webhook-Token", "value": "{{ _.webhook_token }}" }
-      ]
-    },
-    {
-      "_id": "req_webhook_orcamento_aprovar_retry",
-      "_type": "request",
-      "parentId": "fld_webhook_orcamento",
-      "name": "Webhook - Retry idempotente aprovação",
-      "method": "POST",
-      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"decisao\": \"APROVADO\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "X-Webhook-Token", "value": "{{ _.webhook_token }}" }
-      ]
-    },
-    {
-      "_id": "req_webhook_orcamento_rejeitar",
-      "_type": "request",
-      "parentId": "fld_webhook_orcamento",
-      "name": "Webhook - Rejeitar orçamento",
-      "method": "POST",
-      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"decisao\": \"REJEITADO\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "X-Webhook-Token", "value": "{{ _.webhook_token }}" }
-      ]
-    },
-    {
-      "_id": "req_webhook_orcamento_divergente",
-      "_type": "request",
-      "parentId": "fld_webhook_orcamento",
-      "name": "Webhook - Decisão divergente",
-      "method": "POST",
-      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"decisao\": \"REJEITADO\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "X-Webhook-Token", "value": "{{ _.webhook_token }}" }
-      ]
-    },
-    {
-      "_id": "req_webhook_orcamento_token_invalido",
-      "_type": "request",
-      "parentId": "fld_webhook_orcamento",
-      "name": "Webhook - Token inválido",
-      "method": "POST",
-      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"decisao\": \"APROVADO\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "X-Webhook-Token", "value": "{{ _.webhook_token_invalido }}" }
-      ]
-    },
-    {
-      "_id": "req_webhook_orcamento_sem_token",
-      "_type": "request",
-      "parentId": "fld_webhook_orcamento",
-      "name": "Webhook - Sem token",
-      "method": "POST",
-      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numero_orcamento }}/decisao",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"decisao\": \"APROVADO\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" }
-      ]
-    },
-
-    {
-      "_id": "fld_pecas",
+      "_id": "fld_pe_as_e_insumos",
       "_type": "request_group",
       "parentId": "wrk_oficina",
       "name": "Peças e Insumos"
     },
     {
-      "_id": "req_peca_cadastrar",
+      "_id": "fld_tokens_de_integra_o",
+      "_type": "request_group",
+      "parentId": "wrk_oficina",
+      "name": "Tokens de Integração"
+    },
+    {
+      "_id": "fld_veiculos",
+      "_type": "request_group",
+      "parentId": "wrk_oficina",
+      "name": "Veiculos"
+    },
+    {
+      "_id": "fld_webhook_de_decis_o_de_or_amento",
+      "_type": "request_group",
+      "parentId": "wrk_oficina",
+      "name": "Webhook de Decisão de Orçamento"
+    },
+    {
+      "_id": "req_post_api_auth_login",
       "_type": "request",
-      "parentId": "fld_pecas",
+      "parentId": "fld_autentica_o",
+      "name": "Realizar login",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_api_auth_register",
+      "_type": "request",
+      "parentId": "fld_autentica_o",
+      "name": "Registrar usuário",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_clientes",
+      "_type": "request",
+      "parentId": "fld_clientes",
+      "name": "Pesquisar clientes",
+      "method": "GET",
+      "url": "{{ _.base_url }}/clientes",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_clientes_clienteid",
+      "_type": "request",
+      "parentId": "fld_clientes",
+      "name": "Consultar cliente",
+      "method": "GET",
+      "url": "{{ _.base_url }}/clientes/{{ _.clienteid }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_clientes",
+      "_type": "request",
+      "parentId": "fld_clientes",
+      "name": "Cadastrar cliente",
+      "method": "POST",
+      "url": "{{ _.base_url }}/clientes",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_put_clientes_clienteid",
+      "_type": "request",
+      "parentId": "fld_clientes",
+      "name": "Alterar cliente",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/clientes/{{ _.clienteid }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_delete_clientes_clienteid",
+      "_type": "request",
+      "parentId": "fld_clientes",
+      "name": "Excluir cliente",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/clientes/{{ _.clienteid }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_funcionarios",
+      "_type": "request",
+      "parentId": "fld_funcion_rios",
+      "name": "Listar funcionários",
+      "method": "GET",
+      "url": "{{ _.base_url }}/funcionarios",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_funcionarios_funcionarioid",
+      "_type": "request",
+      "parentId": "fld_funcion_rios",
+      "name": "Consultar funcionário",
+      "method": "GET",
+      "url": "{{ _.base_url }}/funcionarios/{{ _.funcionarioid }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_funcionarios",
+      "_type": "request",
+      "parentId": "fld_funcion_rios",
+      "name": "Cadastrar funcionário",
+      "method": "POST",
+      "url": "{{ _.base_url }}/funcionarios",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_put_funcionarios_funcionarioid",
+      "_type": "request",
+      "parentId": "fld_funcion_rios",
+      "name": "Alterar funcionário",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/funcionarios/{{ _.funcionarioid }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_delete_funcionarios_funcionarioid",
+      "_type": "request",
+      "parentId": "fld_funcion_rios",
+      "name": "Excluir funcionário",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/funcionarios/{{ _.funcionarioid }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_orcamentos",
+      "_type": "request",
+      "parentId": "fld_orcamentos",
+      "name": "Consultar orçamentos",
+      "method": "GET",
+      "url": "{{ _.base_url }}/orcamentos",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_orcamentos_orcamentoid",
+      "_type": "request",
+      "parentId": "fld_orcamentos",
+      "name": "Consultar orçamento",
+      "method": "GET",
+      "url": "{{ _.base_url }}/orcamentos/{{ _.orcamentoid }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_orcamentos_orcamentoid_aprovacao",
+      "_type": "request",
+      "parentId": "fld_orcamentos",
+      "name": "Aprovar orçamento",
+      "method": "POST",
+      "url": "{{ _.base_url }}/orcamentos/{{ _.orcamentoid }}/aprovacao",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_orcamentos_orcamentoid_rejeicao",
+      "_type": "request",
+      "parentId": "fld_orcamentos",
+      "name": "Rejeitar orçamento",
+      "method": "POST",
+      "url": "{{ _.base_url }}/orcamentos/{{ _.orcamentoid }}/rejeicao",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_put_orcamentos_orcamentoid",
+      "_type": "request",
+      "parentId": "fld_orcamentos",
+      "name": "Alterar orçamento",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/orcamentos/{{ _.orcamentoid }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_delete_orcamentos_orcamentoid",
+      "_type": "request",
+      "parentId": "fld_orcamentos",
+      "name": "Excluir orçamento",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/orcamentos/{{ _.orcamentoid }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_ordens_servico",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Consultar ordens de serviço (fila priorizada)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/ordens-servico",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_ordens_servico_metricas_tempo_medio",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Consultar tempo médio de execução",
+      "method": "GET",
+      "url": "{{ _.base_url }}/ordens-servico/metricas/tempo-medio",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_ordens_servico_numeroordemservico",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Consultar status da ordem de serviço",
+      "method": "GET",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_ordens_servico_numeroordemservico_acompanhamento",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Acompanhar ordem de serviço",
+      "method": "GET",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/acompanhamento",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_ordens_servico",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Criar ordem de serviço",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_ordens_servico_numeroordemservico_diagnostico_concluir",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Concluir diagnóstico",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/diagnostico/concluir",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_ordens_servico_numeroordemservico_diagnostico_enviar_para_orcamento",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Enviar diagnóstico para orçamento",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/diagnostico/enviar-para-orcamento",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_ordens_servico_numeroordemservico_diagnostico_iniciar",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Iniciar diagnóstico",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/diagnostico/iniciar",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_ordens_servico_numeroordemservico_entrega",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Entregar ordem de serviço",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/entrega",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_ordens_servico_numeroordemservico_execucao_iniciar",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Iniciar execução",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/execucao/iniciar",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_ordens_servico_numeroordemservico_finalizacao",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Finalizar ordem de serviço (legado)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/finalizacao",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_ordens_servico_numeroordemservico_servico_concluir",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Concluir serviço",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/servico/concluir",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_put_ordens_servico_numeroordemservico",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Alterar ordem de serviço",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_delete_ordens_servico_numeroordemservico",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Excluir ordem de serviço",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_pecas_insumos",
+      "_type": "request",
+      "parentId": "fld_pe_as_e_insumos",
+      "name": "Listar peças/insumos",
+      "method": "GET",
+      "url": "{{ _.base_url }}/pecas-insumos",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_pecas_insumos_id",
+      "_type": "request",
+      "parentId": "fld_pe_as_e_insumos",
+      "name": "Buscar peça/insumo por ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/pecas-insumos/{{ _.id }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_pecas_insumos",
+      "_type": "request",
+      "parentId": "fld_pe_as_e_insumos",
       "name": "Cadastrar peça/insumo",
       "method": "POST",
       "url": "{{ _.base_url }}/pecas-insumos",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"descricao\": \"Pastilha de freio dianteira\",\n  \"marca\": \"Bosch\",\n  \"preco\": 280.00,\n  \"quantidadeEstoque\": 10,\n  \"codigoReferencia\": \"BP123\",\n  \"categoria\": \"FREIOS\"\n}"
+        "text": "{}"
       },
       "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
       ]
     },
     {
-      "_id": "req_peca_listar",
+      "_id": "req_post_pecas_insumos_id_adicionar_estoque",
       "_type": "request",
-      "parentId": "fld_pecas",
-      "name": "Listar peças/insumos",
-      "method": "GET",
-      "url": "{{ _.base_url }}/pecas-insumos",
-      "parameters": [
-        { "name": "marca", "value": "Bosch", "disabled": true },
-        { "name": "categoria", "value": "FREIOS", "disabled": true },
-        { "name": "possuiReserva", "value": "false", "disabled": true }
-      ],
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_peca_buscar",
-      "_type": "request",
-      "parentId": "fld_pecas",
-      "name": "Buscar peça por ID",
-      "method": "GET",
-      "url": "{{ _.base_url }}/pecas-insumos/{{ _.peca_id }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_peca_alterar",
-      "_type": "request",
-      "parentId": "fld_pecas",
-      "name": "Alterar peça/insumo",
-      "method": "PUT",
-      "url": "{{ _.base_url }}/pecas-insumos/{{ _.peca_id }}",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"descricao\": \"Pastilha de freio dianteira premium\",\n  \"marca\": \"Bosch\",\n  \"preco\": 320.00,\n  \"quantidadeEstoque\": 8,\n  \"quantidadeReservada\": 0,\n  \"codigoReferencia\": \"BP123\",\n  \"categoria\": \"FREIOS\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_peca_excluir",
-      "_type": "request",
-      "parentId": "fld_pecas",
-      "name": "Excluir peça/insumo",
-      "method": "DELETE",
-      "url": "{{ _.base_url }}/pecas-insumos/{{ _.peca_id }}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_peca_adicionar_estoque",
-      "_type": "request",
-      "parentId": "fld_pecas",
+      "parentId": "fld_pe_as_e_insumos",
       "name": "Adicionar estoque",
       "method": "POST",
-      "url": "{{ _.base_url }}/pecas-insumos/{{ _.peca_id }}/adicionar-estoque",
+      "url": "{{ _.base_url }}/pecas-insumos/{{ _.id }}/adicionar-estoque",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"quantidade\": 5\n}"
+        "text": "{}"
       },
       "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
       ]
     },
     {
-      "_id": "req_peca_remover_estoque",
+      "_id": "req_post_pecas_insumos_id_consumir",
       "_type": "request",
-      "parentId": "fld_pecas",
-      "name": "Remover estoque",
-      "method": "POST",
-      "url": "{{ _.base_url }}/pecas-insumos/{{ _.peca_id }}/remover-estoque",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"quantidade\": 2\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_peca_reservar",
-      "_type": "request",
-      "parentId": "fld_pecas",
-      "name": "Reservar peça",
-      "method": "POST",
-      "url": "{{ _.base_url }}/pecas-insumos/{{ _.peca_id }}/reservar",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"quantidade\": 1\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_peca_liberar_reserva",
-      "_type": "request",
-      "parentId": "fld_pecas",
-      "name": "Liberar reserva",
-      "method": "POST",
-      "url": "{{ _.base_url }}/pecas-insumos/{{ _.peca_id }}/liberar-reserva",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"quantidade\": 1\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
-      ]
-    },
-    {
-      "_id": "req_peca_consumir",
-      "_type": "request",
-      "parentId": "fld_pecas",
+      "parentId": "fld_pe_as_e_insumos",
       "name": "Consumir peça reservada",
       "method": "POST",
-      "url": "{{ _.base_url }}/pecas-insumos/{{ _.peca_id }}/consumir",
+      "url": "{{ _.base_url }}/pecas-insumos/{{ _.id }}/consumir",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"quantidade\": 1\n}"
+        "text": "{}"
       },
       "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_pecas_insumos_id_liberar_reserva",
+      "_type": "request",
+      "parentId": "fld_pe_as_e_insumos",
+      "name": "Liberar reserva",
+      "method": "POST",
+      "url": "{{ _.base_url }}/pecas-insumos/{{ _.id }}/liberar-reserva",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_pecas_insumos_id_remover_estoque",
+      "_type": "request",
+      "parentId": "fld_pe_as_e_insumos",
+      "name": "Remover estoque",
+      "method": "POST",
+      "url": "{{ _.base_url }}/pecas-insumos/{{ _.id }}/remover-estoque",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_pecas_insumos_id_reservar",
+      "_type": "request",
+      "parentId": "fld_pe_as_e_insumos",
+      "name": "Reservar peça",
+      "method": "POST",
+      "url": "{{ _.base_url }}/pecas-insumos/{{ _.id }}/reservar",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_put_pecas_insumos_id",
+      "_type": "request",
+      "parentId": "fld_pe_as_e_insumos",
+      "name": "Alterar peça/insumo",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/pecas-insumos/{{ _.id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_delete_pecas_insumos_id",
+      "_type": "request",
+      "parentId": "fld_pe_as_e_insumos",
+      "name": "Excluir peça/insumo",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/pecas-insumos/{{ _.id }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_integracoes_tokens",
+      "_type": "request",
+      "parentId": "fld_tokens_de_integra_o",
+      "name": "Listar tokens de integração",
+      "method": "GET",
+      "url": "{{ _.base_url }}/integracoes/tokens",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_integracoes_tokens",
+      "_type": "request",
+      "parentId": "fld_tokens_de_integra_o",
+      "name": "Gerar token de integração",
+      "method": "POST",
+      "url": "{{ _.base_url }}/integracoes/tokens",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_delete_integracoes_tokens_id",
+      "_type": "request",
+      "parentId": "fld_tokens_de_integra_o",
+      "name": "Revogar token de integração",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/integracoes/tokens/{{ _.id }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_veiculos",
+      "_type": "request",
+      "parentId": "fld_veiculos",
+      "name": "Consultar veiculos",
+      "method": "GET",
+      "url": "{{ _.base_url }}/veiculos",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_veiculos",
+      "_type": "request",
+      "parentId": "fld_veiculos",
+      "name": "Cadastrar veiculo",
+      "method": "POST",
+      "url": "{{ _.base_url }}/veiculos",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_put_veiculos_placa",
+      "_type": "request",
+      "parentId": "fld_veiculos",
+      "name": "Alterar veiculo",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/veiculos/{{ _.placa }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_delete_veiculos_placa",
+      "_type": "request",
+      "parentId": "fld_veiculos",
+      "name": "Excluir veiculo",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/veiculos/{{ _.placa }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_integracoes_orcamentos_numeroorcamento_decisao",
+      "_type": "request",
+      "parentId": "fld_webhook_de_decis_o_de_or_amento",
+      "name": "Registrar decisão externa de orçamento",
+      "method": "POST",
+      "url": "{{ _.base_url }}/integracoes/orcamentos/{{ _.numeroorcamento }}/decisao",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
       ]
     }
   ]

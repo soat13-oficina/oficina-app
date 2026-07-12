@@ -1,5 +1,6 @@
 package br.com.oficina.notificacao.infrastructure;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Component;
 import br.com.oficina.notificacao.application.NotificadorEmail;
 
 @Component
+@Profile("!ses")
 public class NotificadorEmailSpringMail implements NotificadorEmail {
     private final JavaMailSender mailSender;
 

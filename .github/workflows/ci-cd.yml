@@ -168,10 +168,30 @@ jobs:
             --from-literal=POSTGRES_PASSWORD='${{ steps.db.outputs.db_pass }}' \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      # A Role e criada pelo Terraform (infra/aws/ses.tf) com nome previsivel
+      # "<cluster_name>-ses-send-email" - descoberta aqui via AWS CLI, no
+      # mesmo padrao usado acima para o endpoint do RDS (sem rodar terraform
+      # no pipeline).
+      - name: Descobre o ARN da IAM Role de SES
+        id: ses
+        run: |
+          ROLE_ARN=$(aws iam get-role --role-name "${EKS_CLUSTER}-ses-send-email" \
+            --query 'Role.Arn' --output text)
+          echo "role_arn=$ROLE_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Valida variavel de repositorio AWS_SES_REMETENTE
+        run: |
+          if [ -z "${{ vars.AWS_SES_REMETENTE }}" ]; then
+            echo "::error::Variavel de repositorio AWS_SES_REMETENTE nao configurada (Settings > Secrets and variables > Actions > Variables). Configure o endereco/dominio ja verificado no console do Amazon SES antes de fazer deploy do profile ses."
+            exit 1
+          fi
+
       - name: Aplica manifestos Kubernetes da aplicacao
         run: |
           sed -i "s#__RDS_ENDPOINT__#${{ steps.db.outputs.rds_endpoint }}#" k8s/01-configmap.yaml
           sed -i "s#__IMAGE__#${{ needs.build-image.outputs.image }}#" k8s/03-deployment.yaml
+          sed -i "s#__SES_IAM_ROLE_ARN__#${{ steps.ses.outputs.role_arn }}#" k8s/00b-serviceaccount.yaml
+          sed -i "s#__AWS_SES_REMETENTE__#${{ vars.AWS_SES_REMETENTE }}#" k8s/01-configmap.yaml
           kubectl apply -f k8s/
 
       - name: Aguarda rollout da aplicacao

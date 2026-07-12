@@ -23,6 +23,10 @@ public class SwaggerConfig {
                     .name("bearerAuth")
                     .type(SecurityScheme.Type.HTTP)
                     .scheme("bearer")
-                    .bearerFormat("JWT")));
+                    .bearerFormat("JWT"))
+                .addSecuritySchemes("webhookToken", new SecurityScheme()
+                    .name("X-Webhook-Token")
+                    .type(SecurityScheme.Type.APIKEY)
+                    .in(SecurityScheme.In.HEADER)));
     }
 }
