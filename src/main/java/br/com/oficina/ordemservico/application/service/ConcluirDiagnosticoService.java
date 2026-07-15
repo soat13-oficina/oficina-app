@@ -58,12 +58,16 @@ public class ConcluirDiagnosticoService implements ConcluirDiagnosticoUseCase {
         }
 
         ordemDeServicoRepository.salvar(ordemDeServico);
-        eventPublisher.publishEvent(new StatusOrdemDeServicoAlterado(
-                ordemDeServico.getNumeroOrdemServico(),
-                ordemDeServico.getCliente().getId(),
-                situacaoAnterior,
-                ordemDeServico.getSituacao(),
-                LocalDateTime.now()));
+        // DIAGNOSTICO_EM_ANDAMENTO e DIAGNOSTICO_CONCLUIDO mapeiam para a mesma SituacaoOrdemDeServico;
+        // sem essa checagem o cliente recebe duas notificacoes identicas de "Diagnostico".
+        if (situacaoAnterior != ordemDeServico.getSituacao()) {
+            eventPublisher.publishEvent(new StatusOrdemDeServicoAlterado(
+                    ordemDeServico.getNumeroOrdemServico(),
+                    ordemDeServico.getCliente().getId(),
+                    situacaoAnterior,
+                    ordemDeServico.getSituacao(),
+                    LocalDateTime.now()));
+        }
         log.info("Diagnostico concluido com sucesso. numeroOrdemServico={}, statusAtual={}",
                 ordemDeServico.getNumeroOrdemServico(),
                 ordemDeServico.getStatus());
