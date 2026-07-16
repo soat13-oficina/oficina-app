@@ -30,7 +30,7 @@ veículo no momento de sua criação.
 | `EnviarDiagnosticoParaOrcamentoUseCase` | `POST /ordens-servico/{numero}/diagnostico/enviar-para-orcamento` | **Fluxo único** DIAGNOSTICO_CONCLUIDO → AGUARDANDO_APROVACAO; corpo só financeiro; deriva cliente/veículo/funcionário e **puxa peças do diagnóstico**; cria o Orçamento na mesma transação |
 | `IniciarExecucaoUseCase` | `POST /ordens-servico/{numero}/execucao/iniciar` | Transiciona AGUARDANDO_APROVACAO → SERVICO_EM_ANDAMENTO |
 | `ConcluirServicoUseCase` | `POST /ordens-servico/{numero}/servico/concluir` | Transiciona SERVICO_EM_ANDAMENTO → OS_FINALIZADA; consome peças do estoque |
-| `FinalizarOrdemDeServicoUseCase` | `POST /ordens-servico/{numero}/finalizacao` | Transiciona ORCAMENTO_GERADO → OS_FINALIZADA; consome peças |
+| `FinalizarOrdemDeServicoUseCase` | `POST /ordens-servico/{numero}/finalizacao` | Transiciona ORCAMENTO_GERADO → OS_FINALIZADA; consome peças. **Inalcançável na prática**: nenhum controller chama `enviarParaOrcamento()`, único método que produz o status ORCAMENTO_GERADO exigido pela guarda de `finalizar()` — ver nota em "Máquina de Estados" |
 | `EntregarAoClienteUseCase` | `POST /ordens-servico/{numero}/entrega` | Transiciona OS_FINALIZADA → ENTREGUE |
 | `CalcularTempoMedioExecucaoUseCase` | `GET /ordens-servico/metricas/tempo-medio` | Retorna tempo médio de execução de OS finalizadas |
 
@@ -49,10 +49,10 @@ veículo no momento de sua criação.
                |
      ┌─────────┴──────────┐
      |                    |
-enviarParaAprovacao()  enviarParaOrcamento()
-(→AGUARDANDO_APROVACAO) (→ORCAMENTO_GERADO)
+enviarParaAprovacao()  enviarParaOrcamento() [inalcançável — nenhum
+(→AGUARDANDO_APROVACAO) controller chama; ver nota abaixo]
      |                    |
-     |             finalizar() ──────────────────────┐
+     |             finalizar() [também inalcançável] ─┐
      |                                               |
      | [Decisão webhook: APROVADO]                   |
      | aprovarOrcamento()                            |
@@ -284,9 +284,19 @@ ou `400 Bad Request` se a transição for inválida para o status atual.
 `ORCAMENTO_GERADO` · `AGUARDANDO_APROVACAO` · `SERVICO_EM_ANDAMENTO` ·
 `OS_FINALIZADA` · `ENTREGUE`
 
-> Todos os 8 valores são alcançáveis e possuem transição. Os quatro status órfãos
-> (`AGUARDANDO_ORCAMENTO`, `ORCAMENTO_APROVADO`, `AGUARDANDO_PECA`, `SERVICO_CONCLUIDO`) foram
-> removidos na spec `005-ordemservico-achados-residuais` (CRI-003).
+> Os quatro status órfãos (`AGUARDANDO_ORCAMENTO`, `ORCAMENTO_APROVADO`, `AGUARDANDO_PECA`,
+> `SERVICO_CONCLUIDO`) foram removidos na spec `005-ordemservico-achados-residuais` (CRI-003).
+>
+> **Divergência encontrada em teste end-to-end (2026-07-14)**: `ORCAMENTO_GERADO` não é
+> alcançável na prática — nenhum controller expõe `enviarParaOrcamento()` (o único método que
+> produz esse status). O fluxo real de negócio usa exclusivamente `enviarParaAprovacao()`
+> (→ `AGUARDANDO_APROVACAO`, via `POST /diagnostico/enviar-para-orcamento`). Como consequência,
+> o endpoint `POST /{numero}/finalizacao` (`FinalizarOrdemDeServicoUseCase`) também nunca
+> retorna sucesso — a guarda de `finalizar()` exige `ORCAMENTO_GERADO`. A finalização real da OS
+> ocorre via `POST /{numero}/servico/concluir` (`concluirServico()`), que transiciona
+> `SERVICO_EM_ANDAMENTO → OS_FINALIZADA` diretamente. `ORCAMENTO_GERADO`, `enviarParaOrcamento()`
+> e `finalizar()`/`FinalizarOrdemDeServicoUseCase` são candidatos a código morto — decisão de
+> remover ou de expor um caminho que os alcance ainda não foi tomada.
 
 ### `SituacaoOrdemDeServico` — Enum (6 valores)
 

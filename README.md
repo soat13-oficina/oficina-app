@@ -86,6 +86,75 @@ status de OS) e abra a UI do Mailhog em `http://localhost:8025` — o e-mail
 capturado aparece na lista, com assunto, corpo e destinatário, sem precisar de
 nenhuma conta de e-mail real.
 
+### 4. (Opcional) Testando o fluxo de e-mail passo a passo (via curl)
+
+Roteiro completo para disparar manualmente as notificações de mudança de
+status da OS e conferir, pela API do Mailhog, que cada mudança gera
+**exatamente um** e-mail (regressão a evitar: notificação duplicada quando
+duas situações internas da OS mapeiam para o mesmo status externo, ex.
+`DIAGNOSTICO_EM_ANDAMENTO` e `DIAGNOSTICO_CONCLUIDO` → "Diagnóstico").
+
+Pré-requisitos: banco, aplicação (passos 1-2) e Mailhog (passo 3) no ar.
+Requer `jq` (`brew install jq`).
+
+```bash
+BASE_URL=http://localhost:8080
+MAILHOG_API=http://localhost:8025/api
+
+# 1. Registrar usuário e autenticar
+TOKEN=$(curl -s -X POST $BASE_URL/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"teste@oficina.com","senha":"senha123"}' | jq -r .token)
+
+# 2. Cadastrar cliente — o e-mail informado aqui recebe as notificações
+CLI_ID=$(curl -s -X POST $BASE_URL/clientes \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"nome":"Cliente Teste","cpfOuCnpj":"12345678909","tipoCliente":"PF","email":"cliente@mailhog.local"}' \
+  | jq -r .id)
+
+# 3. Cadastrar funcionário
+FUNC_ID=$(curl -s -X POST $BASE_URL/funcionarios \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"nome":"Funcionario Teste","cpf":"98765432100"}' \
+  | jq -r .id)
+
+# 4. Cadastrar veículo vinculado ao cliente
+curl -s -X POST $BASE_URL/veiculos \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"placa\":\"TST1E23\",\"marca\":\"Toyota\",\"modelo\":\"Corolla\",\"fabricante\":\"Toyota Motor Corporation\",\"ano\":2024,\"potencia\":177,\"cambio\":\"AUTOMATICO\",\"tipo\":\"FLEX\",\"clienteId\":\"$CLI_ID\"}" > /dev/null
+
+# 5. Abrir a OS
+OS=$(curl -s -X POST $BASE_URL/ordens-servico \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"clienteId\":\"$CLI_ID\",\"funcionarioId\":\"$FUNC_ID\",\"placaVeiculo\":\"TST1E23\"}" \
+  | jq -r .numeroOrdemServico)
+echo "OS criada: $OS"
+
+# 6. Limpar a caixa do Mailhog antes de testar
+curl -s -X DELETE $MAILHOG_API/v1/messages
+
+# 7. Avançar o status da OS — cada chamada abaixo deve gerar 1 e-mail
+curl -s -o /dev/null -w "iniciar diagnostico: %{http_code}\n" \
+  -X POST $BASE_URL/ordens-servico/$OS/diagnostico/iniciar -H "Authorization: Bearer $TOKEN"
+curl -s -o /dev/null -w "concluir diagnostico: %{http_code}\n" \
+  -X POST $BASE_URL/ordens-servico/$OS/diagnostico/concluir -H "Authorization: Bearer $TOKEN"
+
+# 8. Conferir os e-mails capturados
+curl -s $MAILHOG_API/v2/messages | jq '{total, assuntos: [.items[].Content.Headers.Subject[0]]}'
+```
+
+Abra também `http://localhost:8025` para inspecionar o corpo de cada e-mail.
+
+**O que verificar:**
+- Cada chamada que muda a `situacao` da OS deve gerar **exatamente um**
+  e-mail com assunto `Atualizacao da ordem de servico <numero>`.
+- Chamadas que não mudam a `situacao` (ex.: transições internas que mapeiam
+  para o mesmo status externo) **não** devem gerar e-mail novo — se
+  gerarem, é regressão do bug corrigido em `ConcluirDiagnosticoService`
+  (o evento só é publicado quando `situacaoAnterior != situacaoAtual`).
+- Para repetir o teste em outra OS, refaça os passos 5-8 (ou apenas o
+  passo 5 se cliente/funcionário/veículo já existirem).
+
 ---
 
 ## Usando o Swagger
