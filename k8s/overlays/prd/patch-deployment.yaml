@@ -1,0 +1,19 @@
+# Produção: duas réplicas desde o início (sobrevive à perda de um nó) e os
+# recursos originalmente dimensionados na Fase 2.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-api
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: oficina-api
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "1000m"
+              memory: "768Mi"

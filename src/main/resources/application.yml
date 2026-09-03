@@ -45,7 +45,7 @@ jwt:
   expiration: 86400000 # 1 dia em milissegundos
 
 
-# Health checks consumidos pelos probes do Kubernetes (k8s/03-deployment.yaml)
+# Health checks consumidos pelos probes do Kubernetes (k8s/base/deployment.yaml)
 # e pelo HEALTHCHECK do Dockerfile:
 #   /actuator/health/liveness  - processo vivo (nao inclui dependencias)
 #   /actuator/health/readiness - pronto para receber trafego (inclui o banco)

@@ -1,0 +1,17 @@
+# Homologação e produção dividem o mesmo cluster (ver ADR 0002 em
+# oficina-infra-k8s). A cota impede que um pod de homologação com vazamento de
+# memória consuma os nós e derrube produção junto — é o que torna a plataforma
+# compartilhada defensável.
+#
+# Cota de homologação deliberadamente menor que a de produção.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: oficina-quota
+spec:
+  hard:
+    requests.cpu: "600m"
+    requests.memory: 1Gi
+    limits.cpu: "1500m"
+    limits.memory: 2Gi
+    pods: "6"

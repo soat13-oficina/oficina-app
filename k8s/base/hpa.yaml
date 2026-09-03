@@ -1,10 +1,12 @@
-# Requer metrics-server no cluster para ler uso de CPU/memoria dos pods -
-# instalado como add-on do EKS pelo Terraform (infra/aws/eks.tf).
+# Requer metrics-server no cluster para ler uso de CPU/memória dos pods -
+# instalado como add-on do EKS pelo Terraform do repositório oficina-infra-k8s.
+#
+# minReplicas/maxReplicas são ajustados por ambiente no patch do overlay:
+# homologação escala menos para não disputar nós com produção.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: oficina-api
-  namespace: oficina
   labels:
     app: oficina-api
 spec:
@@ -12,8 +14,6 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: oficina-api
-  minReplicas: 1
-  maxReplicas: 4
   metrics:
     - type: Resource
       resource:

@@ -1,0 +1,11 @@
+# Base comum aos dois ambientes. Não aplique esta pasta diretamente: ela não
+# define namespace, imagem nem ConfigMap. Use um overlay:
+#   kubectl apply -k k8s/overlays/hml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml

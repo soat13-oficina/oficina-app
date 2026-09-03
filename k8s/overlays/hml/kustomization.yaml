@@ -1,0 +1,35 @@
+# Overlay de HOMOLOGAÇÃO. Aplicado automaticamente pela pipeline a cada push
+# na branch `homologacao`.
+#
+#   kubectl apply -k k8s/overlays/hml
+#
+# Os marcadores __IMAGE_REPO__, __IMAGE_TAG__ e __SES_IAM_ROLE_ARN__ são
+# preenchidos pela pipeline; app.env recebe DB_URL e AWS_SES_REMETENTE lá também.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reescreve o namespace de todos os recursos da base.
+namespace: oficina-hml
+
+resources:
+  - namespace.yaml
+  - resourcequota.yaml
+  - ../../base
+
+images:
+  - name: oficina-api
+    newName: __IMAGE_REPO__
+    newTag: __IMAGE_TAG__
+
+# Gera o ConfigMap oficina-config com sufixo de hash: qualquer mudança de
+# configuração vira um nome novo e dispara rolling update do Deployment,
+# em vez de deixar pods antigos com a config velha.
+configMapGenerator:
+  - name: oficina-config
+    envs:
+      - app.env
+
+patches:
+  - path: patch-serviceaccount.yaml
+  - path: patch-deployment.yaml
+  - path: patch-hpa.yaml
