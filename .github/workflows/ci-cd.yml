@@ -1,21 +1,28 @@
 name: CI/CD
 
-# Fluxo: build + testes -> imagem Docker no ECR -> deploy no EKS.
-# Pressupoe a infraestrutura ja provisionada (workflow "Infraestrutura"
-# ou terraform apply local - ver infra/README.md).
+# Fluxo: build + testes -> imagem no ECR -> deploy no EKS.
 #
-# Configuracao necessaria no repositorio:
-#   Secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-#   Variables (opcional): AWS_REGION (default us-east-1)
+#   PR / push desenvolvimento -> apenas testes
+#   push homologacao          -> imagem + deploy no namespace oficina-hml
+#   push master               -> imagem + deploy no namespace oficina-prd
+#
+# A INFRAESTRUTURA VIVE FORA DESTE REPOSITÓRIO (Fase 3):
+#   oficina-infra-k8s        VPC, EKS, ECR e a IAM Role de SES
+#   oficina-infra-database   RDS oficina-db-hml e oficina-db-prd
+#   oficina-lambda-auth      API Gateway, Lambdas e o segredo do JWT
+# Todos precisam estar aplicados antes do primeiro deploy daquele ambiente.
+#
+# Configuração necessária no repositório:
+#   Secrets:   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+#              ORCAMENTO_WEBHOOK_SECRET (opcional, ver job de deploy)
+#   Variables: AWS_SES_REMETENTE (endereço verificado no SES)
+#              AWS_REGION (opcional, default us-east-1)
 
 on:
   push:
-    branches: [master]
-  # PRs para master e desenvolvimento rodam apenas os jobs de teste;
-  # build da imagem e deploy so acontecem em push na master (gate no
-  # build-image: github.event_name != 'pull_request').
+    branches: [master, homologacao, desenvolvimento]
   pull_request:
-    branches: [master, desenvolvimento]
+    branches: [master, homologacao, desenvolvimento]
   workflow_dispatch: {}
 
 permissions:
@@ -25,7 +32,6 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   ECR_REPOSITORY: oficina
   EKS_CLUSTER: oficina
-  DB_IDENTIFIER: oficina-db
 
 jobs:
   unit-tests:
@@ -86,13 +92,30 @@ jobs:
       - name: Testes de integracao contra PostgreSQL real
         run: ./mvnw --batch-mode test -Dtest='**/*IntegrationTest' -Dspring.profiles.active=integration
 
+  # Valida que os dois overlays continuam renderizando. Roda em PR tambem:
+  # um erro de kustomize so apareceria no deploy sem este job.
+  manifests:
+    name: Valida manifestos Kubernetes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: kubectl kustomize dos dois ambientes
+        run: |
+          for ENV in hml prd; do
+            echo "== overlays/$ENV =="
+            kubectl kustomize "k8s/overlays/$ENV" > /dev/null
+          done
+          echo "Overlays renderizam sem erro."
+
   build-image:
     name: Build e push da imagem para o ECR
-    needs: [unit-tests, integration-tests]
-    if: github.event_name != 'pull_request'
+    needs: [unit-tests, integration-tests, manifests]
+    if: github.event_name == 'push' && (github.ref_name == 'master' || github.ref_name == 'homologacao')
     runs-on: ubuntu-latest
     outputs:
-      image: ${{ steps.image.outputs.image }}
+      registry: ${{ steps.ecr.outputs.registry }}
+      tag: ${{ steps.image.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
 
@@ -107,25 +130,37 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      # Tag com o ambiente no prefixo: as imagens de hml e prd convivem no
+      # mesmo repositorio ECR e precisam ser distinguiveis num "aws ecr
+      # describe-images". A tag movel <env>-latest facilita rollback manual.
       - id: image
-        name: Define a tag da imagem (sha curto do commit)
-        run: echo "image=${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        name: Define a tag da imagem
+        run: |
+          ENV=$([ "$GITHUB_REF_NAME" = "master" ] && echo prd || echo hml)
+          echo "tag=${ENV}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "moving_tag=${ENV}-latest" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ${{ steps.image.outputs.image }}
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.image.outputs.tag }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.image.outputs.moving_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   deploy:
-    name: Deploy no EKS
+    name: Deploy no EKS (${{ github.ref_name == 'master' && 'producao' || 'homologacao' }})
     needs: build-image
     runs-on: ubuntu-latest
-    concurrency: deploy-eks
+    environment: ${{ github.ref_name == 'master' && 'producao' || 'homologacao' }}
+    env:
+      AMBIENTE: ${{ github.ref_name == 'master' && 'prd' || 'hml' }}
+      NAMESPACE: ${{ github.ref_name == 'master' && 'oficina-prd' || 'oficina-hml' }}
+    concurrency:
+      group: deploy-eks-${{ github.ref_name == 'master' && 'prd' || 'hml' }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
@@ -135,50 +170,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Aponta kubectl para o cluster
-        run: aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER"
-
-      # O RDS gerencia usuario/senha no Secrets Manager (ver infra/aws/rds.tf).
-      # Aqui descobrimos endpoint + credenciais e materializamos o Secret
-      # oficina-db-credentials que o Deployment consome.
-      - name: Descobre endpoint e credenciais do banco
-        id: db
-        run: |
-          RDS_HOST=$(aws rds describe-db-instances --db-instance-identifier "$DB_IDENTIFIER" \
-            --query 'DBInstances[0].Endpoint.Address' --output text)
-          RDS_PORT=$(aws rds describe-db-instances --db-instance-identifier "$DB_IDENTIFIER" \
-            --query 'DBInstances[0].Endpoint.Port' --output text)
-          SECRET_ARN=$(aws rds describe-db-instances --db-instance-identifier "$DB_IDENTIFIER" \
-            --query 'DBInstances[0].MasterUserSecret.SecretArn' --output text)
-          CREDS=$(aws secretsmanager get-secret-value --secret-id "$SECRET_ARN" \
-            --query SecretString --output text)
-          DB_USER=$(echo "$CREDS" | jq -r .username)
-          DB_PASS=$(echo "$CREDS" | jq -r .password)
-          echo "::add-mask::$DB_PASS"
-          echo "rds_endpoint=$RDS_HOST:$RDS_PORT" >> "$GITHUB_OUTPUT"
-          echo "db_user=$DB_USER" >> "$GITHUB_OUTPUT"
-          echo "db_pass=$DB_PASS" >> "$GITHUB_OUTPUT"
-
-      - name: Cria namespace e Secret de credenciais do banco
-        run: |
-          kubectl apply -f k8s/00-namespace.yaml
-          kubectl create secret generic oficina-db-credentials \
-            --namespace oficina \
-            --from-literal=POSTGRES_USER='${{ steps.db.outputs.db_user }}' \
-            --from-literal=POSTGRES_PASSWORD='${{ steps.db.outputs.db_pass }}' \
-            --dry-run=client -o yaml | kubectl apply -f -
-
-      # A Role e criada pelo Terraform (infra/aws/ses.tf) com nome previsivel
-      # "<cluster_name>-ses-send-email" - descoberta aqui via AWS CLI, no
-      # mesmo padrao usado acima para o endpoint do RDS (sem rodar terraform
-      # no pipeline).
-      - name: Descobre o ARN da IAM Role de SES
-        id: ses
-        run: |
-          ROLE_ARN=$(aws iam get-role --role-name "${EKS_CLUSTER}-ses-send-email" \
-            --query 'Role.Arn' --output text)
-          echo "role_arn=$ROLE_ARN" >> "$GITHUB_OUTPUT"
-
       - name: Valida variavel de repositorio AWS_SES_REMETENTE
         run: |
           if [ -z "${{ vars.AWS_SES_REMETENTE }}" ]; then
@@ -186,20 +177,162 @@ jobs:
             exit 1
           fi
 
-      - name: Aplica manifestos Kubernetes da aplicacao
+      - name: Aponta kubectl para o cluster
+        run: aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER"
+
+      # A instancia se chama oficina-db-<ambiente> - contrato documentado no
+      # README de oficina-infra-database. O RDS gerencia usuario/senha no
+      # Secrets Manager; lemos de la para materializar o Secret do cluster.
+      - name: Descobre endpoint e credenciais do banco
+        id: db
         run: |
-          sed -i "s#__RDS_ENDPOINT__#${{ steps.db.outputs.rds_endpoint }}#" k8s/01-configmap.yaml
-          sed -i "s#__IMAGE__#${{ needs.build-image.outputs.image }}#" k8s/03-deployment.yaml
-          sed -i "s#__SES_IAM_ROLE_ARN__#${{ steps.ses.outputs.role_arn }}#" k8s/00b-serviceaccount.yaml
-          sed -i "s#__AWS_SES_REMETENTE__#${{ vars.AWS_SES_REMETENTE }}#" k8s/01-configmap.yaml
-          kubectl apply -f k8s/
+          DB_ID="oficina-db-${AMBIENTE}"
+          if ! aws rds describe-db-instances --db-instance-identifier "$DB_ID" >/dev/null 2>&1; then
+            echo "::error::Instancia $DB_ID nao encontrada. Aplique o repositorio oficina-infra-database no ambiente $AMBIENTE antes deste deploy."
+            exit 1
+          fi
+
+          RDS_HOST=$(aws rds describe-db-instances --db-instance-identifier "$DB_ID" \
+            --query 'DBInstances[0].Endpoint.Address' --output text)
+          RDS_PORT=$(aws rds describe-db-instances --db-instance-identifier "$DB_ID" \
+            --query 'DBInstances[0].Endpoint.Port' --output text)
+          DB_NAME=$(aws rds describe-db-instances --db-instance-identifier "$DB_ID" \
+            --query 'DBInstances[0].DBName' --output text)
+          SECRET_ARN=$(aws rds describe-db-instances --db-instance-identifier "$DB_ID" \
+            --query 'DBInstances[0].MasterUserSecret.SecretArn' --output text)
+
+          CREDS=$(aws secretsmanager get-secret-value --secret-id "$SECRET_ARN" \
+            --query SecretString --output text)
+          DB_USER=$(echo "$CREDS" | jq -r .username)
+          DB_PASS=$(echo "$CREDS" | jq -r .password)
+          echo "::add-mask::$DB_PASS"
+
+          echo "jdbc_url=jdbc:postgresql://${RDS_HOST}:${RDS_PORT}/${DB_NAME}" >> "$GITHUB_OUTPUT"
+          echo "db_user=$DB_USER" >> "$GITHUB_OUTPUT"
+          echo "db_pass=$DB_PASS" >> "$GITHUB_OUTPUT"
+
+      # A Role e criada pelo Terraform de oficina-infra-k8s com nome previsivel
+      # "<cluster>-ses-send-email" e confia no ServiceAccount oficina-api nos
+      # dois namespaces de ambiente.
+      - name: Descobre o ARN da IAM Role de SES
+        id: ses
+        run: |
+          ROLE_ARN=$(aws iam get-role --role-name "${EKS_CLUSTER}-ses-send-email" \
+            --query 'Role.Arn' --output text)
+          echo "role_arn=$ROLE_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Garante o namespace
+        run: |
+          kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+
+      # Secrets sao criados imperativamente e NUNCA versionados. O JWT_SECRET e
+      # o mesmo que a Lambda de autenticacao usa para assinar o token - o
+      # contrato do nome esta no README de oficina-lambda-auth.
+      - name: Cria os Secrets do ambiente
+        env:
+          DB_USER: ${{ steps.db.outputs.db_user }}
+          DB_PASS: ${{ steps.db.outputs.db_pass }}
+          WEBHOOK_SECRET_INPUT: ${{ secrets.ORCAMENTO_WEBHOOK_SECRET }}
+        run: |
+          kubectl create secret generic oficina-db-credentials \
+            --namespace "$NAMESPACE" \
+            --from-literal=POSTGRES_USER="$DB_USER" \
+            --from-literal=POSTGRES_PASSWORD="$DB_PASS" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          JWT_SECRET=$(aws secretsmanager get-secret-value \
+            --secret-id "oficina/${AMBIENTE}/jwt-secret" \
+            --query SecretString --output text 2>/dev/null || true)
+          if [ -z "$JWT_SECRET" ]; then
+            # Permite subir a aplicacao antes de oficina-lambda-auth existir.
+            # Enquanto for gerado aqui, o token emitido pela Lambda NAO sera
+            # aceito pela API - os dois lados precisam do mesmo segredo.
+            echo "::warning::Segredo oficina/${AMBIENTE}/jwt-secret nao encontrado no Secrets Manager. Gerando um valor local: o login via Lambda so funcionara depois que oficina-lambda-auth for aplicado e este deploy for repetido."
+            JWT_SECRET=$(openssl rand -base64 48)
+          fi
+          echo "::add-mask::$JWT_SECRET"
+
+          WEBHOOK_SECRET="$WEBHOOK_SECRET_INPUT"
+          if [ -z "$WEBHOOK_SECRET" ]; then
+            # Preserva o valor ja aplicado, para nao invalidar webhooks a cada deploy.
+            WEBHOOK_SECRET=$(kubectl -n "$NAMESPACE" get secret oficina-app-secrets \
+              -o jsonpath='{.data.ORCAMENTO_WEBHOOK_SECRET}' 2>/dev/null | base64 -d || true)
+          fi
+          if [ -z "$WEBHOOK_SECRET" ]; then
+            WEBHOOK_SECRET=$(openssl rand -base64 36)
+            echo "::warning::ORCAMENTO_WEBHOOK_SECRET nao configurado como secret do repositorio; um valor aleatorio foi gerado para este ambiente."
+          fi
+          echo "::add-mask::$WEBHOOK_SECRET"
+
+          kubectl create secret generic oficina-app-secrets \
+            --namespace "$NAMESPACE" \
+            --from-literal=JWT_SECRET="$JWT_SECRET" \
+            --from-literal=ORCAMENTO_WEBHOOK_SECRET="$WEBHOOK_SECRET" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Preenche o overlay de ${{ env.AMBIENTE }}
+        env:
+          JDBC_URL: ${{ steps.db.outputs.jdbc_url }}
+          SES_ROLE_ARN: ${{ steps.ses.outputs.role_arn }}
+          REGISTRY: ${{ needs.build-image.outputs.registry }}
+          TAG: ${{ needs.build-image.outputs.tag }}
+        run: |
+          OVERLAY="k8s/overlays/${AMBIENTE}"
+
+          # Valores só conhecidos em tempo de deploy, anexados ao app.env que
+          # alimenta o configMapGenerator.
+          {
+            echo "DB_URL=${JDBC_URL}"
+            echo "AWS_SES_REMETENTE=${{ vars.AWS_SES_REMETENTE }}"
+          } >> "$OVERLAY/app.env"
+
+          sed -i "s#__IMAGE_REPO__#${REGISTRY}/${ECR_REPOSITORY}#" "$OVERLAY/kustomization.yaml"
+          sed -i "s#__IMAGE_TAG__#${TAG}#"                          "$OVERLAY/kustomization.yaml"
+          sed -i "s#__SES_IAM_ROLE_ARN__#${SES_ROLE_ARN}#"          "$OVERLAY/patch-serviceaccount.yaml"
+
+          echo "--- manifesto final ---"
+          kubectl kustomize "$OVERLAY"
+
+      - name: Aplica os manifestos
+        run: kubectl apply -k "k8s/overlays/${AMBIENTE}"
 
       - name: Aguarda rollout da aplicacao
-        run: kubectl -n oficina rollout status deployment/oficina-api --timeout=300s
+        run: kubectl -n "$NAMESPACE" rollout status deployment/oficina-api --timeout=300s
 
       - name: Evidencias do deploy (pods, service, HPA, URL publica)
         run: |
-          kubectl -n oficina get pods,svc,hpa
-          kubectl -n oficina top pods || echo "metrics-server ainda sem amostras coletadas"
-          echo "URL publica da API:"
-          kubectl -n oficina get svc oficina-api -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' && echo
+          kubectl -n "$NAMESPACE" get pods,svc,hpa,resourcequota
+          kubectl -n "$NAMESPACE" top pods || echo "metrics-server ainda sem amostras coletadas"
+          NLB=$(kubectl -n "$NAMESPACE" get svc oficina-api \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "URL do NLB (${AMBIENTE}): http://${NLB}"
+          {
+            echo "## Deploy em \`${AMBIENTE}\`"
+            echo ""
+            echo "- Namespace: \`${NAMESPACE}\`"
+            echo "- Imagem: \`${{ needs.build-image.outputs.tag }}\`"
+            echo "- NLB: http://${NLB}"
+            echo ""
+            echo "Preencha \`app_base_url\` do ambiente \`${AMBIENTE}\` em oficina-lambda-auth com essa URL para publicar a rota proxy do API Gateway."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Confirma que a aplicacao responde de fato, e nao apenas que o rollout
+      # terminou: um pod pode ficar Ready e o NLB ainda nao ter alvos saudaveis.
+      - name: Healthcheck pelo NLB
+        run: |
+          NLB=$(kubectl -n "$NAMESPACE" get svc oficina-api \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          for TENTATIVA in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+              "http://${NLB}/actuator/health" || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "Aplicacao respondendo (HTTP 200) na tentativa $TENTATIVA."
+              exit 0
+            fi
+            echo "Tentativa $TENTATIVA: HTTP ${STATUS:-sem resposta} - o NLB leva ~2 min para registrar os alvos."
+            sleep 15
+          done
+          echo "::error::Aplicacao nao respondeu 200 em /actuator/health apos ~7 min."
+          kubectl -n "$NAMESPACE" describe deployment/oficina-api
+          kubectl -n "$NAMESPACE" logs -l app=oficina-api --tail=100
+          exit 1

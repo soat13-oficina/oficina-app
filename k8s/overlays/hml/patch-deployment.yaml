@@ -1,0 +1,19 @@
+# Homologação: uma réplica e recursos menores. Produção tem prioridade no
+# cluster compartilhado.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-api
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: oficina-api
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

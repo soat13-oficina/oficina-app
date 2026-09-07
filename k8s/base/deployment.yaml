@@ -1,12 +1,12 @@
+# Namespace, imagem, réplicas e recursos NÃO são definidos aqui: vêm do overlay
+# do ambiente (k8s/overlays/hml e k8s/overlays/prd).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: oficina-api
-  namespace: oficina
   labels:
     app: oficina-api
 spec:
-  replicas: 2
   selector:
     matchLabels:
       app: oficina-api
@@ -20,31 +20,36 @@ spec:
       labels:
         app: oficina-api
     spec:
-      # ServiceAccount anotada com eks.amazonaws.com/role-arn (00b-serviceaccount.yaml),
-      # usada pelo SesClient (profile "ses") para resolver credenciais via IRSA.
+      # ServiceAccount anotada com eks.amazonaws.com/role-arn (serviceaccount.yaml
+      # + patch do overlay), usada pelo SesClient (profile "ses") para resolver
+      # credenciais via IRSA.
       serviceAccountName: oficina-api
       containers:
         - name: oficina-api
-          # __IMAGE__ e substituido pela pipeline com a URL do ECR + tag do
-          # commit (os nodes do EKS puxam do ECR via IAM role, sem pull
-          # secret). Para aplicar manualmente:
-          #   IMAGE=$(cd infra/aws && terraform output -raw ecr_repository_url):latest
-          #   sed -i "s#__IMAGE__#$IMAGE#" k8s/03-deployment.yaml
-          image: __IMAGE__
+          # Nome simbólico: o overlay substitui por <ECR>/oficina:<sha> através
+          # do bloco "images:" do kustomization.yaml daquele ambiente.
+          image: oficina-api
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8080
           envFrom:
+            # ConfigMap gerado pelo configMapGenerator do overlay a partir do
+            # app.env daquele ambiente. O kustomize reescreve esta referência
+            # para o nome com hash, então uma mudança de configuração dispara
+            # rolling update automaticamente.
             - configMapRef:
                 name: oficina-config
           env:
-            # Ativa NotificadorEmailSes (Amazon SES) neste ambiente de producao.
-            # docker-compose.yml (dev local) nao define esta variavel e continua
+            # Ativa NotificadorEmailSes (Amazon SES) nos dois ambientes de nuvem.
+            # docker-compose.yml (dev local) não define esta variável e continua
             # resolvendo NotificadorEmailSpringMail contra o Mailhog.
-            # Rollback: remover esta variavel volta ao SMTP/Mailhog anterior.
             - name: SPRING_PROFILES_ACTIVE
               value: "ses"
+            # Secrets criados imperativamente pela pipeline (não versionados):
+            # oficina-db-credentials vem do Secrets Manager gerenciado pelo RDS;
+            # oficina-app-secrets traz o JWT_SECRET compartilhado com a Lambda
+            # de autenticação. Ver .github/workflows/ci-cd.yml.
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
@@ -65,18 +70,11 @@ spec:
                 secretKeyRef:
                   name: oficina-app-secrets
                   key: ORCAMENTO_WEBHOOK_SECRET
-          resources:
-            requests:
-              cpu: "250m"
-              memory: "384Mi"
-            limits:
-              cpu: "1000m"
-              memory: "768Mi"
           # Probes nos endpoints nativos do Spring Boot Actuator
           # (management.endpoint.health.probes em application.yml).
-          # startupProbe segura liveness/readiness ate a app subir (Flyway +
-          # Hibernate levam dezenas de segundos com pouca CPU) - da ate 150s
-          # de graca sem risco do kubelet matar o container no meio do boot.
+          # startupProbe segura liveness/readiness até a app subir (Flyway +
+          # Hibernate levam dezenas de segundos com pouca CPU) - dá até 150s
+          # de graça sem risco do kubelet matar o container no meio do boot.
           startupProbe:
             httpGet:
               path: /actuator/health/liveness
@@ -85,7 +83,7 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 30
           # readiness inclui o banco (grupo readiness = readinessState,db):
-          # sem conexao com o RDS o pod sai do balanceamento do Service.
+          # sem conexão com o RDS o pod sai do balanceamento do Service.
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
