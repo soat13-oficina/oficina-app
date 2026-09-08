@@ -5,9 +5,8 @@ target/
 .vscode/
 .mvn/wrapper/maven-wrapper.jar
 docs/
-tests/
 k8s/
-infra/
+scripts/
 .github/
 .env
 .env.*

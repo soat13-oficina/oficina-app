@@ -1,8 +1,11 @@
-name: CI/CD
+name: CI/CD (aplicacao)
 
-# Fluxo: build + testes -> imagem no ECR -> deploy no EKS.
+# Camada de APLICACAO. Fluxo: testes -> imagem no ECR -> deploy no EKS.
 #
-#   PR / push desenvolvimento -> apenas testes
+# Nomes de job seguem o padrao comum aos quatro repositorios do projeto:
+# testes . testes-integracao . validacao . build . deploy.
+#
+#   PR / push desenvolvimento -> testes e validacao dos manifestos
 #   push homologacao          -> imagem + deploy no namespace oficina-hml
 #   push master               -> imagem + deploy no namespace oficina-prd
 #
@@ -19,9 +22,8 @@ name: CI/CD
 #              AWS_REGION (opcional, default us-east-1)
 
 on:
-  push:
-    branches: [master, homologacao, desenvolvimento]
   pull_request:
+  push:
     branches: [master, homologacao, desenvolvimento]
   workflow_dispatch: {}
 
@@ -34,8 +36,8 @@ env:
   EKS_CLUSTER: oficina
 
 jobs:
-  unit-tests:
-    name: Build e testes unitarios
+  testes:
+    name: Testes unitarios
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +60,7 @@ jobs:
           name: jacoco-report
           path: target/site/jacoco/
 
-  integration-tests:
+  testes-integracao:
     name: Testes de integracao (PostgreSQL)
     runs-on: ubuntu-latest
     services:
@@ -94,8 +96,8 @@ jobs:
 
   # Valida que os dois overlays continuam renderizando. Roda em PR tambem:
   # um erro de kustomize so apareceria no deploy sem este job.
-  manifests:
-    name: Valida manifestos Kubernetes
+  validacao:
+    name: Validacao dos manifestos (kustomize)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,9 +110,9 @@ jobs:
           done
           echo "Overlays renderizam sem erro."
 
-  build-image:
-    name: Build e push da imagem para o ECR
-    needs: [unit-tests, integration-tests, manifests]
+  build:
+    name: Build e push da imagem (ECR)
+    needs: [testes, testes-integracao, validacao]
     if: github.event_name == 'push' && (github.ref_name == 'master' || github.ref_name == 'homologacao')
     runs-on: ubuntu-latest
     outputs:
@@ -151,15 +153,15 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
-    name: Deploy no EKS (${{ github.ref_name == 'master' && 'producao' || 'homologacao' }})
-    needs: build-image
+    name: Deploy em ${{ github.ref_name == 'master' && 'prd' || 'hml' }}
+    needs: build
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'master' && 'producao' || 'homologacao' }}
     env:
       AMBIENTE: ${{ github.ref_name == 'master' && 'prd' || 'hml' }}
       NAMESPACE: ${{ github.ref_name == 'master' && 'oficina-prd' || 'oficina-hml' }}
     concurrency:
-      group: deploy-eks-${{ github.ref_name == 'master' && 'prd' || 'hml' }}
+      group: oficina-app-${{ github.ref_name == 'master' && 'prd' || 'hml' }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -274,8 +276,8 @@ jobs:
         env:
           JDBC_URL: ${{ steps.db.outputs.jdbc_url }}
           SES_ROLE_ARN: ${{ steps.ses.outputs.role_arn }}
-          REGISTRY: ${{ needs.build-image.outputs.registry }}
-          TAG: ${{ needs.build-image.outputs.tag }}
+          REGISTRY: ${{ needs.build.outputs.registry }}
+          TAG: ${{ needs.build.outputs.tag }}
         run: |
           OVERLAY="k8s/overlays/${AMBIENTE}"
 
@@ -310,7 +312,7 @@ jobs:
             echo "## Deploy em \`${AMBIENTE}\`"
             echo ""
             echo "- Namespace: \`${NAMESPACE}\`"
-            echo "- Imagem: \`${{ needs.build-image.outputs.tag }}\`"
+            echo "- Imagem: \`${{ needs.build.outputs.tag }}\`"
             echo "- NLB: http://${NLB}"
             echo ""
             echo "Preencha \`app_base_url\` do ambiente \`${AMBIENTE}\` em oficina-lambda-auth com essa URL para publicar a rota proxy do API Gateway."

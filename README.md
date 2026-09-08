@@ -495,7 +495,7 @@ no S3 e ordem de apply/destroy estão nos READMEs de:
 | Variable | `AWS_SES_REMETENTE` | sim — endereço verificado no SES |
 | Variable | `AWS_REGION` | não (default `us-east-1`) |
 
-**`ci-cd.yml` — CI/CD**
+**`ci-cd.yml` — CI/CD (aplicação)**
 
 | Gatilho | O que roda |
 |---|---|
@@ -503,13 +503,15 @@ no S3 e ordem de apply/destroy estão nos READMEs de:
 | **Push em `homologacao`** | Tudo acima → imagem `hml-<sha>` no ECR → **deploy em `oficina-hml`** |
 | **Push em `master`** | Tudo acima → imagem `prd-<sha>` no ECR → **deploy em `oficina-prd`** |
 
-Jobs:
+Jobs, no padrão de nomes comum aos quatro repositórios do projeto:
 
-1. **unit-tests** — `./mvnw clean verify` (build + testes unitários + gate de cobertura JaCoCo).
-2. **integration-tests** — `./mvnw test -Dspring.profiles.active=integration` contra um PostgreSQL real (service container).
-3. **manifests** — `kubectl kustomize` dos dois overlays; um erro de Kustomize só apareceria no deploy sem este job.
-4. **build-image** — build e push para o **ECR** com as tags `<ambiente>-<sha>` e `<ambiente>-latest`; só em push nas branches de ambiente, nunca em PR.
-5. **deploy** — descobre RDS e IAM Role, cria os Secrets, preenche e aplica o overlay, aguarda o rollout e faz um **healthcheck real pelo NLB** (um pod pode ficar `Ready` antes de o NLB registrar os alvos).
+| Job | O que faz |
+|---|---|
+| `testes` | `./mvnw clean verify` — build, testes unitários e gate de cobertura JaCoCo |
+| `testes-integracao` | `./mvnw test -Dspring.profiles.active=integration` contra um PostgreSQL real (service container) |
+| `validacao` | `kubectl kustomize` dos dois overlays; um erro de Kustomize só apareceria no deploy sem este job |
+| `build` | Build e push para o **ECR** com as tags `<ambiente>-<sha>` e `<ambiente>-latest`; só em push nas branches de ambiente, nunca em PR |
+| `deploy` | Descobre RDS e IAM Role, cria os Secrets, preenche e aplica o overlay, aguarda o rollout e faz um **healthcheck real pelo NLB** — um pod pode ficar `Ready` antes de o NLB registrar os alvos |
 
 Os jobs de deploy usam GitHub **Environments** (`homologacao` / `producao`), o
 que permite exigir aprovação manual antes de produção sem alterar o YAML.
