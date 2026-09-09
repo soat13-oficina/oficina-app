@@ -50,6 +50,7 @@ public class ConcluirDiagnosticoService implements ConcluirDiagnosticoUseCase {
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
         SituacaoOrdemDeServico situacaoAnterior = ordemDeServico.getSituacao();
+        LocalDateTime anteriorDesde = ordemDeServico.getSituacaoAlteradaEm();
 
         if (command.temDadosDeDiagnostico()) {
             ordemDeServico.concluirDiagnostico(command.descricaoServico(), resolverPecas(command.pecas()));
@@ -61,12 +62,7 @@ public class ConcluirDiagnosticoService implements ConcluirDiagnosticoUseCase {
         // DIAGNOSTICO_EM_ANDAMENTO e DIAGNOSTICO_CONCLUIDO mapeiam para a mesma SituacaoOrdemDeServico;
         // sem essa checagem o cliente recebe duas notificacoes identicas de "Diagnostico".
         if (situacaoAnterior != ordemDeServico.getSituacao()) {
-            eventPublisher.publishEvent(new StatusOrdemDeServicoAlterado(
-                    ordemDeServico.getNumeroOrdemServico(),
-                    ordemDeServico.getCliente().getId(),
-                    situacaoAnterior,
-                    ordemDeServico.getSituacao(),
-                    LocalDateTime.now()));
+            eventPublisher.publishEvent(StatusOrdemDeServicoAlterado.de(ordemDeServico, situacaoAnterior, anteriorDesde));
         }
         log.info("Diagnostico concluido com sucesso. numeroOrdemServico={}, statusAtual={}",
                 ordemDeServico.getNumeroOrdemServico(),

@@ -42,14 +42,10 @@ public class IniciarDiagnosticoService implements IniciarDiagnosticoUseCase {
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
         SituacaoOrdemDeServico situacaoAnterior = ordemDeServico.getSituacao();
+        LocalDateTime anteriorDesde = ordemDeServico.getSituacaoAlteradaEm();
         ordemDeServico.iniciarDiagnostico();
         ordemDeServicoRepository.salvar(ordemDeServico);
-        eventPublisher.publishEvent(new StatusOrdemDeServicoAlterado(
-                ordemDeServico.getNumeroOrdemServico(),
-                ordemDeServico.getCliente().getId(),
-                situacaoAnterior,
-                ordemDeServico.getSituacao(),
-                LocalDateTime.now()));
+        eventPublisher.publishEvent(StatusOrdemDeServicoAlterado.de(ordemDeServico, situacaoAnterior, anteriorDesde));
         log.info("Diagnostico iniciado com sucesso. numeroOrdemServico={}, statusAtual={}",
                 ordemDeServico.getNumeroOrdemServico(),
                 ordemDeServico.getStatus());

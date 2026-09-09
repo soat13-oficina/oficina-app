@@ -61,6 +61,14 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- Expõe as métricas do Micrometer em /actuator/prometheus, raspado pelo Datadog Agent
+             via anotações OpenMetrics (ad.datadoghq.com) no pod. Formato aberto de propósito:
+             as métricas de negócio continuam verificáveis em dev com um curl, sem conta na
+             Datadog - o trial de 14 dias só é ativado perto da demo. Ver docs/observabilidade.md. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security-test</artifactId>

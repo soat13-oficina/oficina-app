@@ -78,6 +78,7 @@ public class DecidirOrcamentoExternamenteService implements DecidirOrcamentoExte
         }
 
         SituacaoOrdemDeServico situacaoAnterior = ordem.getSituacao();
+        LocalDateTime anteriorDesde = ordem.getSituacaoAlteradaEm();
         if (command.decisao() == DecisaoOrcamento.APROVADO) {
             aprovarOrcamentoUseCase.aprovarOrcamento(new AprovarOrcamentoCommand(command.numeroOrcamento()));
             ordem.iniciarExecucao();
@@ -87,12 +88,7 @@ public class DecidirOrcamentoExternamenteService implements DecidirOrcamentoExte
         }
 
         ordemDeServicoRepository.salvar(ordem);
-        eventPublisher.publishEvent(new StatusOrdemDeServicoAlterado(
-                ordem.getNumeroOrdemServico(),
-                ordem.getCliente().getId(),
-                situacaoAnterior,
-                ordem.getSituacao(),
-                LocalDateTime.now()));
+        eventPublisher.publishEvent(StatusOrdemDeServicoAlterado.de(ordem, situacaoAnterior, anteriorDesde));
         return resposta(command.numeroOrcamento(), ordem);
     }
 

@@ -6,6 +6,7 @@ Esta pasta contém diagramas Mermaid com a arquitetura e os fluxos da aplicaçã
 |---|---|
 | `fluxograma.md` | Arquitetura hexagonal, ciclo de vida da OS e do Orçamento, módulos e autenticação |
 | `teste-funcional.md` | Passo a passo de teste funcional completo da API |
+| `observabilidade.md` | Métricas de negócio, logs estruturados, correlação e como conferir tudo localmente |
 | `modelo_readme.md` | Modelo de referência para os READMEs de domínio em `src/main/java/br/com/oficina/*/` |
 | `collections/oficina-api.insomnia.json` | Collection do Insomnia **gerada** a partir do OpenAPI (ver abaixo) |
 

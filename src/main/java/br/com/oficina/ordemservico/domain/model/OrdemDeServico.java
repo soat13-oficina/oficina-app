@@ -91,6 +91,12 @@ public class OrdemDeServico {
 
     private LocalDateTime entregueEm;
 
+    // Quando a SITUACAO de negocio mudou pela ultima vez (migration V19). Distinto de
+    // iniciadaEm/finalizadaEm/entregueEm: e o relogio da situacao CORRENTE, seja ela qual for,
+    // e a base do "tempo medio por status" no dashboard.
+    @Column(name = "situacao_alterada_em")
+    private LocalDateTime situacaoAlteradaEm;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "motivo_encerramento")
     private MotivoEncerramento motivoEncerramento;
@@ -135,7 +141,7 @@ public class OrdemDeServico {
             Funcionario funcionario,
             Cliente cliente,
             Veiculo veiculo) {
-        return new OrdemDeServico(
+        OrdemDeServico ordemDeServico = new OrdemDeServico(
                 id,
                 numeroOrdemServico,
                 funcionario,
@@ -145,6 +151,9 @@ public class OrdemDeServico {
                 null,
                 null,
                 null);
+        // Abrir a OS ja e a entrada em "Recebida": o relogio da situacao comeca aqui.
+        ordemDeServico.situacaoAlteradaEm = LocalDateTime.now();
+        return ordemDeServico;
     }
 
     public static OrdemDeServico abrir(
@@ -224,7 +233,7 @@ public class OrdemDeServico {
         if (status != StatusOrdemDeServico.OS_ABERTA) {
             throw new RegraDeNegocioException("Diagnostico so pode ser iniciado para ordem aberta");
         }
-        status = StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO;
+        alterarStatus(StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO);
         iniciadaEm = LocalDateTime.now();
     }
 
@@ -239,7 +248,7 @@ public class OrdemDeServico {
         if (status != StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO) {
             throw new RegraDeNegocioException("Diagnostico so pode ser concluido em andamento");
         }
-        status = StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO;
+        alterarStatus(StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO);
     }
 
     public void concluirDiagnostico(String descricaoServico, List<PecaPrevistaOrdem> pecas) {
@@ -254,35 +263,35 @@ public class OrdemDeServico {
         if (pecas != null) {
             pecasPrevistas.addAll(pecas);
         }
-        status = StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO;
+        alterarStatus(StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO);
     }
 
     public void enviarParaOrcamento() {
         if (status != StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
             throw new RegraDeNegocioException("Diagnostico so pode ser enviado para orcamento quando concluido");
         }
-        status = StatusOrdemDeServico.ORCAMENTO_GERADO;
+        alterarStatus(StatusOrdemDeServico.ORCAMENTO_GERADO);
     }
 
     public void enviarParaAprovacao() {
         if (status != StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
             throw new RegraDeNegocioException("Ordem de servico so pode ser enviada para aprovacao com diagnostico concluido");
         }
-        status = StatusOrdemDeServico.AGUARDANDO_APROVACAO;
+        alterarStatus(StatusOrdemDeServico.AGUARDANDO_APROVACAO);
     }
 
     public void iniciarExecucao() {
         if (status != StatusOrdemDeServico.AGUARDANDO_APROVACAO) {
             throw new RegraDeNegocioException("Execucao so pode iniciar quando a ordem estiver aguardando aprovacao");
         }
-        status = StatusOrdemDeServico.SERVICO_EM_ANDAMENTO;
+        alterarStatus(StatusOrdemDeServico.SERVICO_EM_ANDAMENTO);
     }
 
     public void concluirServico() {
         if (status != StatusOrdemDeServico.SERVICO_EM_ANDAMENTO) {
             throw new RegraDeNegocioException("Servico so pode ser concluido quando estiver em execucao");
         }
-        status = StatusOrdemDeServico.OS_FINALIZADA;
+        alterarStatus(StatusOrdemDeServico.OS_FINALIZADA);
         motivoEncerramento = MotivoEncerramento.SERVICO_CONCLUIDO;
         finalizadaEm = LocalDateTime.now();
     }
@@ -291,7 +300,7 @@ public class OrdemDeServico {
         if (status != StatusOrdemDeServico.AGUARDANDO_APROVACAO) {
             throw new RegraDeNegocioException("Orcamento so pode ser recusado quando a ordem estiver aguardando aprovacao");
         }
-        status = StatusOrdemDeServico.OS_FINALIZADA;
+        alterarStatus(StatusOrdemDeServico.OS_FINALIZADA);
         motivoEncerramento = MotivoEncerramento.ORCAMENTO_RECUSADO;
         finalizadaEm = LocalDateTime.now();
     }
@@ -300,7 +309,7 @@ public class OrdemDeServico {
         if (status != StatusOrdemDeServico.ORCAMENTO_GERADO) {
             throw new RegraDeNegocioException("Ordem de servico so pode ser finalizada com orcamento gerado");
         }
-        status = StatusOrdemDeServico.OS_FINALIZADA;
+        alterarStatus(StatusOrdemDeServico.OS_FINALIZADA);
         finalizadaEm = LocalDateTime.now();
     }
 
@@ -308,7 +317,7 @@ public class OrdemDeServico {
         if (status != StatusOrdemDeServico.OS_FINALIZADA) {
             throw new RegraDeNegocioException("Ordem de servico so pode ser entregue ao cliente quando estiver finalizada");
         }
-        status = StatusOrdemDeServico.ENTREGUE;
+        alterarStatus(StatusOrdemDeServico.ENTREGUE);
         entregueEm = LocalDateTime.now();
     }
 
@@ -366,6 +375,15 @@ public class OrdemDeServico {
         return SituacaoOrdemDeServico.fromStatus(status);
     }
 
+    /**
+     * Instante em que a ordem entrou na situacao em que esta agora. Pode ser {@code null} em
+     * ordens anteriores a migration V19 que nunca sairam de "Recebida" (nao havia coluna de
+     * criacao para o backfill usar).
+     */
+    public LocalDateTime getSituacaoAlteradaEm() {
+        return situacaoAlteradaEm;
+    }
+
     public MotivoEncerramento getMotivoEncerramento() {
         return motivoEncerramento;
     }
@@ -376,6 +394,19 @@ public class OrdemDeServico {
 
     public List<PecaPrevistaOrdem> getPecasPrevistas() {
         return Collections.unmodifiableList(pecasPrevistas);
+    }
+
+    /**
+     * Unico ponto de escrita do status. Reinicia o relogio da situacao somente quando a
+     * SITUACAO de negocio muda: DIAGNOSTICO_EM_ANDAMENTO -> DIAGNOSTICO_CONCLUIDO sao dois
+     * status dentro de "Diagnostico", e zerar o contador ali quebraria o tempo medio da etapa.
+     */
+    private void alterarStatus(StatusOrdemDeServico novoStatus) {
+        SituacaoOrdemDeServico situacaoAnterior = SituacaoOrdemDeServico.fromStatus(status);
+        status = novoStatus;
+        if (SituacaoOrdemDeServico.fromStatus(novoStatus) != situacaoAnterior) {
+            situacaoAlteradaEm = LocalDateTime.now();
+        }
     }
 
     private void definirDados(Funcionario funcionario, Cliente cliente, Veiculo veiculo) {

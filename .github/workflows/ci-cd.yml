@@ -286,6 +286,9 @@ jobs:
           {
             echo "DB_URL=${JDBC_URL}"
             echo "AWS_SES_REMETENTE=${{ vars.AWS_SES_REMETENTE }}"
+            # version do unified service tagging: e a tag da imagem, entao a Datadog
+            # consegue apontar em qual deploy uma regressao de latencia comecou.
+            echo "DD_VERSION=${TAG}"
           } >> "$OVERLAY/app.env"
 
           sed -i "s#__IMAGE_REPO__#${REGISTRY}/${ECR_REPOSITORY}#" "$OVERLAY/kustomization.yaml"
