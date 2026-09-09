@@ -10,14 +10,30 @@ WORKDIR /app
 
 RUN addgroup -S oficina && adduser -S oficina -G oficina
 COPY --from=build /app/target/*.jar app.jar
-RUN chown oficina:oficina app.jar
+
+# Tracer da Datadog. Fica SEMPRE na imagem, mas so e carregado quando os overlays de nuvem
+# acrescentam -javaagent a JAVA_OPTS: assim a mesma imagem roda no docker-compose local sem
+# tentar falar com um agent que nao existe ali.
+#
+# Versao fixada de proposito. O atalho dtdg.co/latest-java-tracer resolve para o ultimo release,
+# o que faria dois builds do MESMO commit embarcarem tracers diferentes - e um upgrade de tracer
+# entrando sem revisao e justamente o tipo de mudanca que quebra instrumentacao em producao.
+ARG DD_TRACER_VERSION=1.66.0
+ADD --chown=oficina:oficina \
+  https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${DD_TRACER_VERSION}/dd-java-agent-${DD_TRACER_VERSION}.jar \
+  /app/dd-java-agent.jar
+
+RUN chown oficina:oficina app.jar && chmod 0444 /app/dd-java-agent.jar
 USER oficina:oficina
 
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0"
-EXPOSE 8080
+# 8080 = API. 8081 = actuator quando MANAGEMENT_SERVER_PORT esta definido (nuvem); esta porta
+# NAO entra no Service justamente para nao sair no NLB publico.
+EXPOSE 8080 8081
 
+# Segue a porta do actuator: 8081 em nuvem, 8080 no docker-compose local.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD wget -qO- http://localhost:8080/actuator/health/liveness >/dev/null || exit 1
+  CMD wget -qO- http://localhost:${MANAGEMENT_SERVER_PORT:-8080}/actuator/health/liveness >/dev/null || exit 1
 
 # exec: java assume PID 1 e recebe SIGTERM direto — sem isso o k8s espera
 # o grace period inteiro em cada rolling update antes do SIGKILL.

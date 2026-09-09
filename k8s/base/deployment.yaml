@@ -19,6 +19,40 @@ spec:
     metadata:
       labels:
         app: oficina-api
+        # Unified service tagging da Datadog: correlaciona APM, logs, métricas de infra e as
+        # métricas de negócio sob o mesmo service/env/version. tags.datadoghq.com/env e
+        # /version vêm do patch do overlay (são específicos do ambiente e do deploy).
+        tags.datadoghq.com/service: oficina-api
+      annotations:
+        # Autodiscovery do Datadog Agent: raspa /actuator/prometheus DO POD, na porta 8081.
+        # %%host%% é resolvido pelo agent para o IP do pod — não passa pelo Service, e por isso
+        # a porta 8081 pode ficar fora dele (o Service é LoadBalancer/NLB público).
+        #
+        # "namespace" é obrigatório no check e é prependado a tudo: as métricas nascem no código
+        # como os.criadas / notificacoes.falhas e chegam ao Datadog como oficina.os.criadas e
+        # oficina.notificacoes.falhas. Ver MetricasOrdemServicoListener.
+        #
+        # A lista de "metrics" é fechada de propósito: métrica raspada é custom metric cobrada
+        # por série, e /actuator/prometheus publica algumas centenas de séries de JVM/Tomcat que
+        # o agent já coleta por outros caminhos. Latência de API vem do APM, não daqui.
+        ad.datadoghq.com/oficina-api.checks: |
+          {
+            "openmetrics": {
+              "init_config": {},
+              "instances": [
+                {
+                  "openmetrics_endpoint": "http://%%host%%:8081/actuator/prometheus",
+                  "namespace": "oficina",
+                  "metrics": [
+                    "os_criadas",
+                    "os_transicoes",
+                    "os_tempo_na_situacao",
+                    "notificacoes_falhas"
+                  ]
+                }
+              ]
+            }
+          }
     spec:
       # ServiceAccount anotada com eks.amazonaws.com/role-arn (serviceaccount.yaml
       # + patch do overlay), usada pelo SesClient (profile "ses") para resolver
@@ -33,6 +67,12 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+            # Actuator (health + prometheus). Deliberadamente AUSENTE do service.yaml: aquele
+            # Service é type: LoadBalancer e publica um NLB na internet, então tudo que responde
+            # na 8080 é público. Probes (kubelet) e o Datadog Agent falam com o IP do pod
+            # diretamente e não dependem do Service para alcançar esta porta.
+            - name: management
+              containerPort: 8081
           envFrom:
             # ConfigMap gerado pelo configMapGenerator do overlay a partir do
             # app.env daquele ambiente. O kustomize reescreve esta referência
@@ -46,6 +86,29 @@ spec:
             # resolvendo NotificadorEmailSpringMail contra o Mailhog.
             - name: SPRING_PROFILES_ACTIVE
               value: "ses"
+            # Sobe o actuator numa porta própria, fora do Service (ver comentário em ports).
+            # Fica aqui, e não no app.env do overlay, porque os probes abaixo dependem dele:
+            # se alguém removesse a linha do ConfigMap, o actuator voltaria para a 8080 e os
+            # probes passariam a bater numa porta fechada.
+            - name: MANAGEMENT_SERVER_PORT
+              value: "8081"
+            # O DaemonSet do Datadog Agent escuta no nó; o tracer alcança o agent pelo IP do
+            # host, não por Service.
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_SERVICE
+              value: "oficina-api"
+            # Correlaciona log e trace: com isso o dd-java-agent injeta dd.trace_id e dd.span_id
+            # no MDC, que o logging estruturado do Spring Boot já serializa no JSON.
+            - name: DD_LOGS_INJECTION
+              value: "true"
+            # Log em JSON (Elastic Common Schema, nativo do Spring Boot 4). O MDC vai para o
+            # nível raiz do JSON, que é onde a Datadog procura dd.trace_id, correlation_id e
+            # numero_ordem_servico. Sem isto o console volta ao formato humano de desenvolvimento.
+            - name: LOGGING_STRUCTURED_FORMAT_CONSOLE
+              value: "ecs"
             # Secrets criados imperativamente pela pipeline (não versionados):
             # oficina-db-credentials vem do Secrets Manager gerenciado pelo RDS;
             # oficina-app-secrets traz o JWT_SECRET compartilhado com a Lambda
@@ -78,7 +141,7 @@ spec:
           startupProbe:
             httpGet:
               path: /actuator/health/liveness
-              port: 8080
+              port: 8081
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 30
@@ -87,14 +150,14 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
-              port: 8080
+              port: 8081
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
-              port: 8080
+              port: 8081
             periodSeconds: 15
             timeoutSeconds: 3
             failureThreshold: 3

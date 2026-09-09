@@ -7,6 +7,11 @@ metadata:
 spec:
   replicas: 2
   template:
+    metadata:
+      labels:
+        # env do unified service tagging no lado do AGENT: e por este label que ele marca
+        # os LOGS do pod com env:prd (DD_ENV, no container, so alcanca os traces).
+        tags.datadoghq.com/env: "prd"
     spec:
       containers:
         - name: oficina-api

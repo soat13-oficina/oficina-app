@@ -33,7 +33,7 @@ class EnviarNotificacaoStatusOSServiceTest {
         notificacaoRepository = new TestNotificacaoRepository();
         notificadorEmail = new NotificadorEmailFake();
         EntregarNotificacaoService entregar =
-                new EntregarNotificacaoService(notificadorEmail, notificacaoRepository, MAX_TENTATIVAS);
+                new EntregarNotificacaoService(notificadorEmail, notificacaoRepository, MAX_TENTATIVAS, evento -> { });
         service = new EnviarNotificacaoStatusOSService(clienteRepository, notificacaoRepository, entregar);
     }
 
@@ -103,6 +103,7 @@ class EnviarNotificacaoStatusOSServiceTest {
                 clienteId,
                 SituacaoOrdemDeServico.AGUARDANDO_APROVACAO,
                 SituacaoOrdemDeServico.EXECUCAO,
+                LocalDateTime.of(2026, 6, 17, 9, 30),
                 LocalDateTime.of(2026, 6, 17, 10, 0));
     }
 

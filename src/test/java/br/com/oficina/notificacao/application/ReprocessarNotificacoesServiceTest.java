@@ -25,7 +25,7 @@ class ReprocessarNotificacoesServiceTest {
         notificacaoRepository = new TestNotificacaoRepository();
         notificadorEmail = new NotificadorEmailFake();
         EntregarNotificacaoService entregar =
-                new EntregarNotificacaoService(notificadorEmail, notificacaoRepository, MAX_TENTATIVAS);
+                new EntregarNotificacaoService(notificadorEmail, notificacaoRepository, MAX_TENTATIVAS, evento -> { });
         service = new ReprocessarNotificacoesService(
                 notificacaoRepository, entregar, MAX_TENTATIVAS, CARENCIA_SEGUNDOS);
     }

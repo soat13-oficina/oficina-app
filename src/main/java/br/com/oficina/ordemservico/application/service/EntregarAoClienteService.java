@@ -42,14 +42,10 @@ public class EntregarAoClienteService implements EntregarAoClienteUseCase {
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
         SituacaoOrdemDeServico situacaoAnterior = ordemDeServico.getSituacao();
+        LocalDateTime anteriorDesde = ordemDeServico.getSituacaoAlteradaEm();
         ordemDeServico.entregarAoCliente();
         ordemDeServicoRepository.salvar(ordemDeServico);
-        eventPublisher.publishEvent(new StatusOrdemDeServicoAlterado(
-                ordemDeServico.getNumeroOrdemServico(),
-                ordemDeServico.getCliente().getId(),
-                situacaoAnterior,
-                ordemDeServico.getSituacao(),
-                LocalDateTime.now()));
+        eventPublisher.publishEvent(StatusOrdemDeServicoAlterado.de(ordemDeServico, situacaoAnterior, anteriorDesde));
         log.info("Entrega ao cliente concluida. numeroOrdemServico={}, statusAtual={}",
                 ordemDeServico.getNumeroOrdemServico(),
                 ordemDeServico.getStatus());
