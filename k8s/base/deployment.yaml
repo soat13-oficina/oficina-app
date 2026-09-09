@@ -28,13 +28,33 @@ spec:
         # %%host%% é resolvido pelo agent para o IP do pod — não passa pelo Service, e por isso
         # a porta 8081 pode ficar fora dele (o Service é LoadBalancer/NLB público).
         #
-        # "namespace" é obrigatório no check e é prependado a tudo: as métricas nascem no código
-        # como os.criadas / notificacoes.falhas e chegam ao Datadog como oficina.os.criadas e
-        # oficina.notificacoes.falhas. Ver MetricasOrdemServicoListener.
+        # TRÊS RENOMEAÇÕES ACONTECEM ENTRE O CÓDIGO E O DATADOG — todas verificadas contra a
+        # saída real de /actuator/prometheus, não deduzidas:
         #
-        # A lista de "metrics" é fechada de propósito: métrica raspada é custom metric cobrada
-        # por série, e /actuator/prometheus publica algumas centenas de séries de JVM/Tomcat que
-        # o agent já coleta por outros caminhos. Latência de API vem do APM, não daqui.
+        #   1. Micrometer troca "." por "_" e acrescenta sufixo de tipo. O counter os.criadas
+        #      sai como os_criadas_total; o timer os.tempo_na_situacao vira a summary
+        #      os_tempo_na_situacao_SECONDS (com _count/_sum) mais o gauge ..._seconds_max.
+        #   2. O check OpenMetrics v2 exige o counter SEM o sufixo _total e devolve os nomes
+        #      com ".count" (counter e _count de summary) e ".sum".
+        #   3. "namespace" é obrigatório e é prependado a tudo que o check raspa.
+        #
+        # Sem o mapeamento explícito abaixo, os nomes chegariam como oficina.os_criadas.count
+        # e a entrada "os_tempo_na_situacao" sequer casaria com a família real
+        # (os_tempo_na_situacao_seconds). Com ele, o nome final é determinístico:
+        #
+        #   oficina.os.criadas.count            volume de OS
+        #   oficina.os.transicoes.count         transições, por par (situacao_anterior, situacao)
+        #   oficina.os.tempo_na_situacao.count  divisor do tempo médio
+        #   oficina.os.tempo_na_situacao.sum    dividendo, em SEGUNDOS
+        #   oficina.os.tempo_na_situacao.max    pior caso na janela
+        #   oficina.notificacoes.falhas.count   base do alerta de entrega perdida
+        #
+        # A família _max vem PRIMEIRO: as entradas são avaliadas em ordem e a mais específica
+        # precisa casar antes da mais genérica.
+        #
+        # A lista é fechada de propósito: métrica raspada é custom metric cobrada por série, e
+        # /actuator/prometheus publica algumas centenas de séries de JVM/Tomcat que o agent já
+        # coleta por outros caminhos. Latência de API vem do APM, não daqui.
         ad.datadoghq.com/oficina-api.checks: |
           {
             "openmetrics": {
@@ -44,10 +64,11 @@ spec:
                   "openmetrics_endpoint": "http://%%host%%:8081/actuator/prometheus",
                   "namespace": "oficina",
                   "metrics": [
-                    "os_criadas",
-                    "os_transicoes",
-                    "os_tempo_na_situacao",
-                    "notificacoes_falhas"
+                    {"os_tempo_na_situacao_seconds_max": "os.tempo_na_situacao.max"},
+                    {"os_tempo_na_situacao_seconds": "os.tempo_na_situacao"},
+                    {"os_criadas": "os.criadas"},
+                    {"os_transicoes": "os.transicoes"},
+                    {"notificacoes_falhas": "notificacoes.falhas"}
                   ]
                 }
               ]
