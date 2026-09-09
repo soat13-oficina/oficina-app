@@ -1,6 +1,11 @@
 spring:
   application:
-    name: oficina
+    # oficina-api, e nao "oficina": este nome vai para o campo service.name do log
+    # estruturado ECS. APM (DD_SERVICE), métricas e o label tags.datadoghq.com/service do
+    # pod já usam "oficina-api" — divergir aqui faria o log da aplicação chegar ao Datadog
+    # sob um serviço com outro nome, quebrando justamente a correlação log <-> trace que a
+    # observabilidade desta fase existe para demonstrar.
+    name: oficina-api
 
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/oficina_db}
