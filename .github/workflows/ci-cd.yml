@@ -1,10 +1,19 @@
-name: CI/CD
+name: CI/CD (aplicacao)
 
-# Fluxo: build + testes -> imagem no ECR -> deploy no EKS.
+# Camada de APLICACAO. Fluxo: testes -> imagem no ECR -> deploy no EKS.
 #
-#   PR / push desenvolvimento -> apenas testes
+# Nomes de job seguem o padrao comum aos quatro repositorios do projeto:
+# testes . testes-integracao . validacao . build . deploy.
+#
+#   PR / push desenvolvimento -> testes e validacao dos manifestos
 #   push homologacao          -> imagem + deploy no namespace oficina-hml
 #   push master               -> imagem + deploy no namespace oficina-prd
+#   workflow_dispatch         -> imagem + deploy no ambiente escolhido no input
+#
+# O dispatch existe para REIMPLANTAR sem inventar commit: a plataforma e efemera
+# (apply/destroy sob demanda para nao pagar ocioso) e, como o ECR vive no repo
+# oficina-infra-k8s, um destroy leva a imagem junto. Subir o ambiente de novo e
+# entao: dispatch em infra-k8s -> infra-database -> lambda-auth -> AQUI, sem push.
 #
 # A INFRAESTRUTURA VIVE FORA DESTE REPOSITÓRIO (Fase 3):
 #   oficina-infra-k8s        VPC, EKS, ECR e a IAM Role de SES
@@ -19,11 +28,20 @@ name: CI/CD
 #              AWS_REGION (opcional, default us-east-1)
 
 on:
+  pull_request:
   push:
     branches: [master, homologacao, desenvolvimento]
-  pull_request:
-    branches: [master, homologacao, desenvolvimento]
-  workflow_dispatch: {}
+  # Permite reimplantar SEM inventar um commit. Necessario porque a infra e efemera:
+  # o ECR mora no oficina-infra-k8s, entao um destroy da plataforma leva a imagem junto
+  # e o ambiente precisa ser reconstruido a partir do codigo que ja esta na branch.
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente de destino
+        type: choice
+        required: true
+        default: hml
+        options: [hml, prd]
 
 permissions:
   contents: read
@@ -32,10 +50,15 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   ECR_REPOSITORY: oficina
   EKS_CLUSTER: oficina
+  # Ambiente-alvo: do input quando disparado a mao, senao deduzido da branch.
+  # A expressao e repetida (e nao referenciada via env) porque o contexto `env` nao
+  # esta disponivel em `jobs.<id>.if`, `.name` nem `.environment`.
+  AMBIENTE: ${{ inputs.environment || (github.ref_name == 'master' && 'prd' || 'hml') }}
+  NAMESPACE: oficina-${{ inputs.environment || (github.ref_name == 'master' && 'prd' || 'hml') }}
 
 jobs:
-  unit-tests:
-    name: Build e testes unitarios
+  testes:
+    name: Testes unitarios
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +81,7 @@ jobs:
           name: jacoco-report
           path: target/site/jacoco/
 
-  integration-tests:
+  testes-integracao:
     name: Testes de integracao (PostgreSQL)
     runs-on: ubuntu-latest
     services:
@@ -94,8 +117,8 @@ jobs:
 
   # Valida que os dois overlays continuam renderizando. Roda em PR tambem:
   # um erro de kustomize so apareceria no deploy sem este job.
-  manifests:
-    name: Valida manifestos Kubernetes
+  validacao:
+    name: Validacao dos manifestos (kustomize)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,10 +131,15 @@ jobs:
           done
           echo "Overlays renderizam sem erro."
 
-  build-image:
-    name: Build e push da imagem para o ECR
-    needs: [unit-tests, integration-tests, manifests]
-    if: github.event_name == 'push' && (github.ref_name == 'master' || github.ref_name == 'homologacao')
+  build:
+    name: Build e push da imagem (ECR)
+    needs: [testes, testes-integracao, validacao]
+    # Push nas branches de ambiente OU dispatch manual. O dispatch sempre reconstroi a
+    # imagem em vez de reaproveitar uma tag existente: depois de um destroy da plataforma
+    # o ECR nao existe mais, entao "redeploy" e necessariamente rebuild.
+    if: >-
+      (github.event_name == 'push' && (github.ref_name == 'master' || github.ref_name == 'homologacao'))
+      || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       registry: ${{ steps.ecr.outputs.registry }}
@@ -136,9 +164,11 @@ jobs:
       - id: image
         name: Define a tag da imagem
         run: |
-          ENV=$([ "$GITHUB_REF_NAME" = "master" ] && echo prd || echo hml)
-          echo "tag=${ENV}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-          echo "moving_tag=${ENV}-latest" >> "$GITHUB_OUTPUT"
+          # $AMBIENTE vem do env do workflow: honra o input do dispatch e cai na branch
+          # quando o gatilho e push. Deduzir de GITHUB_REF_NAME aqui marcaria como "hml"
+          # uma imagem disparada a mao para prd a partir de outra branch.
+          echo "tag=${AMBIENTE}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "moving_tag=${AMBIENTE}-latest" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v6
         with:
@@ -151,15 +181,15 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
-    name: Deploy no EKS (${{ github.ref_name == 'master' && 'producao' || 'homologacao' }})
-    needs: build-image
+    name: Deploy em ${{ inputs.environment || (github.ref_name == 'master' && 'prd' || 'hml') }}
+    needs: build
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'master' && 'producao' || 'homologacao' }}
-    env:
-      AMBIENTE: ${{ github.ref_name == 'master' && 'prd' || 'hml' }}
-      NAMESPACE: ${{ github.ref_name == 'master' && 'oficina-prd' || 'oficina-hml' }}
+    # Mantem o Environment do GitHub por ambiente: as regras de protecao/aprovacao de
+    # "producao" continuam valendo tambem para um deploy disparado a mao.
+    environment: ${{ (inputs.environment || (github.ref_name == 'master' && 'prd' || 'hml')) == 'prd' && 'producao' || 'homologacao' }}
+    # AMBIENTE e NAMESPACE vem do env do workflow (topo do arquivo).
     concurrency:
-      group: deploy-eks-${{ github.ref_name == 'master' && 'prd' || 'hml' }}
+      group: oficina-app-${{ inputs.environment || (github.ref_name == 'master' && 'prd' || 'hml') }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -274,8 +304,8 @@ jobs:
         env:
           JDBC_URL: ${{ steps.db.outputs.jdbc_url }}
           SES_ROLE_ARN: ${{ steps.ses.outputs.role_arn }}
-          REGISTRY: ${{ needs.build-image.outputs.registry }}
-          TAG: ${{ needs.build-image.outputs.tag }}
+          REGISTRY: ${{ needs.build.outputs.registry }}
+          TAG: ${{ needs.build.outputs.tag }}
         run: |
           OVERLAY="k8s/overlays/${AMBIENTE}"
 
@@ -284,6 +314,9 @@ jobs:
           {
             echo "DB_URL=${JDBC_URL}"
             echo "AWS_SES_REMETENTE=${{ vars.AWS_SES_REMETENTE }}"
+            # version do unified service tagging: e a tag da imagem, entao a Datadog
+            # consegue apontar em qual deploy uma regressao de latencia comecou.
+            echo "DD_VERSION=${TAG}"
           } >> "$OVERLAY/app.env"
 
           sed -i "s#__IMAGE_REPO__#${REGISTRY}/${ECR_REPOSITORY}#" "$OVERLAY/kustomization.yaml"
@@ -310,7 +343,7 @@ jobs:
             echo "## Deploy em \`${AMBIENTE}\`"
             echo ""
             echo "- Namespace: \`${NAMESPACE}\`"
-            echo "- Imagem: \`${{ needs.build-image.outputs.tag }}\`"
+            echo "- Imagem: \`${{ needs.build.outputs.tag }}\`"
             echo "- NLB: http://${NLB}"
             echo ""
             echo "Preencha \`app_base_url\` do ambiente \`${AMBIENTE}\` em oficina-lambda-auth com essa URL para publicar a rota proxy do API Gateway."

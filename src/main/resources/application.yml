@@ -1,6 +1,11 @@
 spring:
   application:
-    name: oficina
+    # oficina-api, e nao "oficina": este nome vai para o campo service.name do log
+    # estruturado ECS. APM (DD_SERVICE), métricas e o label tags.datadoghq.com/service do
+    # pod já usam "oficina-api" — divergir aqui faria o log da aplicação chegar ao Datadog
+    # sob um serviço com outro nome, quebrando justamente a correlação log <-> trace que a
+    # observabilidade desta fase existe para demonstrar.
+    name: oficina-api
 
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/oficina_db}
@@ -49,11 +54,17 @@ jwt:
 # e pelo HEALTHCHECK do Dockerfile:
 #   /actuator/health/liveness  - processo vivo (nao inclui dependencias)
 #   /actuator/health/readiness - pronto para receber trafego (inclui o banco)
+#
+# /actuator/prometheus expoe as metricas de negocio (oficina.os.*) para o Datadog Agent.
+# ATENCAO: em nuvem o management sobe numa PORTA PROPRIA (MANAGEMENT_SERVER_PORT=8081 nos
+# overlays), que de proposito NAO consta no Service - o Service e type: LoadBalancer e cria um
+# NLB publico, entao qualquer coisa servida na 8080 fica exposta na internet. Localmente a porta
+# continua sendo a 8080 para que um curl simples valide as metricas sem subir cluster nenhum.
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus
   endpoint:
     health:
       probes:
@@ -61,6 +72,11 @@ management:
       group:
         readiness:
           include: readinessState,db
+
+# Tag aplicada a TODA metrica (ver MetricasCommonTagsConfig). E como um mesmo dashboard
+# distingue hml de prd sem precisar duplicar widget.
+observabilidade:
+  ambiente: ${AMBIENTE:local}
 
 orcamento:
   webhook:
