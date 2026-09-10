@@ -31,6 +31,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/actuator/health/**").permitAll()
+                // Raspado pelo Datadog Agent (OpenMetrics) direto no IP do pod. Em nuvem o
+                // management responde na 8081, porta que NAO consta no Service - o permitAll
+                // aqui serve ao desenvolvimento local, onde tudo ainda vive na 8080.
+                .requestMatchers("/actuator/prometheus").permitAll()
                 .requestMatchers("/integracoes/orcamentos/*/decisao").permitAll()
                 .anyRequest().authenticated()
             )

@@ -1,9 +1,11 @@
 package br.com.oficina.ordemservico.application.service;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
@@ -17,6 +19,8 @@ import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUs
 import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase.VeiculoFinalizacao;
 import br.com.oficina.ordemservico.application.usecase.FinalizarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.SituacaoOrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServicoAlterado;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 import br.com.oficina.pecainsumo.application.command.ConsumirPecaCommand;
 import br.com.oficina.pecainsumo.application.usecase.ConsumirPecaUseCase;
@@ -28,14 +32,17 @@ public class FinalizarOrdemDeServicoService implements FinalizarOrdemDeServicoUs
     private final OrdemDeServicoRepository ordemDeServicoRepository;
     private final OrcamentoRepository orcamentoRepository;
     private final ConsumirPecaUseCase consumirPecaUseCase;
+    private final ApplicationEventPublisher eventPublisher;
 
     public FinalizarOrdemDeServicoService(
             OrdemDeServicoRepository ordemDeServicoRepository,
             OrcamentoRepository orcamentoRepository,
-            ConsumirPecaUseCase consumirPecaUseCase) {
+            ConsumirPecaUseCase consumirPecaUseCase,
+            ApplicationEventPublisher eventPublisher) {
         this.ordemDeServicoRepository = ordemDeServicoRepository;
         this.orcamentoRepository = orcamentoRepository;
         this.consumirPecaUseCase = consumirPecaUseCase;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -54,8 +61,13 @@ public class FinalizarOrdemDeServicoService implements FinalizarOrdemDeServicoUs
             log.debug("Peca consumida do estoque. pecaInsumoId={}, quantidade={}", peca.getPecaInsumoId(), peca.getQuantidade());
         }
 
+        SituacaoOrdemDeServico situacaoAnterior = ordemDeServico.getSituacao();
+        LocalDateTime anteriorDesde = ordemDeServico.getSituacaoAlteradaEm();
         ordemDeServico.finalizar();
         ordemDeServicoRepository.salvar(ordemDeServico);
+        // Sem este publish a transicao ORCAMENTO_GERADO -> OS_FINALIZADA era a unica invisivel do
+        // ciclo de vida: nem notificacao ao cliente, nem metrica de Finalizacao.
+        eventPublisher.publishEvent(StatusOrdemDeServicoAlterado.de(ordemDeServico, situacaoAnterior, anteriorDesde));
         log.info(
                 "Ordem de servico finalizada com sucesso. numeroOrdemServico={}, statusAtual={}, valorTotalOrcamento={}, pecasConsumidas={}",
                 ordemDeServico.getNumeroOrdemServico(),

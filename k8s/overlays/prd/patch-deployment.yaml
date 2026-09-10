@@ -1,0 +1,24 @@
+# Produção: duas réplicas desde o início (sobrevive à perda de um nó) e os
+# recursos originalmente dimensionados na Fase 2.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-api
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        # env do unified service tagging no lado do AGENT: e por este label que ele marca
+        # os LOGS do pod com env:prd (DD_ENV, no container, so alcanca os traces).
+        tags.datadoghq.com/env: "prd"
+    spec:
+      containers:
+        - name: oficina-api
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "1000m"
+              memory: "768Mi"

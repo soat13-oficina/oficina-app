@@ -5,9 +5,11 @@ import java.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.notificacao.domain.model.Notificacao;
+import br.com.oficina.notificacao.domain.model.NotificacaoFalhouDefinitivamente;
 import br.com.oficina.notificacao.domain.model.StatusNotificacao;
 import br.com.oficina.notificacao.domain.repository.NotificacaoRepository;
 
@@ -22,14 +24,17 @@ public class EntregarNotificacaoService {
     private final NotificadorEmail notificadorEmail;
     private final NotificacaoRepository notificacaoRepository;
     private final int maxTentativas;
+    private final ApplicationEventPublisher eventPublisher;
 
     public EntregarNotificacaoService(
             NotificadorEmail notificadorEmail,
             NotificacaoRepository notificacaoRepository,
-            @Value("${notificacao.reprocessamento.max-tentativas}") int maxTentativas) {
+            @Value("${notificacao.reprocessamento.max-tentativas}") int maxTentativas,
+            ApplicationEventPublisher eventPublisher) {
         this.notificadorEmail = notificadorEmail;
         this.notificacaoRepository = notificacaoRepository;
         this.maxTentativas = maxTentativas;
+        this.eventPublisher = eventPublisher;
     }
 
     public void entregar(Notificacao notificacao) {
@@ -46,6 +51,7 @@ public class EntregarNotificacaoService {
             if (notificacao.getStatus() == StatusNotificacao.FALHOU) {
                 log.warn("Notificacao falhou em definitivo apos esgotar tentativas. id={}, tentativas={}",
                         notificacao.getId(), notificacao.getTentativas(), exception);
+                eventPublisher.publishEvent(NotificacaoFalhouDefinitivamente.de(notificacao));
             } else {
                 log.warn("Falha transiente ao enviar notificacao; sera reprocessada. id={}, tentativas={}",
                         notificacao.getId(), notificacao.getTentativas());

@@ -54,6 +54,7 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
         }
 
         SituacaoOrdemDeServico situacaoAnterior = ordemDeServico.getSituacao();
+        LocalDateTime anteriorDesde = ordemDeServico.getSituacaoAlteradaEm();
         ordemDeServico.enviarParaAprovacao();
 
         // Deriva descrição/serviços e peças do diagnóstico (na OS); financeiro vem do request.
@@ -83,12 +84,7 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
                 request.observacoes()));
 
         ordemDeServicoRepository.salvar(ordemDeServico);
-        eventPublisher.publishEvent(new StatusOrdemDeServicoAlterado(
-                ordemDeServico.getNumeroOrdemServico(),
-                ordemDeServico.getCliente().getId(),
-                situacaoAnterior,
-                ordemDeServico.getSituacao(),
-                LocalDateTime.now()));
+        eventPublisher.publishEvent(StatusOrdemDeServicoAlterado.de(ordemDeServico, situacaoAnterior, anteriorDesde));
         log.info("Diagnostico enviado para orcamento com sucesso. numeroOrdemServico={}, numeroOrcamento={}, situacao={}",
                 ordemDeServico.getNumeroOrdemServico(),
                 numeroOrcamento,

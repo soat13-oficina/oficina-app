@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import br.com.oficina.cliente.domain.model.Cliente;
@@ -15,6 +16,7 @@ import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoComman
 import br.com.oficina.ordemservico.application.usecase.CriarNovaOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.OrdemDeServicoCriada;
 import br.com.oficina.ordemservico.domain.model.PecaPrevistaOrdem;
 import br.com.oficina.ordemservico.domain.model.ServicoOrdem;
 import br.com.oficina.ordemservico.domain.repository.FuncionarioRepository;
@@ -32,18 +34,21 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
     private final FuncionarioRepository funcionarioRepository;
     private final OrdemDeServicoRepository ordemDeServicoRepository;
     private final PecaInsumoRepository pecaInsumoRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CriarNovaOrdemDeServicoService(
             ClienteRepository clienteRepository,
             VeiculoRepository veiculoRepository,
             FuncionarioRepository funcionarioRepository,
             OrdemDeServicoRepository ordemDeServicoRepository,
-            PecaInsumoRepository pecaInsumoRepository) {
+            PecaInsumoRepository pecaInsumoRepository,
+            ApplicationEventPublisher eventPublisher) {
         this.clienteRepository = clienteRepository;
         this.veiculoRepository = veiculoRepository;
         this.funcionarioRepository = funcionarioRepository;
         this.ordemDeServicoRepository = ordemDeServicoRepository;
         this.pecaInsumoRepository = pecaInsumoRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -81,6 +86,7 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
                 pecasPrevistas);
 
         ordemDeServicoRepository.salvar(ordemDeServico);
+        eventPublisher.publishEvent(OrdemDeServicoCriada.de(ordemDeServico));
         log.info(
                 "Ordem de servico criada com sucesso. numeroOrdemServico={}, clienteId={}, funcionarioId={}, placaVeiculo={}, servicos={}, pecas={}",
                 ordemDeServico.getNumeroOrdemServico(),

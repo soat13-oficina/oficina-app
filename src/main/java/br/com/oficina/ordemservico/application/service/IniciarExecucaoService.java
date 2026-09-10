@@ -35,14 +35,10 @@ public class IniciarExecucaoService implements IniciarExecucaoUseCase {
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Ordem de servico nao encontrada para o numero informado."));
         SituacaoOrdemDeServico situacaoAnterior = ordemDeServico.getSituacao();
+        LocalDateTime anteriorDesde = ordemDeServico.getSituacaoAlteradaEm();
         ordemDeServico.iniciarExecucao();
         ordemDeServicoRepository.salvar(ordemDeServico);
-        eventPublisher.publishEvent(new StatusOrdemDeServicoAlterado(
-                ordemDeServico.getNumeroOrdemServico(),
-                ordemDeServico.getCliente().getId(),
-                situacaoAnterior,
-                ordemDeServico.getSituacao(),
-                LocalDateTime.now()));
+        eventPublisher.publishEvent(StatusOrdemDeServicoAlterado.de(ordemDeServico, situacaoAnterior, anteriorDesde));
         log.info("Execucao iniciada. numeroOrdemServico={}, situacao={}",
                 ordemDeServico.getNumeroOrdemServico(),
                 ordemDeServico.getSituacao().getDescricao());

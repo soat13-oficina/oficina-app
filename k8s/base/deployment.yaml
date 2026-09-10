@@ -1,0 +1,184 @@
+# Namespace, imagem, réplicas e recursos NÃO são definidos aqui: vêm do overlay
+# do ambiente (k8s/overlays/hml e k8s/overlays/prd).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-api
+  labels:
+    app: oficina-api
+spec:
+  selector:
+    matchLabels:
+      app: oficina-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: oficina-api
+        # Unified service tagging da Datadog: correlaciona APM, logs, métricas de infra e as
+        # métricas de negócio sob o mesmo service/env/version. tags.datadoghq.com/env e
+        # /version vêm do patch do overlay (são específicos do ambiente e do deploy).
+        tags.datadoghq.com/service: oficina-api
+      annotations:
+        # Autodiscovery do Datadog Agent: raspa /actuator/prometheus DO POD, na porta 8081.
+        # %%host%% é resolvido pelo agent para o IP do pod — não passa pelo Service, e por isso
+        # a porta 8081 pode ficar fora dele (o Service é LoadBalancer/NLB público).
+        #
+        # TRÊS RENOMEAÇÕES ACONTECEM ENTRE O CÓDIGO E O DATADOG — todas verificadas contra a
+        # saída real de /actuator/prometheus, não deduzidas:
+        #
+        #   1. Micrometer troca "." por "_" e acrescenta sufixo de tipo. O counter os.criadas
+        #      sai como os_criadas_total; o timer os.tempo_na_situacao vira a summary
+        #      os_tempo_na_situacao_SECONDS (com _count/_sum) mais o gauge ..._seconds_max.
+        #   2. O check OpenMetrics v2 exige o counter SEM o sufixo _total e devolve os nomes
+        #      com ".count" (counter e _count de summary) e ".sum".
+        #   3. "namespace" é obrigatório e é prependado a tudo que o check raspa.
+        #
+        # Sem o mapeamento explícito abaixo, os nomes chegariam como oficina.os_criadas.count
+        # e a entrada "os_tempo_na_situacao" sequer casaria com a família real
+        # (os_tempo_na_situacao_seconds). Com ele, o nome final é determinístico:
+        #
+        #   oficina.os.criadas.count            volume de OS
+        #   oficina.os.transicoes.count         transições, por par (situacao_anterior, situacao)
+        #   oficina.os.tempo_na_situacao.count  divisor do tempo médio
+        #   oficina.os.tempo_na_situacao.sum    dividendo, em SEGUNDOS
+        #   oficina.os.tempo_na_situacao.max    pior caso na janela
+        #   oficina.notificacoes.falhas.count   base do alerta de entrega perdida
+        #
+        # A família _max vem PRIMEIRO: as entradas são avaliadas em ordem e a mais específica
+        # precisa casar antes da mais genérica.
+        #
+        # A lista é fechada de propósito: métrica raspada é custom metric cobrada por série, e
+        # /actuator/prometheus publica algumas centenas de séries de JVM/Tomcat que o agent já
+        # coleta por outros caminhos. Latência de API vem do APM, não daqui.
+        ad.datadoghq.com/oficina-api.checks: |
+          {
+            "openmetrics": {
+              "init_config": {},
+              "instances": [
+                {
+                  "openmetrics_endpoint": "http://%%host%%:8081/actuator/prometheus",
+                  "namespace": "oficina",
+                  "metrics": [
+                    {"os_tempo_na_situacao_seconds_max": "os.tempo_na_situacao.max"},
+                    {"os_tempo_na_situacao_seconds": "os.tempo_na_situacao"},
+                    {"os_criadas": "os.criadas"},
+                    {"os_transicoes": "os.transicoes"},
+                    {"notificacoes_falhas": "notificacoes.falhas"}
+                  ]
+                }
+              ]
+            }
+          }
+    spec:
+      # ServiceAccount anotada com eks.amazonaws.com/role-arn (serviceaccount.yaml
+      # + patch do overlay), usada pelo SesClient (profile "ses") para resolver
+      # credenciais via IRSA.
+      serviceAccountName: oficina-api
+      containers:
+        - name: oficina-api
+          # Nome simbólico: o overlay substitui por <ECR>/oficina:<sha> através
+          # do bloco "images:" do kustomization.yaml daquele ambiente.
+          image: oficina-api
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            # Actuator (health + prometheus). Deliberadamente AUSENTE do service.yaml: aquele
+            # Service é type: LoadBalancer e publica um NLB na internet, então tudo que responde
+            # na 8080 é público. Probes (kubelet) e o Datadog Agent falam com o IP do pod
+            # diretamente e não dependem do Service para alcançar esta porta.
+            - name: management
+              containerPort: 8081
+          envFrom:
+            # ConfigMap gerado pelo configMapGenerator do overlay a partir do
+            # app.env daquele ambiente. O kustomize reescreve esta referência
+            # para o nome com hash, então uma mudança de configuração dispara
+            # rolling update automaticamente.
+            - configMapRef:
+                name: oficina-config
+          env:
+            # Ativa NotificadorEmailSes (Amazon SES) nos dois ambientes de nuvem.
+            # docker-compose.yml (dev local) não define esta variável e continua
+            # resolvendo NotificadorEmailSpringMail contra o Mailhog.
+            - name: SPRING_PROFILES_ACTIVE
+              value: "ses"
+            # Sobe o actuator numa porta própria, fora do Service (ver comentário em ports).
+            # Fica aqui, e não no app.env do overlay, porque os probes abaixo dependem dele:
+            # se alguém removesse a linha do ConfigMap, o actuator voltaria para a 8080 e os
+            # probes passariam a bater numa porta fechada.
+            - name: MANAGEMENT_SERVER_PORT
+              value: "8081"
+            # O DaemonSet do Datadog Agent escuta no nó; o tracer alcança o agent pelo IP do
+            # host, não por Service.
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_SERVICE
+              value: "oficina-api"
+            # Correlaciona log e trace: com isso o dd-java-agent injeta dd.trace_id e dd.span_id
+            # no MDC, que o logging estruturado do Spring Boot já serializa no JSON.
+            - name: DD_LOGS_INJECTION
+              value: "true"
+            # Log em JSON (Elastic Common Schema, nativo do Spring Boot 4). O MDC vai para o
+            # nível raiz do JSON, que é onde a Datadog procura dd.trace_id, correlation_id e
+            # numero_ordem_servico. Sem isto o console volta ao formato humano de desenvolvimento.
+            - name: LOGGING_STRUCTURED_FORMAT_CONSOLE
+              value: "ecs"
+            # Secrets criados imperativamente pela pipeline (não versionados):
+            # oficina-db-credentials vem do Secrets Manager gerenciado pelo RDS;
+            # oficina-app-secrets traz o JWT_SECRET compartilhado com a Lambda
+            # de autenticação. Ver .github/workflows/ci-cd.yml.
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-db-credentials
+                  key: POSTGRES_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-db-credentials
+                  key: POSTGRES_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-app-secrets
+                  key: JWT_SECRET
+            - name: ORCAMENTO_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-app-secrets
+                  key: ORCAMENTO_WEBHOOK_SECRET
+          # Probes nos endpoints nativos do Spring Boot Actuator
+          # (management.endpoint.health.probes em application.yml).
+          # startupProbe segura liveness/readiness até a app subir (Flyway +
+          # Hibernate levam dezenas de segundos com pouca CPU) - dá até 150s
+          # de graça sem risco do kubelet matar o container no meio do boot.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          # readiness inclui o banco (grupo readiness = readinessState,db):
+          # sem conexão com o RDS o pod sai do balanceamento do Service.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3

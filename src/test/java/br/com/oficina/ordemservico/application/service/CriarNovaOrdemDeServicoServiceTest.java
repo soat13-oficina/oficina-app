@@ -1,10 +1,13 @@
 package br.com.oficina.ordemservico.application.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,6 +21,7 @@ import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoComman
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand.PecaItem;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand.ServicoItem;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
+import br.com.oficina.ordemservico.domain.model.OrdemDeServicoCriada;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
 import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
@@ -30,6 +34,88 @@ import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 
 class CriarNovaOrdemDeServicoServiceTest {
+
+    @Test
+    void devePublicarEventoDeOrdemCriada() {
+        // Abrir a OS não é uma transição de situação, então nenhum StatusOrdemDeServicoAlterado
+        // cobre este caso: contar "RECEBIDA -> DIAGNOSTICO" como proxy de volume subcontaria toda
+        // ordem que nunca chegou a virar diagnóstico. Daí o evento próprio.
+        TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestFuncionarioRepository funcionarioRepository = new TestFuncionarioRepository();
+        TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
+        TestOrdemDeServicoRepository ordemDeServicoRepository = new TestOrdemDeServicoRepository();
+        List<Object> eventos = new ArrayList<>();
+        UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
+        UUID funcionarioId = UUID.fromString("41111111-1111-1111-1111-111111111111");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF));
+        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678909"));
+        veiculoRepository.salvar(new Veiculo(
+                clienteId,
+                "ABC1D23",
+                "Toyota",
+                "Corolla",
+                "Toyota Motor Corporation",
+                2024,
+                177,
+                "AUTOMATICO",
+                TipoCombustivel.FLEX));
+        CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
+                clienteRepository,
+                veiculoRepository,
+                funcionarioRepository,
+                ordemDeServicoRepository,
+                new TestPecaInsumoRepository(),
+                eventos::add);
+
+        String numeroOrdemServico = service.criarNovaOrdemDeServico(
+                new CriarOrdemDeServicoCommand(clienteId.toString(), funcionarioId.toString(), "ABC1D23"));
+
+        assertEquals(1, eventos.size());
+        OrdemDeServicoCriada evento = assertInstanceOf(OrdemDeServicoCriada.class, eventos.get(0));
+        assertEquals(numeroOrdemServico, evento.numeroOrdemServico());
+        assertEquals(clienteId, evento.clienteId());
+        assertEquals(funcionarioId, evento.funcionarioId());
+        assertNotNull(evento.criadaEm());
+    }
+
+    @Test
+    void naoDevePublicarEventoQuandoCriacaoFalha() {
+        // Veículo de outro cliente: a regra recusa antes de qualquer persistência, e um contador
+        // que subisse aqui inflaria o "volume diário de OS" com tentativas rejeitadas.
+        TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestFuncionarioRepository funcionarioRepository = new TestFuncionarioRepository();
+        TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
+        List<Object> eventos = new ArrayList<>();
+        UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
+        UUID outroClienteId = UUID.fromString("32222222-2222-2222-2222-222222222222");
+        UUID funcionarioId = UUID.fromString("41111111-1111-1111-1111-111111111111");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF));
+        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678909"));
+        veiculoRepository.salvar(new Veiculo(
+                outroClienteId,
+                "ABC1D23",
+                "Toyota",
+                "Corolla",
+                "Toyota Motor Corporation",
+                2024,
+                177,
+                "AUTOMATICO",
+                TipoCombustivel.FLEX));
+        CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
+                clienteRepository,
+                veiculoRepository,
+                funcionarioRepository,
+                new TestOrdemDeServicoRepository(),
+                new TestPecaInsumoRepository(),
+                eventos::add);
+
+        assertThrows(
+                RegraDeNegocioException.class,
+                () -> service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(
+                        clienteId.toString(), funcionarioId.toString(), "ABC1D23")));
+
+        assertTrue(eventos.isEmpty());
+    }
 
     @Test
     void deveCriarNovaOrdemDeServico() {
@@ -56,7 +142,8 @@ class CriarNovaOrdemDeServicoServiceTest {
                 veiculoRepository,
                 funcionarioRepository,
                 ordemDeServicoRepository,
-                new TestPecaInsumoRepository());
+                new TestPecaInsumoRepository(),
+                evento -> { });
 
         String numeroOrdemServico = service.criarNovaOrdemDeServico(
                 new CriarOrdemDeServicoCommand(clienteId.toString(), funcionarioId.toString(), "ABC1D23"));
@@ -85,7 +172,8 @@ class CriarNovaOrdemDeServicoServiceTest {
         pecaInsumoRepository.salvar(new PecaInsumo(
                 "PECA-1", "Pastilha", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
         CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
-                clienteRepository, veiculoRepository, funcionarioRepository, ordemDeServicoRepository, pecaInsumoRepository);
+                clienteRepository, veiculoRepository, funcionarioRepository, ordemDeServicoRepository, pecaInsumoRepository,
+                evento -> { });
 
         String numeroOrdemServico = service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(
                 clienteId.toString(),
@@ -112,7 +200,8 @@ class CriarNovaOrdemDeServicoServiceTest {
                 TipoCombustivel.FLEX));
         CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
                 clienteRepository, veiculoRepository, funcionarioRepository, new TestOrdemDeServicoRepository(),
-                new TestPecaInsumoRepository());
+                new TestPecaInsumoRepository(),
+                evento -> { });
 
         RecursoNaoEncontradoException exception = assertThrows(
                 RecursoNaoEncontradoException.class,
@@ -133,7 +222,8 @@ class CriarNovaOrdemDeServicoServiceTest {
                 new TestVeiculoRepository(),
                 new TestFuncionarioRepository(),
                 new TestOrdemDeServicoRepository(),
-                new TestPecaInsumoRepository());
+                new TestPecaInsumoRepository(),
+                evento -> { });
 
         RecursoNaoEncontradoException exception = assertThrows(
                 RecursoNaoEncontradoException.class,
@@ -166,7 +256,8 @@ class CriarNovaOrdemDeServicoServiceTest {
                 veiculoRepository,
                 new TestFuncionarioRepository(),
                 new TestOrdemDeServicoRepository(),
-                new TestPecaInsumoRepository());
+                new TestPecaInsumoRepository(),
+                evento -> { });
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
