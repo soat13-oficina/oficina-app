@@ -30,6 +30,26 @@ componentes e como executar cada etapa.
 
 ---
 
+## Tecnologias
+
+| Camada | Stack |
+|---|---|
+| **Linguagem e framework** | Java 21 · Spring Boot 4 (WebMVC, Security, Validation, Actuator, Mail) |
+| **Persistência** | Spring Data JPA / Hibernate · **Flyway** (20 migrations) · PostgreSQL 15 |
+| **Autenticação** | Spring Security · JWT via `jjwt` 0.12 · BCrypt · validação de CPF/CNPJ com `caelum-stella` |
+| **Documentação de API** | `springdoc-openapi` — Swagger UI e contrato OpenAPI |
+| **Observabilidade** | Micrometer (registry Prometheus) · `dd-java-agent` para APM · logs JSON no formato ECS |
+| **Notificações** | Amazon SES (profile `ses`, via IRSA) · Mailhog no desenvolvimento local |
+| **Testes** | JUnit 5 · Mockito · Testcontainers (PostgreSQL real) · H2 · **JaCoCo** com gate de 80% |
+| **Build e empacotamento** | Maven (wrapper incluso) · Docker multi-stage (Maven → JRE 21 Alpine) |
+| **Implantação** | Kubernetes com **Kustomize** (base + overlays por ambiente) · Amazon EKS · Amazon ECR |
+| **CI/CD** | GitHub Actions · SonarQube |
+
+A infraestrutura em si (Terraform, API Gateway, Lambda, RDS) vive nos outros três
+repositórios — ver [Fase 3 — objetivo desta fase](#fase-3--objetivo-desta-fase).
+
+---
+
 ## Documentação da arquitetura
 
 A documentação arquitetural completa está em
