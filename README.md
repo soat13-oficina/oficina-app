@@ -30,6 +30,26 @@ componentes e como executar cada etapa.
 
 ---
 
+## Documentação da arquitetura
+
+A documentação arquitetural completa está em
+**[`docs/arquitetura/`](docs/arquitetura/README.md)**, que mapeia cada exigência
+do enunciado ao documento correspondente:
+
+| Documento | Conteúdo |
+|---|---|
+| [Diagrama de Componentes](docs/arquitetura/diagrama-componentes.md) | Visão de nuvem: gateway, funções serverless, cluster, bancos e monitoramento, mais a cadeia de provisionamento entre os quatro repositórios |
+| [Diagramas de Sequência](docs/arquitetura/diagramas-sequencia.md) | Autenticação por CPF, consumo de rota protegida e abertura de ordem de serviço |
+| [Modelo de Dados](docs/arquitetura/modelo-de-dados.md) | Diagrama ER, relacionamentos e ajustes do modelo relacional |
+| [RFCs](docs/rfc/) | Escolha da nuvem, do banco de dados e da estratégia de autenticação |
+| [ADRs](docs/adr/) | Estratégia de escala (HPA + node group) e snapshot em OS/orçamentos |
+
+Os ADRs de infraestrutura ficam nos repositórios que eles governam —
+`oficina-infra-k8s`, `oficina-infra-database` e `oficina-lambda-auth` — e estão
+indexados em [`docs/arquitetura/README.md`](docs/arquitetura/README.md).
+
+---
+
 ## Pré-requisitos
 
 - Java 21+
