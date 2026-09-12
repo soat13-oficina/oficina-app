@@ -1,6 +1,21 @@
-# Documentação Visual — Oficina API
+# Documentação — Oficina API
 
-Esta pasta contém diagramas Mermaid com a arquitetura e os fluxos da aplicação.
+Diagramas, decisões arquiteturais e material de apoio do projeto.
+
+## Documentação da arquitetura
+
+Entrada única: **[`arquitetura/README.md`](arquitetura/README.md)** — mapeia cada
+exigência do enunciado ao documento correspondente.
+
+| Pasta / arquivo | Conteúdo |
+|---|---|
+| [`arquitetura/diagrama-componentes.md`](arquitetura/diagrama-componentes.md) | Visão de nuvem: componentes, APIs, banco, monitoramento e a cadeia de provisionamento entre os quatro repositórios |
+| [`arquitetura/diagramas-sequencia.md`](arquitetura/diagramas-sequencia.md) | Autenticação por CPF, consumo de rota protegida e abertura de ordem de serviço |
+| [`arquitetura/modelo-de-dados.md`](arquitetura/modelo-de-dados.md) | Diagrama ER, explicação dos relacionamentos e ajustes do modelo relacional |
+| [`rfc/`](rfc/) | RFCs: escolha da nuvem, do banco de dados e da estratégia de autenticação |
+| [`adr/`](adr/) | ADRs da aplicação: estratégia de escala e snapshot em OS/orçamentos |
+
+## Diagramas e apoio
 
 | Arquivo | Conteúdo |
 |---|---|
