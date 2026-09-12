@@ -30,6 +30,46 @@ componentes e como executar cada etapa.
 
 ---
 
+## Tecnologias
+
+| Camada | Stack |
+|---|---|
+| **Linguagem e framework** | Java 21 · Spring Boot 4 (WebMVC, Security, Validation, Actuator, Mail) |
+| **Persistência** | Spring Data JPA / Hibernate · **Flyway** (20 migrations) · PostgreSQL 15 |
+| **Autenticação** | Spring Security · JWT via `jjwt` 0.12 · BCrypt · validação de CPF/CNPJ com `caelum-stella` |
+| **Documentação de API** | `springdoc-openapi` — Swagger UI e contrato OpenAPI |
+| **Observabilidade** | Micrometer (registry Prometheus) · `dd-java-agent` para APM · logs JSON no formato ECS |
+| **Notificações** | Amazon SES (profile `ses`, via IRSA) · Mailhog no desenvolvimento local |
+| **Testes** | JUnit 5 · Mockito · Testcontainers (PostgreSQL real) · H2 · **JaCoCo** com gate de 80% |
+| **Build e empacotamento** | Maven (wrapper incluso) · Docker multi-stage (Maven → JRE 21 Alpine) |
+| **Implantação** | Kubernetes com **Kustomize** (base + overlays por ambiente) · Amazon EKS · Amazon ECR |
+| **CI/CD** | GitHub Actions · SonarQube |
+
+A infraestrutura em si (Terraform, API Gateway, Lambda, RDS) vive nos outros três
+repositórios — ver [Fase 3 — objetivo desta fase](#fase-3--objetivo-desta-fase).
+
+---
+
+## Documentação da arquitetura
+
+A documentação arquitetural completa está em
+**[`docs/arquitetura/`](docs/arquitetura/README.md)**, que mapeia cada exigência
+do enunciado ao documento correspondente:
+
+| Documento | Conteúdo |
+|---|---|
+| [Diagrama de Componentes](docs/arquitetura/diagrama-componentes.md) | Visão de nuvem: gateway, funções serverless, cluster, bancos e monitoramento, mais a cadeia de provisionamento entre os quatro repositórios |
+| [Diagramas de Sequência](docs/arquitetura/diagramas-sequencia.md) | Autenticação por CPF, consumo de rota protegida e abertura de ordem de serviço |
+| [Modelo de Dados](docs/arquitetura/modelo-de-dados.md) | Diagrama ER, relacionamentos e ajustes do modelo relacional |
+| [RFCs](docs/rfc/) | Escolha da nuvem, do banco de dados e da estratégia de autenticação |
+| [ADRs](docs/adr/) | Estratégia de escala (HPA + node group) e snapshot em OS/orçamentos |
+
+Os ADRs de infraestrutura ficam nos repositórios que eles governam —
+`oficina-infra-k8s`, `oficina-infra-database` e `oficina-lambda-auth` — e estão
+indexados em [`docs/arquitetura/README.md`](docs/arquitetura/README.md).
+
+---
+
 ## Pré-requisitos
 
 - Java 21+
