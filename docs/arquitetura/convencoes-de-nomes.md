@@ -74,7 +74,7 @@ explica: o Datadog correlaciona métricas Micrometer e traces pelo nome).
 |---|---|
 | `type` das mensagens | PascalCase; comando no imperativo, evento no particípio — ver [`../contratos/mensagens.md`](../contratos/mensagens.md) |
 | Métricas | prefixo `oficina.` *(mantém)*: `oficina.saga.*`, `oficina.mensageria.*`, `oficina.outbox.*`, `oficina.pagamento.*`, `oficina.estoque.*` |
-| Chaves de MDC | `correlationId`, `sagaId`, `ordemServicoId`, `messageId`, `messageType` |
+| Chaves de MDC | snake_case, como as existentes (`correlation_id`, `numero_ordem_servico`) *(mantém)*; novas: `saga_id`, `ordem_servico_id`, `message_id`, `message_type` |
 | Monitores Datadog | `[oficina][<nome-logico>] <descrição>` |
 
 ## Git
