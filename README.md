@@ -62,7 +62,8 @@ do enunciado ao documento correspondente:
 | [Diagramas de Sequência](docs/arquitetura/diagramas-sequencia.md) | Autenticação por CPF, consumo de rota protegida e abertura de ordem de serviço |
 | [Modelo de Dados](docs/arquitetura/modelo-de-dados.md) | Diagrama ER, relacionamentos e ajustes do modelo relacional |
 | [RFCs](docs/rfc/) | Escolha da nuvem, do banco de dados e da estratégia de autenticação |
-| [ADRs](docs/adr/) | Estratégia de escala (HPA + node group) e snapshot em OS/orçamentos |
+| [ADRs](docs/adr/) | Estratégia de escala (HPA + node group) e snapshot em OS/orçamentos. Fase 4 (propostos): microsserviços, Saga orquestrada, SQS FIFO + outbox, DynamoDB, Mercado Pago e exposição por ALB |
+| [Contratos de mensagens](docs/contratos/mensagens.md) | Fase 4: comandos e eventos da Saga, com JSON Schemas |
 
 Os ADRs de infraestrutura ficam nos repositórios que eles governam —
 `oficina-infra-k8s`, `oficina-infra-database` e `oficina-lambda-auth` — e estão

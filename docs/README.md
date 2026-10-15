@@ -13,7 +13,10 @@ exigência do enunciado ao documento correspondente.
 | [`arquitetura/diagramas-sequencia.md`](arquitetura/diagramas-sequencia.md) | Autenticação por CPF, consumo de rota protegida e abertura de ordem de serviço |
 | [`arquitetura/modelo-de-dados.md`](arquitetura/modelo-de-dados.md) | Diagrama ER, explicação dos relacionamentos e ajustes do modelo relacional |
 | [`rfc/`](rfc/) | RFCs: escolha da nuvem, do banco de dados e da estratégia de autenticação |
-| [`adr/`](adr/) | ADRs da aplicação: estratégia de escala e snapshot em OS/orçamentos |
+| [`adr/`](adr/) | ADRs da aplicação: estratégia de escala e snapshot em OS/orçamentos; Fase 4 (0003–0008): microsserviços, Saga, mensageria, DynamoDB, Mercado Pago e exposição |
+| [`contratos/`](contratos/) | Fase 4: contratos dos comandos e eventos da Saga ([`mensagens.md`](contratos/mensagens.md)) e JSON Schemas |
+| [`arquitetura/convencoes-de-nomes.md`](arquitetura/convencoes-de-nomes.md) | Fase 4: nomes de serviços, filas, tabelas, segredos e recursos AWS |
+| [`spikes/`](spikes/) | Fase 4: spike de compatibilidade (Spring Boot 4 × Cucumber × AWS SDK × LocalStack × Mercado Pago) |
 
 ## Diagramas e apoio
 

@@ -18,6 +18,15 @@ atravessa o sistema inteiro mora aqui.
 | **ADRs** — decisões arquiteturais permanentes | [`../adr/`](../adr/) e os repositórios de infraestrutura (tabela abaixo) |
 | **Justificativa do banco + modelo ER + relacionamentos** | [`modelo-de-dados.md`](modelo-de-dados.md) e [RFC 0002](../rfc/0002-escolha-do-banco-de-dados.md) |
 
+### Fase 4 — microsserviços (em construção)
+
+| Item | Onde está |
+|---|---|
+| Decisões (divisão, Saga, mensageria, NoSQL, Mercado Pago, exposição) | ADRs [0003](../adr/0003-divisao-em-microsservicos-e-dono-dos-dados.md) a [0008](../adr/0008-exposicao-e-roteamento.md) |
+| Contratos de comandos e eventos da Saga + JSON Schemas | [`../contratos/mensagens.md`](../contratos/mensagens.md) |
+| Convenções de nomes (serviços, filas, tabelas, segredos) | [`convencoes-de-nomes.md`](convencoes-de-nomes.md) |
+| Spike de compatibilidade das bibliotecas | [`../spikes/0001-compatibilidade-fase4.md`](../spikes/0001-compatibilidade-fase4.md) |
+
 ---
 
 ## RFCs — decisões técnicas
@@ -40,6 +49,12 @@ do código que governam.
 |---|---|---|
 | [0001](../adr/0001-hpa-e-estrategia-de-escala.md) | HPA e node group — escala em dois níveis | `oficina-app` |
 | [0002](../adr/0002-snapshot-em-ordens-e-orcamentos.md) | Snapshot de dados em OS e orçamentos | `oficina-app` |
+| [0003](../adr/0003-divisao-em-microsservicos-e-dono-dos-dados.md) | Fase 4 *(proposto)* — divisão em OS, Billing e Execution e dono de cada dado | `oficina-app` |
+| [0004](../adr/0004-saga-orquestrada.md) | Fase 4 *(proposto)* — Saga orquestrada pelo OS Service | `oficina-app` |
+| [0005](../adr/0005-sqs-fifo-outbox-e-idempotencia.md) | Fase 4 *(proposto)* — SQS FIFO, outbox transacional e idempotência | `oficina-app` |
+| [0006](../adr/0006-dynamodb-no-execution-service.md) | Fase 4 *(proposto)* — DynamoDB no Execution Service | `oficina-app` |
+| [0007](../adr/0007-mercado-pago-checkout-pro.md) | Fase 4 *(proposto)* — Mercado Pago Checkout Pro, pagamento após aprovação e reserva | `oficina-app` |
+| [0008](../adr/0008-exposicao-e-roteamento.md) | Fase 4 *(proposto)* — AWS Load Balancer Controller e um ALB por ambiente | `oficina-app` |
 | [0001](https://github.com/soat13-oficina/oficina-infra-k8s/blob/master/docs/adr/0001-separacao-dos-states.md) | Separação dos states do Terraform | `oficina-infra-k8s` |
 | [0002](https://github.com/soat13-oficina/oficina-infra-k8s/blob/master/docs/adr/0002-plataforma-compartilhada.md) | Plataforma compartilhada, ambientes por namespace | `oficina-infra-k8s` |
 | [0003](https://github.com/soat13-oficina/oficina-infra-k8s/blob/master/docs/adr/0003-observabilidade-datadog.md) | Observabilidade com Datadog | `oficina-infra-k8s` |
