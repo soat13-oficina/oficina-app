@@ -27,12 +27,14 @@ import br.com.oficina.ordemservico.application.command.FinalizarOrdemDeServicoCo
 import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.command.IniciarExecucaoCommand;
 import br.com.oficina.ordemservico.application.query.AcompanharOrdemDeServicoQuery;
+import br.com.oficina.ordemservico.application.query.ConsultarHistoricoOrdemDeServicoQuery;
 import br.com.oficina.ordemservico.application.query.ConsultarOrdensDeServicoQuery;
 import br.com.oficina.ordemservico.application.query.ConsultarStatusOrdemDeServicoQuery;
 import br.com.oficina.ordemservico.application.usecase.AcompanharOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConcluirDiagnosticoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConcluirServicoUseCase;
+import br.com.oficina.ordemservico.application.usecase.ConsultarHistoricoOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarOrdensDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarStatusOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarTempoMedioExecucaoUseCase;
@@ -50,6 +52,7 @@ import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoP
 import br.com.oficina.ordemservico.infrastructure.web.response.AberturaOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.AcompanhamentoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.FinalizacaoOrdemDeServicoResponse;
+import br.com.oficina.ordemservico.infrastructure.web.response.HistoricoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.OrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.StatusOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.TempoMedioExecucaoResponse;
@@ -73,6 +76,7 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
     private final IniciarExecucaoUseCase iniciarExecucaoUseCase;
     private final ConcluirServicoUseCase concluirServicoUseCase;
     private final ConsultarStatusOrdemDeServicoUseCase consultarStatusOrdemDeServicoUseCase;
+    private final ConsultarHistoricoOrdemDeServicoUseCase consultarHistoricoOrdemDeServicoUseCase;
 
     public OrdemDeServicoController(
             AlterarOrdemDeServicoUseCase alterarOrdemDeServicoUseCase,
@@ -88,7 +92,8 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
             AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase,
             IniciarExecucaoUseCase iniciarExecucaoUseCase,
             ConcluirServicoUseCase concluirServicoUseCase,
-            ConsultarStatusOrdemDeServicoUseCase consultarStatusOrdemDeServicoUseCase) {
+            ConsultarStatusOrdemDeServicoUseCase consultarStatusOrdemDeServicoUseCase,
+            ConsultarHistoricoOrdemDeServicoUseCase consultarHistoricoOrdemDeServicoUseCase) {
         this.alterarOrdemDeServicoUseCase = alterarOrdemDeServicoUseCase;
         this.criarNovaOrdemDeServicoUseCase = criarNovaOrdemDeServicoUseCase;
         this.iniciarDiagnosticoUseCase = iniciarDiagnosticoUseCase;
@@ -103,6 +108,7 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
         this.iniciarExecucaoUseCase = iniciarExecucaoUseCase;
         this.concluirServicoUseCase = concluirServicoUseCase;
         this.consultarStatusOrdemDeServicoUseCase = consultarStatusOrdemDeServicoUseCase;
+        this.consultarHistoricoOrdemDeServicoUseCase = consultarHistoricoOrdemDeServicoUseCase;
     }
 
     @PostMapping
@@ -242,6 +248,17 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
                         new ConsultarStatusOrdemDeServicoQuery(numeroOrdemServico)));
         log.info("Requisicao de consulta de status concluida. numeroOrdemServico={}, situacao={}",
                 numeroOrdemServico, response.situacao());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{numeroOrdemServico}/historico")
+    public ResponseEntity<HistoricoOrdemDeServicoResponse> consultarHistorico(@PathVariable String numeroOrdemServico) {
+        log.info("Recebida requisicao de consulta de historico. numeroOrdemServico={}", numeroOrdemServico);
+        HistoricoOrdemDeServicoResponse response = HistoricoOrdemDeServicoResponse.from(
+                consultarHistoricoOrdemDeServicoUseCase.consultarHistorico(
+                        new ConsultarHistoricoOrdemDeServicoQuery(numeroOrdemServico)));
+        log.info("Requisicao de consulta de historico concluida. numeroOrdemServico={}, alteracoes={}",
+                numeroOrdemServico, response.alteracoes().size());
         return ResponseEntity.ok(response);
     }
 

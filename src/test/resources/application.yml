@@ -35,3 +35,9 @@ notificacao:
     max-tentativas: 3
     intervalo: 300000
     carencia-segundos: 60
+
+# Os testes chamam o PublicadorOutbox direto; o agendamento concorreria com eles.
+mensageria:
+  servico: oficina-os-service
+  outbox:
+    agendamento-habilitado: false

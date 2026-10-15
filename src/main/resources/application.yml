@@ -87,3 +87,16 @@ notificacao:
     max-tentativas: ${NOTIFICACAO_MAX_TENTATIVAS:5}
     intervalo: ${NOTIFICACAO_INTERVALO:300000} # intervalo do job em ms (5 min)
     carencia-segundos: ${NOTIFICACAO_CARENCIA:60} # janela de carência antes de reprocessar
+
+# Mensageria da Saga (ADR 0005). Toda mensagem passa pelo outbox (outbox_mensagens) e e entregue
+# pelo transporte ativo: "memoria" no Passo 1 da Fase 4 (participantes ainda neste processo),
+# "sqs" a partir do Passo 3.
+mensageria:
+  # source do envelope: nome logico do servico (docs/arquitetura/convencoes-de-nomes.md).
+  servico: oficina-os-service
+  transporte: ${MENSAGERIA_TRANSPORTE:memoria}
+  outbox:
+    agendamento-habilitado: true
+    intervalo-ms: ${MENSAGERIA_OUTBOX_INTERVALO_MS:1000}
+    max-tentativas: ${MENSAGERIA_OUTBOX_MAX_TENTATIVAS:5}
+    lote: 100

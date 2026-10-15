@@ -9,6 +9,7 @@ import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoP
 import br.com.oficina.ordemservico.infrastructure.web.response.AberturaOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.AcompanhamentoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.FinalizacaoOrdemDeServicoResponse;
+import br.com.oficina.ordemservico.infrastructure.web.response.HistoricoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.OrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.StatusOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.TempoMedioExecucaoResponse;
@@ -100,6 +101,17 @@ public interface OrdemDeServicoControllerSwagger {
             @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
     })
     ResponseEntity<StatusOrdemDeServicoResponse> consultarStatus(String numeroOrdemServico);
+
+    @Operation(summary = "Consultar histórico da ordem de serviço",
+            description = "Retorna a situação atual e todas as mudanças de status da ordem de serviço, "
+                    + "da mais antiga para a mais recente, com a origem de cada mudança "
+                    + "(API, SAGA, TIMEOUT ou MIGRACAO) e a saga responsável, quando houver.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Histórico retornado com sucesso",
+                    content = @Content(schema = @Schema(implementation = HistoricoOrdemDeServicoResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Ordem de serviço não encontrada", content = @Content)
+    })
+    ResponseEntity<HistoricoOrdemDeServicoResponse> consultarHistorico(String numeroOrdemServico);
 
     @Operation(summary = "Iniciar diagnóstico", description = "Inicia o diagnóstico de uma ordem de serviço aberta.")
     @ApiResponses({
