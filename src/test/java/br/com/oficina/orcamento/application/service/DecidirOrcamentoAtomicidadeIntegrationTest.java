@@ -24,6 +24,9 @@ import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteReposi
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.DecidirOrcamentoExternamenteCommand;
 import br.com.oficina.orcamento.application.usecase.DecidirOrcamentoExternamenteUseCase;
+import br.com.oficina.common.application.mensageria.Envelope;
+import br.com.oficina.orcamento.application.saga.EventosOrcamento;
+import br.com.oficina.orcamento.domain.model.CanalDecisao;
 import br.com.oficina.orcamento.domain.model.DecisaoOrcamento;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
@@ -33,9 +36,7 @@ import br.com.oficina.orcamento.infrastructure.persistence.SpringDataOrcamentoRe
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
-import br.com.oficina.ordemservico.domain.repository.HistoricoStatusOrdemDeServicoRepository;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
-import br.com.oficina.ordemservico.infrastructure.persistence.JpaOrdemDeServicoRepository;
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataFuncionarioRepository;
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataOrdemDeServicoRepository;
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
@@ -48,10 +49,11 @@ import br.com.oficina.veiculo.infrastructure.persistence.SpringDataVeiculoReposi
 
 /**
  * Valida a atomicidade da decisão externa (CRI-002, spec 006): com `@Transactional` em `decidir()`,
- * a aprovação do orçamento, a reserva de peças e a atualização da OS confirmam juntas ou revertem juntas.
+ * a aprovação do orçamento, a reserva de peças e o evento da Saga no outbox confirmam juntos ou revertem
+ * juntos. Fase 4: a OS não é mais gravada aqui - quem a move é o orquestrador, ao receber o evento.
  */
 @SpringBootTest
-@Import(DecidirOrcamentoAtomicidadeIntegrationTest.FalhaAoSalvarOSConfig.class)
+@Import(DecidirOrcamentoAtomicidadeIntegrationTest.FalhaAoPublicarEventoConfig.class)
 class DecidirOrcamentoAtomicidadeIntegrationTest {
 
     @Autowired
@@ -106,7 +108,7 @@ class DecidirOrcamentoAtomicidadeIntegrationTest {
     }
 
     @Test
-    void deveReverterAprovacaoEReservaQuandoSalvarOSFalha() {
+    void deveReverterAprovacaoEReservaQuandoOEventoDaSagaNaoPodeSerGravado() {
         String pecaId = seedPeca("PINS-ATOM-1", 10, 0);
         UUID ordemId = seedOrdemEmAguardandoAprovacao();
         seedOrcamento("ORC-ATOM-1", ordemId, pecaId, 2);
@@ -188,19 +190,28 @@ class DecidirOrcamentoAtomicidadeIntegrationTest {
     }
 
     /**
-     * Substitui o adaptador da OS por um que falha ao salvar, para exercitar o rollback transacional
-     * da decisão. Não usa Mockito (restrição da constituição) — é um duplo de teste escrito à mão.
+     * Substitui a publicacao dos eventos do orcamento por uma que falha, para exercitar o rollback
+     * transacional da decisao. Nao usa Mockito (restricao da constituicao) - e um duplo escrito a mao.
      */
     @TestConfiguration
-    static class FalhaAoSalvarOSConfig {
+    static class FalhaAoPublicarEventoConfig {
         @Bean
         @Primary
-        OrdemDeServicoRepository ordemDeServicoRepositoryQueFalhaAoSalvar(
-                SpringDataOrdemDeServicoRepository springData, HistoricoStatusOrdemDeServicoRepository historico) {
-            return new JpaOrdemDeServicoRepository(springData, historico) {
+        EventosOrcamento eventosQueFalham() {
+            return new EventosOrcamento() {
                 @Override
-                public void salvar(OrdemDeServico ordemDeServico) {
-                    throw new IllegalStateException("Falha simulada ao salvar a ordem de servico");
+                public void orcamentoAprovado(Orcamento orcamento, CanalDecisao canal) {
+                    throw new IllegalStateException("Falha simulada ao gravar o evento no outbox");
+                }
+
+                @Override
+                public void orcamentoRejeitado(Orcamento orcamento, CanalDecisao canal) {
+                    throw new IllegalStateException("Falha simulada ao gravar o evento no outbox");
+                }
+
+                @Override
+                public void orcamentoCancelado(Envelope comando, Orcamento orcamento) {
+                    throw new IllegalStateException("Falha simulada ao gravar o evento no outbox");
                 }
             };
         }

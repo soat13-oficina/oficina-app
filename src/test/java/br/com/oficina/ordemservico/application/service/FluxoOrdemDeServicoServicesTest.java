@@ -67,6 +67,11 @@ class FluxoOrdemDeServicoServicesTest {
                         BigDecimal.ZERO,
                         LocalDateTime.of(2030, 1, 1, 0, 0),
                         null));
+        // Fase 4: quem leva a OS de AGUARDANDO_APROVACAO para AGUARDANDO_EXECUCAO e a Saga, ao receber
+        // OrcamentoAprovado (coberto no OrquestradorSagaOrdemServicoTest); aqui a aprovacao e simulada.
+        OrdemDeServico aprovada = repository.buscarPorNumero("OS-001").orElseThrow();
+        aprovada.aprovarOrcamento();
+        repository.salvar(aprovada);
         new IniciarExecucaoService(repository, event -> {})
                 .iniciarExecucao(new IniciarExecucaoCommand("OS-001"));
         new ConcluirServicoService(repository, event -> {})

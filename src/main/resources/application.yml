@@ -100,3 +100,14 @@ mensageria:
     intervalo-ms: ${MENSAGERIA_OUTBOX_INTERVALO_MS:1000}
     max-tentativas: ${MENSAGERIA_OUTBOX_MAX_TENTATIVAS:5}
     lote: 100
+
+# Saga da ordem de servico (ADR 0004). Prazos em ISO-8601 (PT15M = 15 minutos, P7D = 7 dias).
+saga:
+  # Prazo de decisao do cliente. Vazio = vale a validade do orcamento (producao). Curto em hml.
+  prazo-decisao: ${SAGA_PRAZO_DECISAO:}
+  prazo-decisao-padrao: P7D  # orcamento sem validade
+  prazo-resposta: ${SAGA_PRAZO_RESPOSTA:PT5M}  # confirmacao de compensacao
+  max-tentativas: 3
+  prazos:
+    agendamento-habilitado: true
+    intervalo-ms: ${SAGA_PRAZOS_INTERVALO_MS:30000}

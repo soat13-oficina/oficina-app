@@ -52,6 +52,15 @@ posterior dos registros originais.
 5. **Peças do orçamento** — `PecaOrcamento` é um value object embutido na OS; contém
    referência à `PecaInsumo` (id + nome) e quantidade + preço unitário no momento do
    orçamento.
+6. **Decisão publica evento da Saga** (Fase 4) — aprovar e rejeitar (pelo JWT ou pelo webhook)
+   gravam `OrcamentoAprovado` / `OrcamentoRejeitado` no outbox **na mesma transação** da decisão,
+   com o canal (`CLIENTE`, `FUNCIONARIO` ou `INTEGRACAO`). O orçamento **não altera mais a OS**:
+   quem a move é o orquestrador da Saga ao receber o evento (ADR 0004).
+7. **Cancelamento por compensação** (Fase 4) — o comando `CancelarOrcamento` da Saga (prazo de
+   decisão vencido) leva o orçamento a `CANCELADO` e responde `OrcamentoCancelado`. É idempotente
+   pelo estado: um comando repetido sobre orçamento já cancelado só republica a confirmação.
+8. **Saga de origem** — o orçamento guarda o `sagaId` da OS (coluna `saga_id`, V23) para os
+   eventos que publica.
 
 ## Ciclo de Vida
 
@@ -74,8 +83,14 @@ posterior dos registros originais.
 [APROVADO]        [REJEITADO]
      |                 |
      ▼                 ▼
- [Execução do     [OS finalizada com
-  serviço inicia]  MotivoEncerramento.ORCAMENTO_RECUSADO]
+ OrcamentoAprovado  OrcamentoRejeitado     (eventos da Saga, via outbox)
+     |                 |
+     ▼                 ▼
+ [Saga: OS vai     [Saga: OS finalizada com
+  para a fila de    MotivoEncerramento.ORCAMENTO_RECUSADO]
+  execução]
+
+[AGUARDANDO_APROVACAO] --CancelarOrcamento (prazo vencido)--> [CANCELADO] --> OrcamentoCancelado
 ```
 
 ## Dependências Internas
@@ -83,7 +98,7 @@ posterior dos registros originais.
 | Módulo | Direção | Detalhe |
 |---|---|---|
 | `ordemservico` | `ordemservico` cria e consulta `orcamento` | `EnviarDiagnosticoParaOrcamentoService` chama `CadastrarNovoOrcamentoUseCase`; `FinalizarOrdemDeServicoService` consulta o orçamento para consumir peças |
-| `ordemservico` | `orcamento` publica evento consumido por `ordemservico` | `DecidirOrcamentoExternamenteService` publica `StatusOrdemDeServicoAlterado` após registrar a decisão |
+| `ordemservico` (Saga) | **só por mensagens** (Fase 4) | Publica `OrcamentoAprovado`, `OrcamentoRejeitado` e `OrcamentoCancelado` (fila `os-saga-replies`); consome `CancelarOrcamento` (fila `billing-commands`). Contratos em `docs/contratos/mensagens.md` |
 | `pecainsumo` | `ordemservico` consome `pecainsumo` via orçamento | `FinalizarOrdemDeServicoService` itera `orcamento.getPecasOrcamento()` e chama `ConsumirPecaUseCase` para cada peça |
 
 ## Dependências Externas
@@ -123,8 +138,9 @@ Todos os endpoints abaixo exigem autenticação, exceto o webhook.
 
 | Status | Situação |
 |---|---|
-| 200 OK | Decisão registrada; retorna `OrcamentoResponse` atualizado |
-| 400 Bad Request | Conflito de decisão (decisão diferente da já registrada) |
+| 200 OK | Decisão registrada (ou idêntica à já registrada); retorna `DecisaoOrcamentoResponse` com `numeroOrcamento`, `statusOrcamento` e `ordemServicoId`. **Fase 4:** a situação da OS não vem mais na resposta — a Saga move a OS logo depois (consulte `GET /ordens-servico/{numero}` ou `GET /sagas/{ordemServicoId}`) |
+| 400 Bad Request | Orçamento fora de `AGUARDANDO_APROVACAO` (por exemplo, `CANCELADO`) |
+| 409 Conflict | Conflito de decisão (decisão diferente da já registrada) |
 | 401 Unauthorized | Token de webhook ausente ou inválido |
 | 404 Not Found | Orçamento não encontrado |
 
@@ -157,6 +173,7 @@ Todos os endpoints abaixo exigem autenticação, exceto o webhook.
 | `EM_APROVACAO` | Enviado ao cliente, aguardando decisão |
 | `APROVADO` | Cliente aprovou |
 | `REJEITADO` | Cliente rejeitou |
+| `CANCELADO` | Compensação da Saga: prazo de decisão vencido (Fase 4) |
 
 ### `PecaOrcamento` — Value Object (`@Embeddable`)
 
@@ -236,6 +253,10 @@ publicava o evento **sem fronteira transacional** — uma falha técnica parcial
 envolvidos já usam propagação `REQUIRED`, a aprovação/rejeição do orçamento, a reserva de peças e a
 atualização da OS **confirmam juntas ou revertem juntas**. A notificação permanece `@Async` (best-effort),
 fora da transação. A compensação de reserva por estoque insuficiente foi preservada.
+
+**Fase 4**: a OS saiu desta transação. Agora confirmam juntos a decisão do orçamento, a reserva de
+peças e o evento da Saga no outbox (`DecidirOrcamentoAtomicidadeIntegrationTest`); a OS é movida pelo
+orquestrador ao consumir o evento.
 
 **Estado**: resolvido.
 

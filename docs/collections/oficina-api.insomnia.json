@@ -23,6 +23,7 @@
         "numeroorcamento": "",
         "numeroordemservico": "",
         "orcamentoid": "",
+        "ordemservicoid": "",
         "placa": "",
         "token": "",
         "x_webhook_token": ""
@@ -63,6 +64,12 @@
       "_type": "request_group",
       "parentId": "wrk_oficina",
       "name": "Peças e Insumos"
+    },
+    {
+      "_id": "fld_saga",
+      "_type": "request_group",
+      "parentId": "wrk_oficina",
+      "name": "Saga"
     },
     {
       "_id": "fld_tokens_de_integra_o",
@@ -845,6 +852,21 @@
       "name": "Excluir peça/insumo",
       "method": "DELETE",
       "url": "{{ _.base_url }}/pecas-insumos/{{ _.id }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_sagas_ordemservicoid",
+      "_type": "request",
+      "parentId": "fld_saga",
+      "name": "Consultar a Saga de uma ordem de serviço",
+      "method": "GET",
+      "url": "{{ _.base_url }}/sagas/{{ _.ordemservicoid }}",
       "body": {},
       "headers": [
         {

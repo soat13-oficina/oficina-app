@@ -92,6 +92,11 @@ public class Orcamento {
 
     private LocalDateTime enviadoParaAprovacaoEm;
 
+    // Saga da OS que originou o orcamento (Fase 4). Vai no envelope dos eventos que o orcamento
+    // publica (OrcamentoAprovado, OrcamentoRejeitado...). Nulo em orcamentos anteriores a Saga.
+    @Column(name = "saga_id")
+    private UUID sagaId;
+
     protected Orcamento() {
     }
 
@@ -275,6 +280,32 @@ public class Orcamento {
             throw new RegraDeNegocioException("Orcamento so pode ser rejeitado quando estiver aguardando aprovacao.");
         }
         this.status = StatusOrcamento.REJEITADO;
+    }
+
+    /**
+     * Compensacao da Saga ({@code CancelarOrcamento}): o orcamento deixa de valer. Idempotente - um
+     * comando repetido sobre orcamento ja cancelado nao e erro. Decidido (aprovado ou rejeitado), nao
+     * pode mais ser cancelado por esta via.
+     *
+     * @return {@code true} se o cancelamento aconteceu agora
+     */
+    public boolean cancelar() {
+        if (status == StatusOrcamento.CANCELADO) {
+            return false;
+        }
+        if (status != StatusOrcamento.AGUARDANDO_APROVACAO) {
+            throw new RegraDeNegocioException("Orcamento so pode ser cancelado quando estiver aguardando aprovacao.");
+        }
+        this.status = StatusOrcamento.CANCELADO;
+        return true;
+    }
+
+    public void vincularSaga(UUID sagaId) {
+        this.sagaId = sagaId;
+    }
+
+    public UUID getSagaId() {
+        return sagaId;
     }
 
     public UUID getId() {

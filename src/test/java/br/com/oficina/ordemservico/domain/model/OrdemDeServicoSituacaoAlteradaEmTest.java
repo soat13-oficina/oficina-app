@@ -71,6 +71,8 @@ class OrdemDeServicoSituacaoAlteradaEmTest {
         LocalDateTime aoAguardarAprovacao = ordem.getSituacaoAlteradaEm();
         assertEquals(SituacaoOrdemDeServico.AGUARDANDO_APROVACAO, ordem.getSituacao());
 
+        // Fase 4: a aprovacao (pela Saga) ja e a entrada em "Execucao"; iniciar e outro status da mesma situacao.
+        ordem.aprovarOrcamento();
         ordem.iniciarExecucao();
         LocalDateTime aoExecutar = ordem.getSituacaoAlteradaEm();
         assertEquals(SituacaoOrdemDeServico.EXECUCAO, ordem.getSituacao());

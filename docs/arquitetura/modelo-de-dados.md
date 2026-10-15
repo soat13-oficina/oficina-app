@@ -228,7 +228,11 @@ Três tabelas novas, fora do diagrama acima (que retrata as 20 migrations da Fas
 | `outbox_mensagens` | V22 | Outbox transacional dos comandos e eventos da Saga ([ADR 0005](../adr/0005-sqs-fifo-outbox-e-idempotencia.md)): mesmo padrão de `notificacoes`, com índice parcial nas pendentes (`publicada_em IS NULL`) |
 | `mensagens_processadas` | V22 | Idempotência do consumidor: o `messageId` de cada mensagem já tratada, gravado na mesma transação do efeito |
 
-`saga_instancia` e `saga_passos` ([ADR 0004](../adr/0004-saga-orquestrada.md)) entram junto com o orquestrador.
+| `saga_instancia` | V23 | Uma Saga por OS ([ADR 0004](../adr/0004-saga-orquestrada.md)): `status`, `passo_atual`, `orcamento_id`, `desfecho`, `motivo`, `compensacoes_pendentes`, `prazo_expira_em` (índice parcial), `tentativas_passo` e `versao` (lock otimista entre consumidor e agendador). FK única para `ordens_de_servico` com `ON DELETE CASCADE`. A V23 cria uma Saga para cada OS existente |
+| `saga_passos` | V23 | História da Saga: comandos enviados, eventos recebidos ou ignorados, prazos vencidos |
+
+A V23 também acrescenta `orcamentos.saga_id` (sem FK: no Billing Service a Saga estará em outro banco)
+e move para `AGUARDANDO_EXECUCAO` as OSs aprovadas pelo JWT que tinham ficado em `AGUARDANDO_APROVACAO`.
 
 ---
 

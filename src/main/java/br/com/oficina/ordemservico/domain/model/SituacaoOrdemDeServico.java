@@ -28,7 +28,7 @@ public enum SituacaoOrdemDeServico {
             case OS_ABERTA -> RECEBIDA;
             case DIAGNOSTICO_EM_ANDAMENTO, DIAGNOSTICO_CONCLUIDO -> DIAGNOSTICO;
             case ORCAMENTO_GERADO, AGUARDANDO_APROVACAO -> AGUARDANDO_APROVACAO;
-            case SERVICO_EM_ANDAMENTO -> EXECUCAO;
+            case AGUARDANDO_EXECUCAO, SERVICO_EM_ANDAMENTO -> EXECUCAO;
             case OS_FINALIZADA -> FINALIZADA;
             case ENTREGUE -> ENTREGUE;
         };

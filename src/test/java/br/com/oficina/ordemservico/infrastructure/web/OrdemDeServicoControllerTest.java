@@ -24,6 +24,7 @@ import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
 import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
+import br.com.oficina.common.infrastructure.mensageria.PublicadorOutbox;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
@@ -76,6 +77,9 @@ class OrdemDeServicoControllerTest {
 
     @Autowired
     private SpringDataPecaInsumoRepository springDataPecaInsumoRepository;
+
+    @Autowired
+    private PublicadorOutbox publicadorOutbox;
 
     private MockMvc mockMvc;
 
@@ -159,6 +163,17 @@ class OrdemDeServicoControllerTest {
         mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.situacao").value("Aguardando Aprovação"));
+
+        // Fase 4: o orcamento aprova e publica OrcamentoAprovado; a Saga move a OS ao processar o outbox.
+        String numeroOrcamento = springDataOrcamentoRepository.findAll().get(0).getNumeroOrcamento();
+        mockMvc.perform(post("/orcamentos/" + numeroOrcamento + "/aprovacao").with(user("tester")).with(csrf()))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
+                .andExpect(jsonPath("$.situacao").value("Aguardando Aprovação"));
+        publicadorOutbox.publicarPendentes();
+        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situacao").value("Execução"));
 
         transicao(numero, "/execucao/iniciar");
         transicao(numero, "/servico/concluir");

@@ -105,7 +105,8 @@ class WebhookDecisaoOrcamentoControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.numeroOrcamento").value("ORC-WHK-001"))
-                .andExpect(jsonPath("$.situacao").value("Execução"));
+                .andExpect(jsonPath("$.statusOrcamento").value("APROVADO"))
+                .andExpect(jsonPath("$.ordemServicoId").value(ordem.getId().toString()));
     }
 
     @Test
@@ -120,7 +121,7 @@ class WebhookDecisaoOrcamentoControllerTest {
                                 { "decisao": "REJEITADO" }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.situacao").value("Finalizada"));
+                .andExpect(jsonPath("$.statusOrcamento").value("REJEITADO"));
     }
 
     @Test

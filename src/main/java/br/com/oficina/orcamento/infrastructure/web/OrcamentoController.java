@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.AprovarOrcamentoCommand;
@@ -26,6 +28,7 @@ import br.com.oficina.orcamento.application.usecase.AprovarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ConsultarOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.ExcluirOrcamentoUseCase;
 import br.com.oficina.orcamento.application.usecase.RejeitarOrcamentoUseCase;
+import br.com.oficina.orcamento.domain.model.CanalDecisao;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.infrastructure.web.request.AlterarOrcamentoRequest;
@@ -116,7 +119,7 @@ public class OrcamentoController implements OrcamentoControllerSwagger {
     public ResponseEntity<OrcamentoResponse> aprovar(@PathVariable String orcamentoId) {
         log.info("Recebida requisicao de aprovacao de orcamento. numeroOrcamento={}", orcamentoId);
         OrcamentoResponse response = OrcamentoResponse.from(
-                aprovarOrcamentoUseCase.aprovarOrcamento(new AprovarOrcamentoCommand(orcamentoId)));
+                aprovarOrcamentoUseCase.aprovarOrcamento(new AprovarOrcamentoCommand(orcamentoId, canalDoUsuario())));
         log.info("Requisicao de aprovacao de orcamento concluida. numeroOrcamento={}, status={}", orcamentoId, response.status());
         return ResponseEntity.ok(response);
     }
@@ -124,9 +127,17 @@ public class OrcamentoController implements OrcamentoControllerSwagger {
     @PostMapping("/{orcamentoId}/rejeicao")
     public ResponseEntity<Void> rejeitar(@PathVariable String orcamentoId) {
         log.info("Recebida requisicao de rejeicao de orcamento. numeroOrcamento={}", orcamentoId);
-        rejeitarOrcamentoUseCase.rejeitarOrcamento(new RejeitarOrcamentoCommand(orcamentoId));
+        rejeitarOrcamentoUseCase.rejeitarOrcamento(new RejeitarOrcamentoCommand(orcamentoId, canalDoUsuario()));
         log.info("Requisicao de rejeicao de orcamento concluida. numeroOrcamento={}", orcamentoId);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Cliente autenticado pelo CPF (token da Lambda, ROLE_CLIENTE) ou funcionario decidindo por ele. */
+    private static CanalDecisao canalDoUsuario() {
+        Authentication autenticacao = SecurityContextHolder.getContext().getAuthentication();
+        boolean cliente = autenticacao != null && autenticacao.getAuthorities().stream()
+                .anyMatch(papel -> "ROLE_CLIENTE".equals(papel.getAuthority()));
+        return cliente ? CanalDecisao.CLIENTE : CanalDecisao.FUNCIONARIO;
     }
 
     @DeleteMapping("/{orcamentoId}")

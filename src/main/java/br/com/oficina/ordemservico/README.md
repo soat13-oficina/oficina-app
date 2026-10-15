@@ -29,7 +29,8 @@ veículo no momento de sua criação.
 | `IniciarDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/iniciar` | Transiciona OS_ABERTA → DIAGNOSTICO_EM_ANDAMENTO |
 | `ConcluirDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/concluir` | Transiciona DIAGNOSTICO_EM_ANDAMENTO → DIAGNOSTICO_CONCLUIDO; corpo opcional grava **descrição do serviço + peças** (fonte do orçamento) |
 | `EnviarDiagnosticoParaOrcamentoUseCase` | `POST /ordens-servico/{numero}/diagnostico/enviar-para-orcamento` | **Fluxo único** DIAGNOSTICO_CONCLUIDO → AGUARDANDO_APROVACAO; corpo só financeiro; deriva cliente/veículo/funcionário e **puxa peças do diagnóstico**; cria o Orçamento na mesma transação |
-| `IniciarExecucaoUseCase` | `POST /ordens-servico/{numero}/execucao/iniciar` | Transiciona AGUARDANDO_APROVACAO → SERVICO_EM_ANDAMENTO |
+| `IniciarExecucaoUseCase` | `POST /ordens-servico/{numero}/execucao/iniciar` | Transiciona AGUARDANDO_EXECUCAO → SERVICO_EM_ANDAMENTO (Fase 4: a OS chega a AGUARDANDO_EXECUCAO pela Saga, quando o orçamento é aprovado) |
+| `ConsultarSagaUseCase` | `GET /sagas/{ordemServicoId}` | Estado, prazo, compensações pendentes e a história da Saga da OS — Fase 4 |
 | `ConcluirServicoUseCase` | `POST /ordens-servico/{numero}/servico/concluir` | Transiciona SERVICO_EM_ANDAMENTO → OS_FINALIZADA; consome peças do estoque |
 | `FinalizarOrdemDeServicoUseCase` | `POST /ordens-servico/{numero}/finalizacao` | Transiciona ORCAMENTO_GERADO → OS_FINALIZADA; consome peças. **Inalcançável na prática**: nenhum controller chama `enviarParaOrcamento()`, único método que produz o status ORCAMENTO_GERADO exigido pela guarda de `finalizar()` — ver nota em "Máquina de Estados" |
 | `EntregarAoClienteUseCase` | `POST /ordens-servico/{numero}/entrega` | Transiciona OS_FINALIZADA → ENTREGUE |
@@ -129,6 +130,7 @@ já criadas.
    `ordem_servico_historico` pelo repositório, no mesmo `salvar()` da ordem. A origem padrão é
    `API`; o orquestrador da Saga troca para `SAGA`/`TIMEOUT` com
    `registrarOrigemDasAlteracoes(origem, sagaId)` antes de mover a ordem.
+7. **Saga orquestrada** (Fase 4, ADR 0004, migration V23) — ver a seção "Saga" abaixo.
 
 ## Ciclo de Vida
 
@@ -162,12 +164,43 @@ POST /ordens-servico
   [ENTREGUE]
 ```
 
+## Saga (Fase 4)
+
+O orquestrador (`saga/application/OrquestradorSagaOrdemServico`) coordena o ciclo de vida da OS
+com o módulo `orcamento` (futuro Billing Service) **só por mensagens** — outbox `outbox_mensagens`,
+transporte em memória no Passo 1, SQS a partir do Passo 3 (ADR 0005). Estado em `saga_instancia`,
+história em `saga_passos`.
+
+| Momento | Quem dispara | Saga | OS |
+|---|---|---|---|
+| Abertura da OS | `POST /ordens-servico` | `AGUARDANDO_DIAGNOSTICO` | `OS_ABERTA` |
+| Envio para orçamento | `POST .../diagnostico/enviar-para-orcamento` (ainda síncrono) | `AGUARDANDO_DECISAO`, com prazo = `saga.prazo-decisao` ou a validade do orçamento | `AGUARDANDO_APROVACAO` |
+| Cliente aprova | evento `OrcamentoAprovado` | `AGUARDANDO_EXECUCAO` | `AGUARDANDO_EXECUCAO` (origem `SAGA`) |
+| Cliente rejeita | evento `OrcamentoRejeitado` | `ENCERRADA_SEM_EXECUCAO` | `OS_FINALIZADA` / `ORCAMENTO_RECUSADO` |
+| Prazo de decisão vence | `AgendadorPrazosSaga` (30 s) | `COMPENSANDO` → comando `CancelarOrcamento` → `OrcamentoCancelado` → `ENCERRADA_SEM_EXECUCAO` | `OS_FINALIZADA` / `ORCAMENTO_EXPIRADO` (origem `TIMEOUT`) |
+| Confirmação não chega | `AgendadorPrazosSaga` | reenvia até `saga.max-tentativas` (3); depois `FALHA_COMPENSACAO` | — |
+| Mecânico inicia / conclui | `POST .../execucao/iniciar`, `.../servico/concluir` | `EM_EXECUCAO` → `CONCLUIDA` | `SERVICO_EM_ANDAMENTO` → `OS_FINALIZADA` |
+
+Evento que não cabe no estado atual é registrado como `EVENTO_IGNORADO` e confirmado, nunca
+reprocessado em laço. OS anterior à Saga ganha uma Saga "adotada" (estado derivado do status) no
+primeiro evento — a V23 já cria uma para cada OS existente.
+
+**Ainda no monólito (próximos passos):** reserva de peças e pagamento como passos da Saga, geração
+do orçamento por comando (`GerarOrcamento`) e diagnóstico/execução como eventos da Execution.
+
+Configuração: `saga.prazo-decisao` (vazio em prd = validade do orçamento; `PT15M` em hml),
+`saga.prazo-decisao-padrao` (`P7D`), `saga.prazo-resposta` (`PT5M`), `saga.max-tentativas` (3),
+`saga.prazos.intervalo-ms` (30000).
+
+BDD: `src/test/resources/features/saga/decisao-do-orcamento.feature` (Cucumber, roda no `./mvnw verify`).
+
 ## Dependências Internas
 
 | Módulo | Direção | Detalhe |
 |---|---|---|
 | `cliente` | `ordemservico` consome `cliente` | `CriarNovaOrdemDeServicoService` busca dados do cliente para snapshot |
 | `veiculo` | `ordemservico` consome `veiculo` | `CriarNovaOrdemDeServicoService` busca dados do veículo para snapshot |
+| `orcamento` (Saga) | só mensagens | Consome `OrcamentoAprovado`, `OrcamentoRejeitado`, `OrcamentoCancelado`; envia `CancelarOrcamento` |
 | `orcamento` | `ordemservico` cria e lê `orcamento` | `EnviarDiagnosticoParaOrcamentoService` cria o orçamento; `FinalizarOrdemDeServicoService` o consulta |
 | `pecainsumo` | `ordemservico` consome `pecainsumo` | `FinalizarOrdemDeServicoService` chama `ConsumirPecaUseCase` para cada peça do orçamento |
 | `notificacao` | `ordemservico` publica evento consumido por `notificacao` | Publica `StatusOrdemDeServicoAlterado` em todas as transições de status |

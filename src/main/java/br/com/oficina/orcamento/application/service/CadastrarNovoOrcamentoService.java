@@ -41,7 +41,7 @@ public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseC
     }
 
     @Override
-    public void cadastrarNovoOrcamento(CadastrarNovoOrcamentoCommand command) {
+    public UUID cadastrarNovoOrcamento(CadastrarNovoOrcamentoCommand command) {
         log.info("Iniciando cadastro de orcamento. numeroOrcamento={}, clienteId={}, ordemDeServicoId={}",
                 command.numeroOrcamento(), command.clienteId(), command.ordemDeServicoId());
         if (orcamentoRepository.buscarPorNumeroOrcamento(command.numeroOrcamento()).isPresent()) {
@@ -84,8 +84,10 @@ public class CadastrarNovoOrcamentoService implements CadastrarNovoOrcamentoUseC
             throw new RegraDeNegocioException("Desconto nao pode ser maior que o valor total do orcamento.");
         }
 
-        orcamentoRepository.salvar(orcamento);
+        orcamento.vincularSaga(command.sagaId());
+        Orcamento salvo = orcamentoRepository.salvar(orcamento);
         log.info("Orcamento cadastrado com sucesso. numeroOrcamento={}", command.numeroOrcamento());
+        return salvo.getId();
     }
 
     private List<PecaOrcamento> resolverPecas(List<PecaOrcamentoInput> inputs) {

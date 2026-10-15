@@ -41,6 +41,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- BDD da Saga (Fase 4). Versao validada com Spring Boot 4 no spike do Passo 0. -->
+            <dependency>
+                <groupId>io.cucumber</groupId>
+                <artifactId>cucumber-bom</artifactId>
+                <version>8.0.4</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
@@ -170,6 +178,27 @@
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
             <version>1.5.1</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Fase 4: BDD (Cucumber) do ciclo de vida da OS coordenado pela Saga. Ver src/test/resources/features. -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-spring</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-junit-platform-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-suite</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -314,7 +343,8 @@
                             </rules>
                         </configuration>
                     </execution>
-                    <!-- Fase 4: outbox, transporte e consumidor idempotente da Saga (ADR 0005). -->
+                    <!-- Fase 4: mensageria (outbox, transporte, consumidor idempotente - ADR 0005) e Saga
+                         orquestrada (orquestrador e participante do orcamento - ADR 0004). -->
                     <execution>
                         <id>check-mensageria-coverage</id>
                         <phase>test</phase>
@@ -328,6 +358,9 @@
                                     <includes>
                                         <include>br/com/oficina/common/application/mensageria</include>
                                         <include>br/com/oficina/common/infrastructure/mensageria</include>
+                                        <include>br/com/oficina/ordemservico/saga/*</include>
+                                        <include>br/com/oficina/ordemservico/saga/*/*</include>
+                                        <include>br/com/oficina/orcamento/application/saga</include>
                                     </includes>
                                     <limits>
                                         <limit>
