@@ -78,8 +78,8 @@ com eventos. Comunicação por SQS FIFO com outbox e idempotência
 | Peças reservadas | `LiberarReserva` → Execution (só o que não foi consumido) | `ReservaLiberada` |
 | Pagamento confirmado | `EstornarPagamento` → Billing → refund no Mercado Pago (cancela também o orçamento) | `PagamentoEstornado` / `EstornoFalhou` |
 
-Em `COMPENSANDO`, a Saga guarda em `dados.compensacoesPendentes` as confirmações que
-faltam e em `dados.desfecho` o estado final (`COMPENSADA` ou
+Em `COMPENSANDO`, a Saga guarda em `compensacoes_pendentes` as confirmações que
+faltam e em `desfecho` o estado final (`COMPENSADA` ou
 `ENCERRADA_SEM_EXECUCAO`). Chegou a última confirmação → estado final. O status da
 OS muda **no momento da decisão** (não espera as confirmações), porque para o
 cliente o desfecho já está definido.
@@ -138,7 +138,9 @@ CREATE TABLE saga_instancia (
     passo_atual         varchar(60) NOT NULL,
     orcamento_id        uuid,
     pagamento_id        uuid,
-    dados               jsonb       NOT NULL DEFAULT '{}',  -- desfecho, compensacoesPendentes, linkPagamento...
+    desfecho            varchar(40),                       -- estado final quando as compensações terminarem
+    motivo              varchar(255),
+    compensacoes_pendentes varchar(255),                    -- confirmações que faltam chegar
     prazo_expira_em     timestamp,
     tentativas_passo    int         NOT NULL DEFAULT 0,
     versao              bigint      NOT NULL DEFAULT 0,     -- lock otimista
@@ -152,9 +154,12 @@ CREATE TABLE saga_passos (
     passo        varchar(60) NOT NULL,
     tipo         varchar(20) NOT NULL,  -- COMANDO_ENVIADO, EVENTO_RECEBIDO, EVENTO_IGNORADO, COMPENSACAO, TIMEOUT
     mensagem_id  uuid,
-    detalhe      jsonb,
+    detalhe      varchar(2000),
     ocorrido_em  timestamp   NOT NULL
 );
+
+-- Colunas tipadas em vez de um jsonb "dados": são poucos campos, todos lidos pelo agendador
+-- e por GET /sagas/{ordemServicoId} (implementado na migration V23).
 
 CREATE TABLE ordem_servico_historico (
     id                  bigserial PRIMARY KEY,
