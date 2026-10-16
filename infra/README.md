@@ -1,7 +1,7 @@
 # infra/ — OS Service
 
 Terraform do que é **só deste serviço** (Fase 4, "cada serviço com sua infraestrutura" —
-`PLANO-FASE-4.md`, seção 9.1). A plataforma (VPC, EKS, ECR) continua em `oficina-infra-k8s` e o
+[`PLANO-FASE-4.md`](../docs/PLANO-FASE-4.md), seção 9.1). A plataforma (VPC, EKS, ECR) continua em `oficina-infra-k8s` e o
 RDS do OS em `oficina-infra-database`.
 
 | Recurso | Nome | Para quê |

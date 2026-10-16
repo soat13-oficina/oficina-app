@@ -31,7 +31,7 @@ variable "servico" {
 }
 
 # Ainda "oficina-api": o Deployment, o Service e a ServiceAccount so mudam de nome no rename
-# para oficina-os-service (item do k8s/ no PLANO-FASE-4.md).
+# para oficina-os-service (item do k8s/ no docs/PLANO-FASE-4.md, secao 8.1).
 variable "service_account" {
   description = "ServiceAccount do Kubernetes que assume a Role via IRSA."
   type        = string

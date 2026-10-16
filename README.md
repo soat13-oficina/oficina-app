@@ -8,6 +8,7 @@ Backend monolítico para gestão de Oficina Mecânica, desenvolvido com **Java 2
 > [`oficina-billing-service`](https://github.com/soat13-oficina/oficina-billing-service), que conversa
 > com o OS pelas filas SQS `billing-commands` / `os-saga-replies`
 > ([mensageria local](docs/arquitetura/mensageria-local.md)). Estoque e execução saem no Passo 4.
+> Plano, andamento e como continuar: [`docs/PLANO-FASE-4.md`](docs/PLANO-FASE-4.md) (seção 18).
 
 ## Fase 3 — objetivo desta fase
 

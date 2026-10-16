@@ -225,7 +225,7 @@ carrega a pasta `schemas/` do classpath de teste. Testes de contrato recomendado
 O exemplo de cada schema foi validado contra o próprio schema (e recusado pelos dos
 demais tipos) com `ajv` 8 ao gerar estes arquivos.
 
-## Diferenças em relação ao `PLANO-FASE-4.md`
+## Diferenças em relação ao [`PLANO-FASE-4.md`](../PLANO-FASE-4.md)
 
 Fechar os contratos expôs lacunas no catálogo do plano:
 

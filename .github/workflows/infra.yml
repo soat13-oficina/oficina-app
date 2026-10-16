@@ -8,7 +8,7 @@ name: Infra (OS Service)
 #
 # Apply e destroy sao SEMPRE manuais: nada daqui roda sozinho na AWS.
 #
-# Ordem (PLANO-FASE-4.md, secao 9.2):
+# Ordem (docs/PLANO-FASE-4.md, secao 9.2):
 #   apply:   oficina-infra-k8s -> oficina-infra-database -> este infra/ -> infra/ do Billing
 #            -> infra/ da Execution -> deploy dos servicos -> oficina-lambda-auth
 #   destroy: a ordem inversa
