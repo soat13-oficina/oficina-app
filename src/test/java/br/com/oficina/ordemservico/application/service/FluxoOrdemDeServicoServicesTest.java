@@ -16,7 +16,6 @@ import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
-import br.com.oficina.orcamento.application.service.CadastrarNovoOrcamentoService;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.command.ConcluirServicoCommand;
 import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;
@@ -29,8 +28,9 @@ import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
 import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
+import br.com.oficina.ponte.CatalogoDePecasDoEstoque;
+import br.com.oficina.ordemservico.saga.application.PassosDaSaga;
 import br.com.oficina.support.persistence.TestClienteRepository;
-import br.com.oficina.support.persistence.TestOrcamentoRepository;
 import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
 import br.com.oficina.support.persistence.TestPecaInsumoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
@@ -45,33 +45,31 @@ class FluxoOrdemDeServicoServicesTest {
         UUID clienteId = UUID.fromString("61111111-1111-1111-1111-111111111111");
         TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
         TestClienteRepository clienteRepository = new TestClienteRepository();
-        TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
         TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Oleo 5W30", "Castrol", new BigDecimal("150.00"), 10, 0, "REF-OLEO", CategoriaPeca.LUBRIFICANTES));
         repository.salvar(novaOrdem("OS-001"));
 
         new IniciarDiagnosticoService(repository).iniciarDiagnostico(new IniciarDiagnosticoCommand("OS-001"));
-        new ConcluirDiagnosticoService(repository, event -> {}, pecaInsumoRepository)
+        new ConcluirDiagnosticoService(repository, event -> {}, new CatalogoDePecasDoEstoque(pecaInsumoRepository))
                 .concluirDiagnostico(new ConcluirDiagnosticoCommand(
                         "OS-001",
                         "Troca de oleo",
                         List.of(new ConcluirDiagnosticoCommand.PecaDiagnosticoInput(PECA_ID, 1))));
-        new EnviarDiagnosticoParaOrcamentoService(
-                repository,
-                new CadastrarNovoOrcamentoService(orcamentoRepository, clienteRepository, pecaInsumoRepository),
-                event -> {})
+        new EnviarDiagnosticoParaOrcamentoService(repository, PassosDaSaga.NENHUM)
                 .enviarDiagnosticoParaOrcamento(new EnviarDiagnosticoParaOrcamentoRequest(
                         "OS-001",
                         new BigDecimal("200.00"),
                         BigDecimal.ZERO,
                         LocalDateTime.of(2030, 1, 1, 0, 0),
                         null));
-        // Fase 4: quem leva a OS de AGUARDANDO_APROVACAO para AGUARDANDO_EXECUCAO e a Saga, ao receber
-        // OrcamentoAprovado (coberto no OrquestradorSagaOrdemServicoTest); aqui a aprovacao e simulada.
-        OrdemDeServico aprovada = repository.buscarPorNumero("OS-001").orElseThrow();
-        aprovada.aprovarOrcamento();
-        repository.salvar(aprovada);
+        // Fase 4: orcamento gerado, aprovado, pecas reservadas e pagamento confirmado chegam a OS pela
+        // Saga (coberto no OrquestradorSagaOrdemServicoTest e no BDD); aqui essas reacoes sao simuladas.
+        OrdemDeServico paga = repository.buscarPorNumero("OS-001").orElseThrow();
+        paga.enviarParaAprovacao();
+        paga.aguardarPagamento();
+        paga.confirmarPagamento();
+        repository.salvar(paga);
         new IniciarExecucaoService(repository, event -> {})
                 .iniciarExecucao(new IniciarExecucaoCommand("OS-001"));
         new ConcluirServicoService(repository, event -> {})

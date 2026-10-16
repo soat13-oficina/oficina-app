@@ -9,7 +9,7 @@ import br.com.oficina.common.application.mensageria.ManipuladorMensagem;
 import br.com.oficina.ordemservico.saga.application.OrquestradorSagaOrdemServico;
 import br.com.oficina.ordemservico.saga.domain.model.MensagensSaga;
 
-/** Eventos dos participantes ({@code os-saga-replies}) que o orquestrador ja trata. */
+/** Eventos dos participantes ({@code os-saga-replies}): todos vao para o orquestrador. */
 @Component
 public class ManipuladorEventosSaga implements ManipuladorMensagem {
 
@@ -21,7 +21,7 @@ public class ManipuladorEventosSaga implements ManipuladorMensagem {
 
     @Override
     public Set<String> tipos() {
-        return Set.of(MensagensSaga.ORCAMENTO_APROVADO, MensagensSaga.ORCAMENTO_REJEITADO, MensagensSaga.ORCAMENTO_CANCELADO);
+        return Set.copyOf(MensagensSaga.EVENTOS);
     }
 
     @Override

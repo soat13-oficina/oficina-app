@@ -5,11 +5,17 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Dados para gerar um orcamento. Fase 4: chega pelo comando {@code GerarOrcamento} da Saga, com o
+ * snapshot do cliente, do veiculo e do diagnostico - o orcamento nao consulta cliente nem OS (ADR 0003).
+ *
+ * @param sagaId Saga da OS; vai nos eventos que o orcamento publicar
+ */
 public record CadastrarNovoOrcamentoCommand(
         String numeroOrcamento,
-        String clienteId,
-        String ordemDeServicoId,
-        String funcionarioId,
+        ClienteOrcamento cliente,
+        UUID ordemDeServicoId,
+        UUID funcionarioId,
         String placaVeiculo,
         String marcaVeiculo,
         String modeloVeiculo,
@@ -20,25 +26,9 @@ public record CadastrarNovoOrcamentoCommand(
         BigDecimal desconto,
         LocalDateTime validade,
         String observacoes,
-        /* Saga da OS (Fase 4); nulo quando o orcamento nao nasce de uma Saga. */
         UUID sagaId) {
 
-    public CadastrarNovoOrcamentoCommand(
-            String numeroOrcamento,
-            String clienteId,
-            String ordemDeServicoId,
-            String funcionarioId,
-            String placaVeiculo,
-            String marcaVeiculo,
-            String modeloVeiculo,
-            String descricaoDiagnostico,
-            List<String> servicosPropostos,
-            List<PecaOrcamentoInput> pecasPrevistas,
-            BigDecimal valorMaoDeObra,
-            BigDecimal desconto,
-            LocalDateTime validade,
-            String observacoes) {
-        this(numeroOrcamento, clienteId, ordemDeServicoId, funcionarioId, placaVeiculo, marcaVeiculo, modeloVeiculo,
-                descricaoDiagnostico, servicosPropostos, pecasPrevistas, valorMaoDeObra, desconto, validade, observacoes, null);
+    /** Snapshot do cliente no momento do orcamento (ADR 0002). */
+    public record ClienteOrcamento(UUID id, String nome, String documento) {
     }
 }

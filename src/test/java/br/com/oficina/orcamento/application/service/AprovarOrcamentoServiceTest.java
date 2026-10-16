@@ -5,77 +5,90 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import br.com.oficina.common.application.mensageria.Envelope;
+import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.AprovarOrcamentoCommand;
+import br.com.oficina.orcamento.application.saga.EventosOrcamento;
+import br.com.oficina.orcamento.domain.model.CanalDecisao;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
-import br.com.oficina.pecainsumo.application.service.LiberarReservaPecaService;
-import br.com.oficina.pecainsumo.application.service.ReservarPecaService;
-import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
-import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
-import br.com.oficina.support.persistence.TestPecaInsumoRepository;
 
+/** Fase 4: aprovar nao reserva pecas - so aprova e publica OrcamentoAprovado (a reserva e passo da Saga). */
 class AprovarOrcamentoServiceTest {
 
-    private static final String PECA_COM_ESTOQUE = "peca-disco-001";
-    private static final String PECA_SEM_ESTOQUE = "peca-pastilha-001";
-
     @Test
-    void deveAprovarOrcamentoReservandoTodasAsPecas() {
-        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
+    void aprovaEPublicaOEventoSemTocarNoEstoque() {
         TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
-        pecaInsumoRepository.salvar(peca(PECA_COM_ESTOQUE, 10, 0));
-        pecaInsumoRepository.salvar(peca(PECA_SEM_ESTOQUE, 10, 0));
-        orcamentoRepository.salvar(orcamentoAguardandoAprovacao());
+        orcamentoRepository.salvar(orcamento(StatusOrcamento.AGUARDANDO_APROVACAO));
+        List<CanalDecisao> publicados = new ArrayList<>();
 
-        AprovarOrcamentoService service = new AprovarOrcamentoService(
-                orcamentoRepository,
-                new ReservarPecaService(pecaInsumoRepository),
-                new LiberarReservaPecaService(pecaInsumoRepository));
-
-        Orcamento aprovado = service.aprovarOrcamento(new AprovarOrcamentoCommand("ORC-1"));
+        Orcamento aprovado = new AprovarOrcamentoService(orcamentoRepository, eventos(publicados))
+                .aprovarOrcamento(new AprovarOrcamentoCommand("ORC-1", CanalDecisao.CLIENTE));
 
         assertEquals(StatusOrcamento.APROVADO, aprovado.getStatus());
-        assertEquals(2, pecaInsumoRepository.buscarPorId(PECA_COM_ESTOQUE).orElseThrow().getQuantidadeReservada());
-        assertEquals(5, pecaInsumoRepository.buscarPorId(PECA_SEM_ESTOQUE).orElseThrow().getQuantidadeReservada());
+        assertEquals(StatusOrcamento.APROVADO, orcamentoRepository.buscarPorNumeroOrcamento("ORC-1").orElseThrow().getStatus());
+        assertEquals(List.of(CanalDecisao.CLIENTE), publicados);
     }
 
     @Test
-    void deveLiberarReservasJaFeitasQuandoFaltarEstoqueParaAlgumaPeca() {
-        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
+    void naoAprovaOrcamentoQueNaoAguardaDecisao() {
         TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
-        // Primeira peca tem estoque suficiente; a segunda nao (estoque 1, pedido 5).
-        pecaInsumoRepository.salvar(peca(PECA_COM_ESTOQUE, 10, 0));
-        pecaInsumoRepository.salvar(peca(PECA_SEM_ESTOQUE, 1, 0));
-        orcamentoRepository.salvar(orcamentoAguardandoAprovacao());
+        orcamentoRepository.salvar(orcamento(StatusOrcamento.CANCELADO));
+        List<CanalDecisao> publicados = new ArrayList<>();
+        AprovarOrcamentoService service = new AprovarOrcamentoService(orcamentoRepository, eventos(publicados));
 
-        AprovarOrcamentoService service = new AprovarOrcamentoService(
-                orcamentoRepository,
-                new ReservarPecaService(pecaInsumoRepository),
-                new LiberarReservaPecaService(pecaInsumoRepository));
-
-        RegraDeNegocioException exception = assertThrows(
-                RegraDeNegocioException.class,
-                () -> service.aprovarOrcamento(new AprovarOrcamentoCommand("ORC-1")));
-
-        org.junit.jupiter.api.Assertions.assertTrue(exception.getMessage().contains("Estoque insuficiente"));
-        // A reserva ja feita para a primeira peca deve ser desfeita (volta a 0), e nao ficar presa.
-        assertEquals(0, pecaInsumoRepository.buscarPorId(PECA_COM_ESTOQUE).orElseThrow().getQuantidadeReservada());
-        assertEquals(0, pecaInsumoRepository.buscarPorId(PECA_SEM_ESTOQUE).orElseThrow().getQuantidadeReservada());
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.aprovarOrcamento(new AprovarOrcamentoCommand("ORC-1", CanalDecisao.CLIENTE)));
+        assertEquals(List.of(), publicados);
     }
 
-    private static PecaInsumo peca(String id, int estoque, int reservada) {
-        return new PecaInsumo(id, "Peca " + id, "Bosch", new BigDecimal("100.00"), estoque, reservada, "REF-" + id, CategoriaPeca.FREIOS);
+    @Test
+    void orcamentoInexistenteENaoEncontrado() {
+        AprovarOrcamentoService service = new AprovarOrcamentoService(new TestOrcamentoRepository(), EventosOrcamento.NENHUM);
+
+        assertThrows(RecursoNaoEncontradoException.class,
+                () -> service.aprovarOrcamento(new AprovarOrcamentoCommand("ORC-X", CanalDecisao.FUNCIONARIO)));
     }
 
-    private static Orcamento orcamentoAguardandoAprovacao() {
+    private static EventosOrcamento eventos(List<CanalDecisao> publicados) {
+        return new EventosOrcamento() {
+            @Override
+            public void orcamentoAprovado(Orcamento orcamento, CanalDecisao canal) {
+                publicados.add(canal);
+            }
+
+            @Override
+            public void orcamentoRejeitado(Orcamento orcamento, CanalDecisao canal) {
+            }
+
+            @Override
+            public void orcamentoGerado(Envelope comando, Orcamento orcamento) {
+            }
+
+            @Override
+            public void orcamentoFalhou(Envelope comando, String motivo, List<String> pecasInvalidas) {
+            }
+
+            @Override
+            public void aprovacaoRevertida(Envelope comando, Orcamento orcamento) {
+            }
+
+            @Override
+            public void orcamentoCancelado(Envelope comando, Orcamento orcamento, boolean pagamentoCancelado) {
+            }
+        };
+    }
+
+    private static Orcamento orcamento(StatusOrcamento status) {
         return new Orcamento(
                 "ORC-1",
                 UUID.randomUUID(),
@@ -88,14 +101,12 @@ class AprovarOrcamentoServiceTest {
                 "Corolla",
                 "Troca de freios",
                 List.of("Troca de disco"),
-                List.of(
-                        new PecaOrcamento(PECA_COM_ESTOQUE, "Disco de freio", new BigDecimal("350.00"), 2),
-                        new PecaOrcamento(PECA_SEM_ESTOQUE, "Pastilha", new BigDecimal("180.00"), 5)),
+                List.of(new PecaOrcamento("peca-disco-001", "Disco de freio", new BigDecimal("350.00"), 2)),
                 new BigDecimal("420.00"),
                 BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 1, 10, 0),
                 LocalDateTime.of(2030, 1, 8, 10, 0),
                 "Cliente aguarda aprovacao",
-                StatusOrcamento.AGUARDANDO_APROVACAO);
+                status);
     }
 }

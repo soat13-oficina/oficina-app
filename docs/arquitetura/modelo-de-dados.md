@@ -208,8 +208,10 @@ apontam para `pecas_insumos.id`, mas **não existe chave estrangeira**. O tipo
 também diverge: `varchar` aqui, `varchar` lá — e `pecas_insumos.id` é o único PK
 do schema que não é `uuid`.
 
-O controle de estoque vive em `quantidade_estoque` e `quantidade_reservada`, com
-reserva feita na abertura da OS e liberada no cancelamento.
+O controle de estoque vive em `quantidade_estoque` e `quantidade_reservada`. Na Fase 4
+a reserva passa a ter dono: a Saga reserva depois da aprovação do orçamento, registra cada
+reserva em `reservas_pecas` (essa sim com FK para `pecas_insumos`), libera na compensação e
+baixa na conclusão do serviço.
 
 ### Notificação é um outbox
 
@@ -220,19 +222,27 @@ reprocessador consulta. O `cliente_id` está lá por rastreabilidade, sem FK.
 
 ### Fase 4: histórico de status e mensageria da Saga
 
-Três tabelas novas, fora do diagrama acima (que retrata as 20 migrations da Fase 3):
+Tabelas novas, fora do diagrama acima (que retrata as 20 migrations da Fase 3):
 
 | Tabela | Migration | Papel |
 |---|---|---|
 | `ordem_servico_historico` | V21 | Uma linha por mudança de **status** da OS: `status_anterior`, `status_novo`, `origem` (`API`, `SAGA`, `TIMEOUT`, `MIGRACAO`), `saga_id`, `ocorrido_em`. FK para `ordens_de_servico` com `ON DELETE CASCADE` — composição, como as listas filhas da OS. A migration cria uma linha `MIGRACAO` com o status atual de cada OS existente |
-| `outbox_mensagens` | V22 | Outbox transacional dos comandos e eventos da Saga ([ADR 0005](../adr/0005-sqs-fifo-outbox-e-idempotencia.md)): mesmo padrão de `notificacoes`, com índice parcial nas pendentes (`publicada_em IS NULL`) |
+| `outbox_mensagens` | V22 | Outbox transacional dos comandos e eventos da Saga ([ADR 0005](../adr/0005-sqs-fifo-outbox-e-idempotencia.md)): mesmo padrão de `notificacoes`, com índice parcial nas pendentes (`publicada_em IS NULL`). É também a fonte do reenvio de comandos sem resposta (último comando do tipo para a OS, `messageId` novo) |
 | `mensagens_processadas` | V22 | Idempotência do consumidor: o `messageId` de cada mensagem já tratada, gravado na mesma transação do efeito |
-
-| `saga_instancia` | V23 | Uma Saga por OS ([ADR 0004](../adr/0004-saga-orquestrada.md)): `status`, `passo_atual`, `orcamento_id`, `desfecho`, `motivo`, `compensacoes_pendentes`, `prazo_expira_em` (índice parcial), `tentativas_passo` e `versao` (lock otimista entre consumidor e agendador). FK única para `ordens_de_servico` com `ON DELETE CASCADE`. A V23 cria uma Saga para cada OS existente |
-| `saga_passos` | V23 | História da Saga: comandos enviados, eventos recebidos ou ignorados, prazos vencidos |
+| `saga_instancia` | V23 | Uma Saga por OS ([ADR 0004](../adr/0004-saga-orquestrada.md)): `status`, `passo_atual`, `orcamento_id`, `pagamento_id`, `link_pagamento` (V24), `desfecho`, `motivo`, `compensacoes_pendentes`, `prazo_expira_em` (índice parcial), `tentativas_passo` e `versao` (lock otimista entre consumidor e agendador). FK única para `ordens_de_servico` com `ON DELETE CASCADE`. A V23 cria uma Saga para cada OS existente |
+| `saga_passos` | V23 | História da Saga: comandos enviados e reenviados, eventos recebidos ou ignorados, prazos vencidos |
+| `reservas_pecas` | V24 | Quanto de cada peça está reservado para cada OS (PK `ordem_de_servico_id` + `peca_insumo_id`; `status` `RESERVADA`, `CONSUMIDA` ou `LIBERADA`). FK para `pecas_insumos`; **sem FK** para a OS, que fica em outro serviço. Até aqui a reserva era só o contador `pecas_insumos.quantidade_reservada`, sem dono. Na Execution Service vira a tabela `oficina-<env>-reservas` do DynamoDB |
+| `pagamentos` | V24 | Cobrança de um orçamento aprovado ([ADR 0007](../adr/0007-mercado-pago-checkout-pro.md)): `valor`, `status`, `motivo`, referências do Mercado Pago (`mp_preference_id`, `mp_payment_id` único, `mp_refund_id`), `link_pagamento`, `expira_em` (índice parcial nas pendentes, para o expirador), `idempotency_key` única e `versao`. FK para `orcamentos` (mesmo serviço: Billing) |
 
 A V23 também acrescenta `orcamentos.saga_id` (sem FK: no Billing Service a Saga estará em outro banco)
 e move para `AGUARDANDO_EXECUCAO` as OSs aprovadas pelo JWT que tinham ficado em `AGUARDANDO_APROVACAO`.
+A V24 regulariza as reservas das OSs já aprovadas (`AGUARDANDO_EXECUCAO` ou `SERVICO_EM_ANDAMENTO`):
+cria em `reservas_pecas` uma linha por peça do orçamento aprovado, somando repetições — sem ela, a
+conclusão do serviço (que agora baixa a reserva da OS) não baixaria o estoque dessas OSs.
+
+Status novos da OS (sem migration, a coluna é texto): `AGUARDANDO_PAGAMENTO` e `CANCELADA`, com os
+motivos `PAGAMENTO_RECUSADO`, `PAGAMENTO_EXPIRADO` e `FALHA_EXECUCAO`. O orçamento ganha o status
+`CANCELADO` também depois de aprovado (pagamento recusado/expirado ou estorno).
 
 ---
 

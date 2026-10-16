@@ -343,8 +343,9 @@
                             </rules>
                         </configuration>
                     </execution>
-                    <!-- Fase 4: mensageria (outbox, transporte, consumidor idempotente - ADR 0005) e Saga
-                         orquestrada (orquestrador e participante do orcamento - ADR 0004). -->
+                    <!-- Fase 4: mensageria (outbox, transporte, consumidor idempotente - ADR 0005), Saga
+                         orquestrada e seus participantes (orcamento, pagamento e estoque - ADR 0004) e a
+                         ponte transitoria entre os modulos que viram servicos (ADR 0003). -->
                     <execution>
                         <id>check-mensageria-coverage</id>
                         <phase>test</phase>
@@ -361,6 +362,11 @@
                                         <include>br/com/oficina/ordemservico/saga/*</include>
                                         <include>br/com/oficina/ordemservico/saga/*/*</include>
                                         <include>br/com/oficina/orcamento/application/saga</include>
+                                        <include>br/com/oficina/pagamento</include>
+                                        <include>br/com/oficina/pagamento/*</include>
+                                        <include>br/com/oficina/pecainsumo/application/saga</include>
+                                        <include>br/com/oficina/pecainsumo/infrastructure/mensageria</include>
+                                        <include>br/com/oficina/ponte</include>
                                     </includes>
                                     <limits>
                                         <limit>

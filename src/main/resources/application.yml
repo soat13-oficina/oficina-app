@@ -106,8 +106,23 @@ saga:
   # Prazo de decisao do cliente. Vazio = vale a validade do orcamento (producao). Curto em hml.
   prazo-decisao: ${SAGA_PRAZO_DECISAO:}
   prazo-decisao-padrao: P7D  # orcamento sem validade
-  prazo-resposta: ${SAGA_PRAZO_RESPOSTA:PT5M}  # confirmacao de compensacao
-  max-tentativas: 3
+  prazo-resposta: ${SAGA_PRAZO_RESPOSTA:PT5M}  # resposta a qualquer comando (avanco ou compensacao)
+  max-tentativas: 3  # reenvios de um comando sem resposta antes de tratar o passo como falha
+  # Prazo para o cliente pagar (vai no SolicitarPagamento). O Billing expira a cobranca; o OS so age
+  # se nada chegar ate o prazo + margem (rede de seguranca).
+  prazo-pagamento: ${SAGA_PRAZO_PAGAMENTO:PT24H}
+  margem-pagamento: PT10M
   prazos:
     agendamento-habilitado: true
     intervalo-ms: ${SAGA_PRAZOS_INTERVALO_MS:30000}
+
+# Pagamento do orcamento (ADR 0007). Gateway simulado ate o Mercado Pago entrar (Passo 3):
+# POST /pagamentos/{id}/simulacao faz o papel do cliente pagando e do webhook do provedor.
+pagamento:
+  simulacao:
+    habilitada: ${PAGAMENTO_SIMULACAO_HABILITADA:true}
+  simulado:
+    link-base: ${PAGAMENTO_LINK_BASE:https://pagamento-simulado.oficina.local/checkout}
+  expiracao:
+    agendamento-habilitado: true
+    intervalo-ms: ${PAGAMENTO_EXPIRACAO_INTERVALO_MS:30000}

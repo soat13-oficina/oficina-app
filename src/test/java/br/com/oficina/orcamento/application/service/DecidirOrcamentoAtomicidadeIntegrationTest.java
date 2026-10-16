@@ -21,7 +21,6 @@ import org.springframework.context.annotation.Primary;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
-import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.DecidirOrcamentoExternamenteCommand;
 import br.com.oficina.orcamento.application.usecase.DecidirOrcamentoExternamenteUseCase;
 import br.com.oficina.common.application.mensageria.Envelope;
@@ -108,7 +107,7 @@ class DecidirOrcamentoAtomicidadeIntegrationTest {
     }
 
     @Test
-    void deveReverterAprovacaoEReservaQuandoOEventoDaSagaNaoPodeSerGravado() {
+    void deveReverterAprovacaoQuandoOEventoDaSagaNaoPodeSerGravado() {
         String pecaId = seedPeca("PINS-ATOM-1", 10, 0);
         UUID ordemId = seedOrdemEmAguardandoAprovacao();
         seedOrcamento("ORC-ATOM-1", ordemId, pecaId, 2);
@@ -120,23 +119,7 @@ class DecidirOrcamentoAtomicidadeIntegrationTest {
         assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, orcamento.getStatus(),
                 "Orçamento deve permanecer aguardando aprovação após o rollback");
         assertEquals(0, pecaInsumoRepository.buscarPorId(pecaId).orElseThrow().getQuantidadeReservada(),
-                "Nenhuma peça pode permanecer reservada após o rollback");
-    }
-
-    @Test
-    void devePreservarOrcamentoQuandoEstoqueInsuficiente() {
-        String pecaId = seedPeca("PINS-ATOM-2", 1, 0);
-        UUID ordemId = seedOrdemEmAguardandoAprovacao();
-        seedOrcamento("ORC-ATOM-2", ordemId, pecaId, 5);
-
-        assertThrows(RegraDeNegocioException.class, () -> decidirOrcamentoExternamenteUseCase.decidir(
-                new DecidirOrcamentoExternamenteCommand("ORC-ATOM-2", DecisaoOrcamento.APROVADO)));
-
-        Orcamento orcamento = orcamentoRepository.buscarPorNumeroOrcamento("ORC-ATOM-2").orElseThrow();
-        assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, orcamento.getStatus(),
-                "Orçamento deve permanecer aguardando aprovação quando o estoque é insuficiente");
-        assertEquals(0, pecaInsumoRepository.buscarPorId(pecaId).orElseThrow().getQuantidadeReservada(),
-                "Nenhuma peça pode permanecer reservada quando o estoque é insuficiente");
+                "Aprovar nao reserva: a reserva e passo da Saga (ReservarPecas)");
     }
 
     private String seedPeca(String codigoReferencia, int estoque, int reservada) {
@@ -210,7 +193,22 @@ class DecidirOrcamentoAtomicidadeIntegrationTest {
                 }
 
                 @Override
-                public void orcamentoCancelado(Envelope comando, Orcamento orcamento) {
+                public void orcamentoGerado(Envelope comando, Orcamento orcamento) {
+                    throw new IllegalStateException("Falha simulada ao gravar o evento no outbox");
+                }
+
+                @Override
+                public void orcamentoFalhou(Envelope comando, String motivo, java.util.List<String> pecasInvalidas) {
+                    throw new IllegalStateException("Falha simulada ao gravar o evento no outbox");
+                }
+
+                @Override
+                public void aprovacaoRevertida(Envelope comando, Orcamento orcamento) {
+                    throw new IllegalStateException("Falha simulada ao gravar o evento no outbox");
+                }
+
+                @Override
+                public void orcamentoCancelado(Envelope comando, Orcamento orcamento, boolean pagamentoCancelado) {
                     throw new IllegalStateException("Falha simulada ao gravar o evento no outbox");
                 }
             };

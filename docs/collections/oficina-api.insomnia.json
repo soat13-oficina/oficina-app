@@ -24,6 +24,7 @@
         "numeroordemservico": "",
         "orcamentoid": "",
         "ordemservicoid": "",
+        "pagamentoid": "",
         "placa": "",
         "token": "",
         "x_webhook_token": ""
@@ -58,6 +59,12 @@
       "_type": "request_group",
       "parentId": "wrk_oficina",
       "name": "Ordens de Servico"
+    },
+    {
+      "_id": "fld_pagamentos",
+      "_type": "request_group",
+      "parentId": "wrk_oficina",
+      "name": "Pagamentos"
     },
     {
       "_id": "fld_pe_as_e_insumos",
@@ -580,27 +587,34 @@
       ]
     },
     {
+      "_id": "req_post_ordens_servico_numeroordemservico_execucao_abortar",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Abortar execução",
+      "method": "POST",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/execucao/abortar",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
       "_id": "req_post_ordens_servico_numeroordemservico_execucao_iniciar",
       "_type": "request",
       "parentId": "fld_ordens_de_servico",
       "name": "Iniciar execução",
       "method": "POST",
       "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/execucao/iniciar",
-      "body": {},
-      "headers": [
-        {
-          "name": "Authorization",
-          "value": "Bearer {{ _.token }}"
-        }
-      ]
-    },
-    {
-      "_id": "req_post_ordens_servico_numeroordemservico_finalizacao",
-      "_type": "request",
-      "parentId": "fld_ordens_de_servico",
-      "name": "Finalizar ordem de serviço (legado)",
-      "method": "POST",
-      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/finalizacao",
       "body": {},
       "headers": [
         {
@@ -658,6 +672,58 @@
         {
           "name": "Authorization",
           "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_orcamentos_numeroorcamento_pagamento",
+      "_type": "request",
+      "parentId": "fld_pagamentos",
+      "name": "Consultar o pagamento de um orçamento",
+      "method": "GET",
+      "url": "{{ _.base_url }}/orcamentos/{{ _.numeroorcamento }}/pagamento",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_pagamentos_pagamentoid",
+      "_type": "request",
+      "parentId": "fld_pagamentos",
+      "name": "Consultar pagamento",
+      "method": "GET",
+      "url": "{{ _.base_url }}/pagamentos/{{ _.pagamentoid }}",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_post_pagamentos_pagamentoid_simulacao",
+      "_type": "request",
+      "parentId": "fld_pagamentos",
+      "name": "Simular o resultado do pagamento",
+      "method": "POST",
+      "url": "{{ _.base_url }}/pagamentos/{{ _.pagamentoid }}/simulacao",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
         }
       ]
     },

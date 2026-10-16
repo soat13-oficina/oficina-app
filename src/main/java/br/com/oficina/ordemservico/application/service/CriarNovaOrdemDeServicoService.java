@@ -1,6 +1,7 @@
 package br.com.oficina.ordemservico.application.service;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -15,6 +16,7 @@ import br.com.oficina.cliente.domain.repository.ClienteRepository;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
+import br.com.oficina.ordemservico.application.port.CatalogoPecas;
 import br.com.oficina.ordemservico.application.usecase.CriarNovaOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
@@ -24,7 +26,6 @@ import br.com.oficina.ordemservico.domain.model.ServicoOrdem;
 import br.com.oficina.ordemservico.domain.repository.FuncionarioRepository;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 import br.com.oficina.ordemservico.saga.application.PassosDaSaga;
-import br.com.oficina.pecainsumo.domain.repository.PecaInsumoRepository;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 
@@ -36,7 +37,7 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
     private final VeiculoRepository veiculoRepository;
     private final FuncionarioRepository funcionarioRepository;
     private final OrdemDeServicoRepository ordemDeServicoRepository;
-    private final PecaInsumoRepository pecaInsumoRepository;
+    private final CatalogoPecas catalogoPecas;
     private final ApplicationEventPublisher eventPublisher;
     private final PassosDaSaga passosDaSaga;
 
@@ -45,9 +46,9 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
             VeiculoRepository veiculoRepository,
             FuncionarioRepository funcionarioRepository,
             OrdemDeServicoRepository ordemDeServicoRepository,
-            PecaInsumoRepository pecaInsumoRepository,
+            CatalogoPecas catalogoPecas,
             ApplicationEventPublisher eventPublisher) {
-        this(clienteRepository, veiculoRepository, funcionarioRepository, ordemDeServicoRepository, pecaInsumoRepository, eventPublisher, PassosDaSaga.NENHUM);
+        this(clienteRepository, veiculoRepository, funcionarioRepository, ordemDeServicoRepository, catalogoPecas, eventPublisher, PassosDaSaga.NENHUM);
     }
 
     @Autowired
@@ -56,14 +57,14 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
             VeiculoRepository veiculoRepository,
             FuncionarioRepository funcionarioRepository,
             OrdemDeServicoRepository ordemDeServicoRepository,
-            PecaInsumoRepository pecaInsumoRepository,
+            CatalogoPecas catalogoPecas,
             ApplicationEventPublisher eventPublisher,
             PassosDaSaga passosDaSaga) {
         this.clienteRepository = clienteRepository;
         this.veiculoRepository = veiculoRepository;
         this.funcionarioRepository = funcionarioRepository;
         this.ordemDeServicoRepository = ordemDeServicoRepository;
-        this.pecaInsumoRepository = pecaInsumoRepository;
+        this.catalogoPecas = catalogoPecas;
         this.eventPublisher = eventPublisher;
         this.passosDaSaga = passosDaSaga;
     }
@@ -90,8 +91,9 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
         List<ServicoOrdem> servicos = command.servicos().stream()
                 .map(item -> new ServicoOrdem(item.descricao(), item.valorMaoDeObra()))
                 .toList();
+        validarPecas(command.pecasPrevistas().stream().map(CriarOrdemDeServicoCommand.PecaItem::pecaInsumoId).toList());
         List<PecaPrevistaOrdem> pecasPrevistas = command.pecasPrevistas().stream()
-                .map(this::montarPecaPrevista)
+                .map(item -> new PecaPrevistaOrdem(item.pecaInsumoId(), item.quantidade()))
                 .toList();
 
         UUID identificador = UUID.randomUUID();
@@ -118,11 +120,15 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
         return ordemDeServico.getNumeroOrdemServico();
     }
 
-    private PecaPrevistaOrdem montarPecaPrevista(CriarOrdemDeServicoCommand.PecaItem item) {
-        pecaInsumoRepository.buscarPorId(item.pecaInsumoId())
-                .orElseThrow(() -> new RecursoNaoEncontradoException(
-                        "Peca nao encontrada para o identificador informado: " + item.pecaInsumoId()));
-        return new PecaPrevistaOrdem(item.pecaInsumoId(), item.quantidade());
+    private void validarPecas(List<String> pecaInsumoIds) {
+        if (pecaInsumoIds.isEmpty()) {
+            return;
+        }
+        Set<String> inexistentes = catalogoPecas.inexistentes(pecaInsumoIds);
+        if (!inexistentes.isEmpty()) {
+            throw new RecursoNaoEncontradoException(
+                    "Peca nao encontrada para o identificador informado: " + String.join(", ", inexistentes));
+        }
     }
 
     private UUID paraUuid(String valor, String mensagemErro) {

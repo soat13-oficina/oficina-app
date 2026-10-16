@@ -39,6 +39,9 @@ public class TestOrcamentoRepository implements OrcamentoRepository {
         if (orcamento.getEnviadoParaAprovacaoEm() != null) {
             orcamentoPersistido.enviarParaAprovacao(orcamento.getEnviadoParaAprovacaoEm());
         }
+        if (orcamento.getSagaId() != null) {
+            orcamentoPersistido.vincularSaga(orcamento.getSagaId());
+        }
         orcamentos.put(orcamentoPersistido.getId(), orcamentoPersistido);
         return orcamentoPersistido;
     }

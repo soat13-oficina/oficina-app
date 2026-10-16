@@ -2,12 +2,14 @@ package br.com.oficina.orcamento.application.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
+import br.com.oficina.orcamento.application.port.CatalogoPecas;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import org.springframework.stereotype.Service;
 
@@ -18,8 +20,6 @@ import br.com.oficina.orcamento.application.command.AlterarOrcamentoCommand;
 import br.com.oficina.orcamento.application.usecase.AlterarOrcamentoUseCase;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
-import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
-import br.com.oficina.pecainsumo.domain.repository.PecaInsumoRepository;
 
 @Service
 public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
@@ -27,15 +27,15 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
 
     private final OrcamentoRepository orcamentoRepository;
     private final ClienteRepository clienteRepository;
-    private final PecaInsumoRepository pecaInsumoRepository;
+    private final CatalogoPecas catalogoPecas;
 
     public AlterarOrcamentoService(
             OrcamentoRepository orcamentoRepository,
             ClienteRepository clienteRepository,
-            PecaInsumoRepository pecaInsumoRepository) {
+            CatalogoPecas catalogoPecas) {
         this.orcamentoRepository = orcamentoRepository;
         this.clienteRepository = clienteRepository;
-        this.pecaInsumoRepository = pecaInsumoRepository;
+        this.catalogoPecas = catalogoPecas;
     }
 
     @Override
@@ -85,15 +85,18 @@ public class AlterarOrcamentoService implements AlterarOrcamentoUseCase {
         if (inputs == null || inputs.isEmpty()) {
             return new ArrayList<>();
         }
+        Map<String, CatalogoPecas.PecaCatalogo> catalogo =
+                catalogoPecas.consultar(inputs.stream().map(PecaOrcamentoInput::pecaInsumoId).toList());
         List<PecaOrcamento> pecas = new ArrayList<>();
         for (PecaOrcamentoInput input : inputs) {
-            PecaInsumo peca = pecaInsumoRepository.buscarPorId(input.pecaInsumoId())
-                    .orElseThrow(() -> new RecursoNaoEncontradoException(
-                            "Peca/Insumo nao encontrada com o ID: " + input.pecaInsumoId()));
+            CatalogoPecas.PecaCatalogo peca = catalogo.get(input.pecaInsumoId());
+            if (peca == null) {
+                throw new RecursoNaoEncontradoException("Peca/Insumo nao encontrada com o ID: " + input.pecaInsumoId());
+            }
             if (input.quantidade() <= 0) {
                 throw new RegraDeNegocioException("A quantidade da peca deve ser maior que zero.");
             }
-            pecas.add(new PecaOrcamento(peca.getId(), peca.getDescricao(), peca.getPreco(), input.quantidade()));
+            pecas.add(new PecaOrcamento(peca.pecaInsumoId(), peca.descricao(), peca.preco(), input.quantidade()));
         }
         return pecas;
     }

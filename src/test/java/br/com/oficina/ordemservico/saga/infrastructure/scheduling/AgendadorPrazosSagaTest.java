@@ -16,7 +16,7 @@ class AgendadorPrazosSagaTest {
     void cadaCicloProcessaOsPrazosVencidos() {
         AtomicInteger chamadas = new AtomicInteger();
         OrquestradorSagaOrdemServico orquestrador = new OrquestradorSagaOrdemServico(
-                null, null, null, null, null, null, null, null, null, null, 3) {
+                null, null, null, null, null, null, null, null) {
             @Override
             public int processarPrazosVencidos() {
                 return chamadas.incrementAndGet();
@@ -31,7 +31,7 @@ class AgendadorPrazosSagaTest {
     @Test
     void falhaDoCicloInteiroNaoDerrubaOAgendamento() {
         OrquestradorSagaOrdemServico quebrado = new OrquestradorSagaOrdemServico(
-                null, null, null, null, null, null, null, null, null, null, 3) {
+                null, null, null, null, null, null, null, null) {
             @Override
             public int processarPrazosVencidos() {
                 throw new IllegalStateException("banco fora");

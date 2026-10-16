@@ -6,16 +6,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import br.com.oficina.orcamento.infrastructure.persistence.SpringDataOrcamentoRepository;
+import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 import br.com.oficina.ordemservico.saga.application.OrquestradorSagaOrdemServico;
 import br.com.oficina.ordemservico.saga.domain.model.RegistroPassoSaga;
+import br.com.oficina.ordemservico.saga.domain.model.SagaOrdemServico;
 import br.com.oficina.ordemservico.saga.domain.repository.SagaOrdemServicoRepository;
+import br.com.oficina.pagamento.application.ResultadoPagamentoService;
+import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
+import br.com.oficina.pecainsumo.domain.repository.PecaInsumoRepository;
+import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataPecaInsumoRepository;
 import br.com.oficina.support.saga.FluxoOficinaHttp;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
@@ -30,7 +39,7 @@ import io.cucumber.java.pt.Quando;
  */
 public class SagaSteps {
 
-    /** Validade do orcamento enviado nos cenarios (FluxoOficinaHttp#enviarParaOrcamento). */
+    /** Validade do orcamento enviado nos cenarios (FluxoOficinaHttp#solicitarOrcamento). */
     private static final LocalDateTime DEPOIS_DA_VALIDADE = LocalDateTime.of(2030, 1, 2, 0, 0);
 
     @Autowired
@@ -45,19 +54,49 @@ public class SagaSteps {
     @Autowired
     private SpringDataOrcamentoRepository orcamentos;
 
+    @Autowired
+    private ResultadoPagamentoService resultadoPagamento;
+
+    @Autowired
+    private PecaInsumoRepository pecaInsumoRepository;
+
+    @Autowired
+    private SpringDataPecaInsumoRepository springDataPecas;
+
     private FluxoOficinaHttp fluxo;
     private String numeroOrdem;
     private String numeroOrcamento;
+    private final Map<String, String> pecas = new HashMap<>();
 
     @Before
     public void preparar() {
         fluxo = new FluxoOficinaHttp(MockMvcBuilders.webAppContextSetup(contexto).apply(springSecurity()).build(), contexto);
         fluxo.limpar();
+        pecas.clear();
     }
 
     @After
     public void limpar() {
         fluxo.limpar();
+    }
+
+    // ------------------------------------------------------------------ preparacao
+
+    @Dado("a peça {string} com {int} unidades em estoque")
+    public void pecaEmEstoque(String descricao, int estoque) {
+        pecas.put(descricao, fluxo.cadastrarPeca(descricao, estoque));
+    }
+
+    @Dado("que restou só {int} unidade de {string}")
+    public void restouSo(int estoque, String descricao) {
+        PecaInsumo peca = fluxo.peca(pecas.get(descricao));
+        pecaInsumoRepository.salvar(new PecaInsumo(peca.getId(), peca.getDescricao(), peca.getMarca(), peca.getPreco(),
+                estoque, 0, peca.getCodigoReferencia(), peca.getCategoria()));
+    }
+
+    @Dado("que a peça {string} saiu do catálogo")
+    public void pecaSaiuDoCatalogo(String descricao) {
+        springDataPecas.deleteById(pecas.get(descricao));
     }
 
     @Dado("uma ordem de serviço aberta para o veículo {string}")
@@ -70,9 +109,21 @@ public class SagaSteps {
         fluxo.diagnosticar(numeroOrdem, servico);
     }
 
+    @E("o diagnóstico concluído com o serviço {string} e {int} unidades de {string}")
+    public void diagnosticoConcluidoComPeca(String servico, int quantidade, String descricao) throws Exception {
+        fluxo.diagnosticarComPeca(numeroOrdem, servico, pecas.get(descricao), quantidade);
+    }
+
     @E("o orçamento enviado ao cliente")
     public void orcamentoEnviado() throws Exception {
         numeroOrcamento = fluxo.enviarParaOrcamento(numeroOrdem);
+    }
+
+    // ------------------------------------------------------------------ acoes
+
+    @Quando("o diagnóstico é enviado para orçamento")
+    public void diagnosticoEnviado() throws Exception {
+        fluxo.solicitarOrcamento(numeroOrdem);
     }
 
     @Quando("o cliente aprova o orçamento")
@@ -85,6 +136,24 @@ public class SagaSteps {
         fluxo.clienteRejeita(numeroOrcamento);
     }
 
+    @Quando("o cliente paga")
+    public void clientePaga() throws Exception {
+        fluxo.processarMensagens();
+        fluxo.simularPagamento(numeroOrcamento, "APROVADO").andExpect(status().isOk());
+    }
+
+    @Quando("o pagamento é recusado")
+    public void pagamentoRecusado() throws Exception {
+        fluxo.processarMensagens();
+        fluxo.simularPagamento(numeroOrcamento, "RECUSADO").andExpect(status().isOk());
+    }
+
+    @Quando("o prazo de pagamento vence")
+    public void prazoDePagamentoVence() {
+        fluxo.processarMensagens();
+        assertThat(resultadoPagamento.expirarVencidos(LocalDateTime.now().plusDays(2))).isEqualTo(1);
+    }
+
     @Quando("o mecânico inicia e conclui a execução")
     public void mecanicoExecuta() throws Exception {
         fluxo.processarMensagens();
@@ -92,10 +161,19 @@ public class SagaSteps {
         fluxo.acao(numeroOrdem, "/servico/concluir");
     }
 
+    @Quando("o mecânico inicia a execução e aborta com o motivo {string}")
+    public void mecanicoAborta(String motivo) throws Exception {
+        fluxo.processarMensagens();
+        fluxo.acao(numeroOrdem, "/execucao/iniciar");
+        fluxo.abortarExecucao(numeroOrdem, motivo);
+    }
+
     @Quando("o prazo de decisão vence sem resposta do cliente")
     public void prazoVence() {
         orquestrador.processarPrazosVencidos(DEPOIS_DA_VALIDADE);
     }
+
+    // ------------------------------------------------------------------ verificacoes
 
     @Entao("a ordem fica {string}")
     public void ordemFica(String situacao) throws Exception {
@@ -109,6 +187,14 @@ public class SagaSteps {
         assertThat(fluxo.ordem(numeroOrdem).getMotivoEncerramento()).hasToString(motivo);
     }
 
+    @E("o diagnóstico volta ao mecânico sem as peças")
+    public void diagnosticoReaberto() {
+        OrdemDeServico ordem = fluxo.ordem(numeroOrdem);
+        assertThat(ordem.getStatus()).isEqualTo(StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO);
+        assertThat(ordem.getPecasPrevistas()).isEmpty();
+        assertThat(ordem.getServicos()).isNotEmpty();
+    }
+
     @E("a saga fica {string}")
     public void sagaFica(String status) throws Exception {
         fluxo.processarMensagens();
@@ -120,8 +206,18 @@ public class SagaSteps {
     @E("a saga termina como {string}")
     public void sagaTermina(String status) throws Exception {
         sagaFica(status);
-        assertThat(sagas.buscarPorOrdemDeServico(fluxo.ordem(numeroOrdem).getId()).orElseThrow().getStatus().isFinal())
-                .as("estado final").isTrue();
+        assertThat(saga().getStatus().isFinal()).as("estado final").isTrue();
+    }
+
+    @E("o cliente recebe o link de pagamento")
+    public void linkDePagamento() throws Exception {
+        fluxo.processarMensagens();
+        String link = saga().getLinkPagamento();
+        assertThat(link).isNotBlank();
+        fluxo.pagamento(numeroOrcamento)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(jsonPath("$.linkPagamento").value(link));
     }
 
     @E("o orçamento fica {string}")
@@ -131,10 +227,32 @@ public class SagaSteps {
                 .satisfies(orcamento -> assertThat(orcamento.getStatus()).hasToString(status));
     }
 
+    @E("nenhum orçamento é gerado")
+    public void nenhumOrcamento() {
+        fluxo.processarMensagens();
+        assertThat(orcamentos.findAll()).isEmpty();
+    }
+
+    @E("o pagamento fica {string}")
+    public void pagamentoFica(String status) throws Exception {
+        fluxo.processarMensagens();
+        fluxo.pagamento(numeroOrcamento)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(status));
+    }
+
+    @E("a peça {string} fica com {int} unidades reservadas e {int} em estoque")
+    public void pecaFica(String descricao, int reservadas, int estoque) {
+        fluxo.processarMensagens();
+        PecaInsumo peca = fluxo.peca(pecas.get(descricao));
+        assertThat(peca.getQuantidadeReservada()).as("reservadas").isEqualTo(reservadas);
+        assertThat(peca.getQuantidadeEstoque()).as("em estoque").isEqualTo(estoque);
+    }
+
     @E("a história da saga registra o comando {string} e a confirmação {string}")
     public void historiaRegistra(String comando, String confirmacao) {
-        List<RegistroPassoSaga> passos = sagas.listarPassos(
-                sagas.buscarPorOrdemDeServico(fluxo.ordem(numeroOrdem).getId()).orElseThrow().getId());
+        fluxo.processarMensagens();
+        List<RegistroPassoSaga> passos = sagas.listarPassos(saga().getId());
         assertThat(passos).anySatisfy(p -> {
             assertThat(p.getTipo()).isEqualTo(RegistroPassoSaga.Tipo.COMANDO_ENVIADO);
             assertThat(p.getDetalhe()).isEqualTo(comando);
@@ -143,5 +261,9 @@ public class SagaSteps {
             assertThat(p.getTipo()).isEqualTo(RegistroPassoSaga.Tipo.EVENTO_RECEBIDO);
             assertThat(p.getDetalhe()).startsWith(confirmacao);
         });
+    }
+
+    private SagaOrdemServico saga() {
+        return sagas.buscarPorOrdemDeServico(fluxo.ordem(numeroOrdem).getId()).orElseThrow();
     }
 }

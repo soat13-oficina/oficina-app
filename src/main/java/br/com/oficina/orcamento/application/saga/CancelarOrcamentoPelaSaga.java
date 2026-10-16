@@ -8,13 +8,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.oficina.common.application.mensageria.Envelope;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
+import br.com.oficina.orcamento.application.port.PagamentosDoOrcamento;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Compensacao {@code CancelarOrcamento} (ADR 0004): o orcamento deixa de valer e a Saga recebe a
- * confirmacao {@code OrcamentoCancelado}.
+ * Compensacao {@code CancelarOrcamento} (ADR 0004): o orcamento deixa de valer - e a cobranca
+ * pendente, se houver - e a Saga recebe a confirmacao {@code OrcamentoCancelado}.
  *
  * <p>Idempotente pelo estado: um comando reenviado por timeout (messageId novo) encontra o orcamento
  * ja cancelado e so republica a confirmacao - e isso que destrava a Saga quando a resposta original
@@ -25,11 +26,17 @@ public class CancelarOrcamentoPelaSaga {
     private static final Logger log = LoggerFactory.getLogger(CancelarOrcamentoPelaSaga.class);
 
     private final OrcamentoRepository orcamentoRepository;
+    private final PagamentosDoOrcamento pagamentos;
     private final EventosOrcamento eventos;
     private final JsonMapper jsonMapper;
 
-    public CancelarOrcamentoPelaSaga(OrcamentoRepository orcamentoRepository, EventosOrcamento eventos, JsonMapper jsonMapper) {
+    public CancelarOrcamentoPelaSaga(
+            OrcamentoRepository orcamentoRepository,
+            PagamentosDoOrcamento pagamentos,
+            EventosOrcamento eventos,
+            JsonMapper jsonMapper) {
         this.orcamentoRepository = orcamentoRepository;
+        this.pagamentos = pagamentos;
         this.eventos = eventos;
         this.jsonMapper = jsonMapper;
     }
@@ -46,6 +53,7 @@ public class CancelarOrcamentoPelaSaga {
         } else {
             log.info("Orcamento ja estava cancelado; confirmacao republicada. numeroOrcamento={}", orcamento.getNumeroOrcamento());
         }
-        eventos.orcamentoCancelado(comando, orcamento);
+        boolean pagamentoCancelado = pagamentos.cancelarPendente(orcamento.getId());
+        eventos.orcamentoCancelado(comando, orcamento, pagamentoCancelado);
     }
 }

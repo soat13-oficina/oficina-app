@@ -283,9 +283,9 @@ public class Orcamento {
     }
 
     /**
-     * Compensacao da Saga ({@code CancelarOrcamento}): o orcamento deixa de valer. Idempotente - um
-     * comando repetido sobre orcamento ja cancelado nao e erro. Decidido (aprovado ou rejeitado), nao
-     * pode mais ser cancelado por esta via.
+     * Compensacao da Saga ({@code CancelarOrcamento}): o orcamento deixa de valer - prazo de decisao
+     * vencido (aguardando aprovacao) ou pagamento recusado/expirado (aprovado). Idempotente: um comando
+     * repetido sobre orcamento ja cancelado nao e erro. Rejeitado pelo cliente, nao se cancela.
      *
      * @return {@code true} se o cancelamento aconteceu agora
      */
@@ -293,10 +293,27 @@ public class Orcamento {
         if (status == StatusOrcamento.CANCELADO) {
             return false;
         }
-        if (status != StatusOrcamento.AGUARDANDO_APROVACAO) {
-            throw new RegraDeNegocioException("Orcamento so pode ser cancelado quando estiver aguardando aprovacao.");
+        if (status != StatusOrcamento.AGUARDANDO_APROVACAO && status != StatusOrcamento.APROVADO) {
+            throw new RegraDeNegocioException("Orcamento so pode ser cancelado quando estiver aguardando aprovacao ou aprovado.");
         }
         this.status = StatusOrcamento.CANCELADO;
+        return true;
+    }
+
+    /**
+     * Compensacao da Saga ({@code ReverterAprovacao}): faltou estoque para as pecas, o orcamento volta a
+     * aguardar a decisao do cliente. Idempotente: ja aguardando aprovacao, nada muda.
+     *
+     * @return {@code true} se a reversao aconteceu agora
+     */
+    public boolean reverterAprovacao() {
+        if (status == StatusOrcamento.AGUARDANDO_APROVACAO) {
+            return false;
+        }
+        if (status != StatusOrcamento.APROVADO) {
+            throw new RegraDeNegocioException("So um orcamento aprovado pode ter a aprovacao revertida.");
+        }
+        this.status = StatusOrcamento.AGUARDANDO_APROVACAO;
         return true;
     }
 

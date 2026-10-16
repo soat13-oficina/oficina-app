@@ -88,8 +88,8 @@ class JpaOrdemDeServicoRepositoryIntegrationTest {
         OrdemDeServico ordem = OrdemDeServico.abrir(null, "OS-2026-003", funcionario, cliente, veiculo);
         ordem.iniciarDiagnostico();
         ordem.concluirDiagnostico();
-        ordem.enviarParaOrcamento();
-        ordem.finalizar();
+        ordem.enviarParaAprovacao();
+        ordem.recusarOrcamento();
         ordem.entregarAoCliente();
 
         repository.salvar(ordem);

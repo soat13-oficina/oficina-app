@@ -71,8 +71,13 @@ class OrdemDeServicoSituacaoAlteradaEmTest {
         LocalDateTime aoAguardarAprovacao = ordem.getSituacaoAlteradaEm();
         assertEquals(SituacaoOrdemDeServico.AGUARDANDO_APROVACAO, ordem.getSituacao());
 
-        // Fase 4: a aprovacao (pela Saga) ja e a entrada em "Execucao"; iniciar e outro status da mesma situacao.
-        ordem.aprovarOrcamento();
+        // Fase 4: aprovacao com pecas reservadas leva a "Aguardando Pagamento"; o pagamento confirmado
+        // ja e a entrada em "Execucao"; iniciar e outro status da mesma situacao.
+        ordem.aguardarPagamento();
+        LocalDateTime aoAguardarPagamento = ordem.getSituacaoAlteradaEm();
+        assertEquals(SituacaoOrdemDeServico.AGUARDANDO_PAGAMENTO, ordem.getSituacao());
+        assertTrue(!aoAguardarPagamento.isBefore(aoAguardarAprovacao));
+        ordem.confirmarPagamento();
         ordem.iniciarExecucao();
         LocalDateTime aoExecutar = ordem.getSituacaoAlteradaEm();
         assertEquals(SituacaoOrdemDeServico.EXECUCAO, ordem.getSituacao());
@@ -89,18 +94,18 @@ class OrdemDeServicoSituacaoAlteradaEmTest {
     }
 
     @Test
-    void finalizarAPartirDeOrcamentoGeradoTambemMoveORelogio() {
-        // Caminho que ninguém instrumentava: ORCAMENTO_GERADO -> OS_FINALIZADA.
+    void cancelarTambemMoveORelogio() {
         OrdemDeServico ordem = abrir();
         ordem.iniciarDiagnostico();
         ordem.concluirDiagnostico();
-        ordem.enviarParaOrcamento();
-        LocalDateTime aoGerarOrcamento = ordem.getSituacaoAlteradaEm();
+        ordem.enviarParaAprovacao();
+        ordem.aguardarPagamento();
+        LocalDateTime aoAguardarPagamento = ordem.getSituacaoAlteradaEm();
 
-        ordem.finalizar();
+        ordem.cancelarPorPagamento(MotivoEncerramento.PAGAMENTO_RECUSADO);
 
-        assertEquals(SituacaoOrdemDeServico.FINALIZADA, ordem.getSituacao());
-        assertTrue(!ordem.getSituacaoAlteradaEm().isBefore(aoGerarOrcamento));
+        assertEquals(SituacaoOrdemDeServico.CANCELADA, ordem.getSituacao());
+        assertTrue(!ordem.getSituacaoAlteradaEm().isBefore(aoAguardarPagamento));
     }
 
     private static OrdemDeServico abrir() {

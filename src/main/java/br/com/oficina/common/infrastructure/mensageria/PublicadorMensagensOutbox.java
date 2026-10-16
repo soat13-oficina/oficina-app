@@ -1,6 +1,9 @@
 package br.com.oficina.common.infrastructure.mensageria;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -35,5 +38,27 @@ public class PublicadorMensagensOutbox implements PublicadorMensagens {
                 envelope.ordemServicoId().toString(),
                 jsonMapper.writeValueAsString(envelope),
                 LocalDateTime.now()));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Optional<Envelope> reenviar(String fila, String tipo, UUID ordemServicoId) {
+        return repository.findFirstByGroupIdAndTipoOrderByCriadaEmDesc(ordemServicoId.toString(), tipo)
+                .map(anterior -> jsonMapper.readValue(anterior.getPayload(), Envelope.class))
+                .map(original -> new Envelope(
+                        UUID.randomUUID(),
+                        original.type(),
+                        original.version(),
+                        original.sagaId(),
+                        original.ordemServicoId(),
+                        original.correlationId(),
+                        original.causationId(),
+                        Instant.now(),
+                        original.source(),
+                        original.payload()))
+                .map(novo -> {
+                    publicar(fila, novo);
+                    return novo;
+                });
     }
 }

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -31,8 +32,11 @@ class TransicoesCicloDeVidaTest {
         ordem.enviarParaAprovacao();
         assertEquals(SituacaoOrdemDeServico.AGUARDANDO_APROVACAO, ordem.getSituacao());
 
-        // Fase 4: a Saga leva a ordem para a fila de execucao ao receber OrcamentoAprovado.
-        ordem.aprovarOrcamento();
+        // Fase 4: a Saga leva a ordem a "Aguardando Pagamento" (pecas reservadas) e depois a fila de
+        // execucao (pagamento confirmado).
+        ordem.aguardarPagamento();
+        assertEquals(SituacaoOrdemDeServico.AGUARDANDO_PAGAMENTO, ordem.getSituacao());
+        ordem.confirmarPagamento();
         assertEquals(StatusOrdemDeServico.AGUARDANDO_EXECUCAO, ordem.getStatus());
         assertEquals(SituacaoOrdemDeServico.EXECUCAO, ordem.getSituacao());
 
@@ -80,10 +84,74 @@ class TransicoesCicloDeVidaTest {
     }
 
     @Test
-    void deveRecusarAprovarOrcamentoForaDeAguardandoAprovacao() {
+    void deveRecusarConfirmarPagamentoForaDeAguardandoPagamento() {
         OrdemDeServico ordem = novaOrdem();
-        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, ordem::aprovarOrcamento);
-        assertEquals("Orcamento so pode ser aprovado quando a ordem estiver aguardando aprovacao", exception.getMessage());
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, ordem::confirmarPagamento);
+        assertEquals("Pagamento so pode ser confirmado quando a ordem estiver aguardando pagamento", exception.getMessage());
+    }
+
+    @Test
+    void deveCancelarPorPagamentoRecusadoOuExpirado() {
+        for (MotivoEncerramento motivo : List.of(MotivoEncerramento.PAGAMENTO_RECUSADO, MotivoEncerramento.PAGAMENTO_EXPIRADO)) {
+            OrdemDeServico ordem = aguardandoPagamento();
+
+            ordem.cancelarPorPagamento(motivo);
+
+            assertEquals(StatusOrdemDeServico.CANCELADA, ordem.getStatus());
+            assertEquals(SituacaoOrdemDeServico.CANCELADA, ordem.getSituacao());
+            assertEquals(motivo, ordem.getMotivoEncerramento());
+            assertNotNull(ordem.getFinalizadaEm());
+        }
+    }
+
+    @Test
+    void deveRecusarCancelamentoPorPagamentoComMotivoErradoOuForaDeHora() {
+        OrdemDeServico aguardando = aguardandoPagamento();
+        assertThrows(IllegalArgumentException.class, () -> aguardando.cancelarPorPagamento(MotivoEncerramento.SERVICO_CONCLUIDO));
+        OrdemDeServico aberta = novaOrdem();
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class,
+                () -> aberta.cancelarPorPagamento(MotivoEncerramento.PAGAMENTO_RECUSADO));
+        assertEquals("Ordem so pode ser cancelada por pagamento quando estiver aguardando pagamento", exception.getMessage());
+    }
+
+    @Test
+    void deveCancelarAoAbortarAExecucao() {
+        OrdemDeServico ordem = aguardandoPagamento();
+        ordem.confirmarPagamento();
+        ordem.iniciarExecucao();
+
+        ordem.abortarExecucao();
+
+        assertEquals(StatusOrdemDeServico.CANCELADA, ordem.getStatus());
+        assertEquals(MotivoEncerramento.FALHA_EXECUCAO, ordem.getMotivoEncerramento());
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, novaOrdem()::abortarExecucao);
+        assertEquals("Execucao so pode ser abortada quando estiver em andamento", exception.getMessage());
+    }
+
+    @Test
+    void deveReabrirODiagnosticoSemAsPecasEMantendoOsServicos() {
+        OrdemDeServico ordem = novaOrdem();
+        ordem.iniciarDiagnostico();
+        ordem.concluirDiagnostico("Troca de oleo", List.of(new PecaPrevistaOrdem("peca-1", 1)));
+
+        ordem.reabrirDiagnostico();
+        ordem.concluirDiagnostico("Troca de oleo", List.of(new PecaPrevistaOrdem("peca-2", 2)));
+
+        assertEquals(StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO, ordem.getStatus());
+        assertEquals(1, ordem.getServicos().size());
+        assertEquals("peca-2", ordem.getPecasPrevistas().get(0).getPecaInsumoId());
+        assertEquals(1, ordem.getPecasPrevistas().size());
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, novaOrdem()::reabrirDiagnostico);
+        assertEquals("Diagnostico so pode ser reaberto quando concluido", exception.getMessage());
+    }
+
+    private OrdemDeServico aguardandoPagamento() {
+        OrdemDeServico ordem = novaOrdem();
+        ordem.iniciarDiagnostico();
+        ordem.concluirDiagnostico();
+        ordem.enviarParaAprovacao();
+        ordem.aguardarPagamento();
+        return ordem;
     }
 
     @Test
@@ -132,12 +200,16 @@ class TransicoesCicloDeVidaTest {
         assertEquals(SituacaoOrdemDeServico.EXECUCAO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.SERVICO_EM_ANDAMENTO));
         assertEquals(SituacaoOrdemDeServico.FINALIZADA, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.OS_FINALIZADA));
         assertEquals(SituacaoOrdemDeServico.ENTREGUE, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.ENTREGUE));
+        assertEquals(SituacaoOrdemDeServico.AGUARDANDO_PAGAMENTO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.AGUARDANDO_PAGAMENTO));
+        assertEquals(SituacaoOrdemDeServico.CANCELADA, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.CANCELADA));
+        assertEquals("Aguardando Pagamento", SituacaoOrdemDeServico.AGUARDANDO_PAGAMENTO.getDescricao());
+        assertEquals("Cancelada", SituacaoOrdemDeServico.CANCELADA.getDescricao());
         assertEquals("Aguardando Aprovação", SituacaoOrdemDeServico.AGUARDANDO_APROVACAO.getDescricao());
     }
 
     @Test
     void naoDeveExistirStatusOrfaoNoVocabulario() {
-        assertEquals(9, StatusOrdemDeServico.values().length);
+        assertEquals(11, StatusOrdemDeServico.values().length);
         for (StatusOrdemDeServico status : StatusOrdemDeServico.values()) {
             assertNotNull(SituacaoOrdemDeServico.fromStatus(status));
         }

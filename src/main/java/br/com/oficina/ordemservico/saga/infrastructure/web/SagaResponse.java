@@ -19,11 +19,16 @@ public record SagaResponse(
         @Schema(description = "Estado da Saga", example = "AGUARDANDO_DECISAO") StatusSaga status,
         @Schema(description = "Passo de negócio atual", example = "DECISAO") PassoSaga passoAtual,
         @Schema(description = "Orçamento em jogo, quando houver") UUID orcamentoId,
-        @Schema(description = "Estado final das compensações em andamento", example = "ENCERRADA_SEM_EXECUCAO") StatusSaga desfecho,
-        @Schema(description = "Motivo do encerramento ou da compensação", example = "ORCAMENTO_EXPIRADO") String motivo,
+        @Schema(description = "Pagamento do orçamento, depois de solicitado ao Billing") UUID pagamentoId,
+        @Schema(description = "Link para o cliente pagar (Checkout); simulado até o Mercado Pago entrar")
+        String linkPagamento,
+        @Schema(description = "Estado ao qual a Saga vai quando as confirmações pendentes chegarem", example = "COMPENSADA")
+        StatusSaga desfecho,
+        @Schema(description = "Motivo do encerramento, da compensação ou da última falha de passo", example = "PAGAMENTO_RECUSADO")
+        String motivo,
         @Schema(description = "Confirmações de compensação que faltam chegar") Set<String> compensacoesPendentes,
-        @Schema(description = "Prazo em vigor (decisão do cliente ou resposta de compensação)") LocalDateTime prazoExpiraEm,
-        @Schema(description = "Reenvios já feitos da compensação pendente") int tentativas,
+        @Schema(description = "Prazo em vigor: resposta a um comando, decisão do cliente ou pagamento") LocalDateTime prazoExpiraEm,
+        @Schema(description = "Reenvios já feitos do comando que aguarda resposta") int tentativas,
         LocalDateTime criadaEm,
         LocalDateTime atualizadaEm,
         @Schema(description = "Passos registrados, do mais antigo para o mais recente") List<Passo> passos) {
@@ -45,6 +50,8 @@ public record SagaResponse(
                 saga.getStatus(),
                 saga.getPassoAtual(),
                 saga.getOrcamentoId(),
+                saga.getPagamentoId(),
+                saga.getLinkPagamento(),
                 saga.getDesfecho(),
                 saga.getMotivo(),
                 saga.getCompensacoesPendentes(),

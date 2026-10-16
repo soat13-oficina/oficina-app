@@ -4,14 +4,17 @@ package br.com.oficina.ordemservico.domain.model;
  * Situação de negócio (rótulo canônico) exposta pelas APIs, conforme o desafio da Fase 2.
  * Mapeia os estados internos mais granulares de {@link StatusOrdemDeServico} para as seis
  * situações de negócio: Recebida, Diagnóstico, Aguardando Aprovação, Execução, Finalizada, Entregue.
+ * A Fase 4 (Saga com pagamento) acrescenta Aguardando Pagamento e Cancelada.
  */
 public enum SituacaoOrdemDeServico {
     RECEBIDA("Recebida"),
     DIAGNOSTICO("Diagnóstico"),
     AGUARDANDO_APROVACAO("Aguardando Aprovação"),
+    AGUARDANDO_PAGAMENTO("Aguardando Pagamento"),
     EXECUCAO("Execução"),
     FINALIZADA("Finalizada"),
-    ENTREGUE("Entregue");
+    ENTREGUE("Entregue"),
+    CANCELADA("Cancelada");
 
     private final String descricao;
 
@@ -28,9 +31,11 @@ public enum SituacaoOrdemDeServico {
             case OS_ABERTA -> RECEBIDA;
             case DIAGNOSTICO_EM_ANDAMENTO, DIAGNOSTICO_CONCLUIDO -> DIAGNOSTICO;
             case ORCAMENTO_GERADO, AGUARDANDO_APROVACAO -> AGUARDANDO_APROVACAO;
+            case AGUARDANDO_PAGAMENTO -> AGUARDANDO_PAGAMENTO;
             case AGUARDANDO_EXECUCAO, SERVICO_EM_ANDAMENTO -> EXECUCAO;
             case OS_FINALIZADA -> FINALIZADA;
             case ENTREGUE -> ENTREGUE;
+            case CANCELADA -> CANCELADA;
         };
     }
 }

@@ -185,6 +185,46 @@ class MensageriaOutboxTest {
                 .hasMessageContaining("TipoQueNinguemTrata");
     }
 
+    @Test
+    void reenvioRepeteOComandoDaOrdemComMessageIdNovo() {
+        UUID ordemA = UUID.randomUUID();
+        Envelope original = publicarEmTransacao("TesteRecebido", ordemA);
+        Envelope deOutraOrdem = fabrica.novo("TesteRecebido", UUID.randomUUID(), UUID.randomUUID(), Map.of("campo", "outro"));
+        transacao.executeWithoutResult(status -> publicadorMensagens.publicar(Filas.EXECUTION_COMMANDS, deOutraOrdem));
+        publicadorOutbox.publicarPendentes();
+        manipulador.reiniciar();
+
+        Envelope reenviado = transacao.execute(status ->
+                publicadorMensagens.reenviar(Filas.EXECUTION_COMMANDS, "TesteRecebido", ordemA).orElseThrow());
+
+        assertThat(reenviado.messageId()).isNotEqualTo(original.messageId());
+        assertThat(reenviado.type()).isEqualTo(original.type());
+        assertThat(reenviado.sagaId()).isEqualTo(original.sagaId());
+        assertThat(reenviado.ordemServicoId()).isEqualTo(ordemA);
+        assertThat(reenviado.correlationId()).isEqualTo(original.correlationId());
+        assertThat(reenviado.causationId()).isEqualTo(original.causationId());
+        assertThat(reenviado.source()).isEqualTo(original.source());
+        assertThat(reenviado.payload()).isEqualTo(original.payload());
+        assertThat(outbox.findById(reenviado.messageId()).orElseThrow().getPublicadaEm()).as("vai pelo outbox").isNull();
+
+        assertThat(publicadorOutbox.publicarPendentes()).isEqualTo(1);
+        assertThat(manipulador.recebidas).as("messageId novo: o consumidor nao descarta").containsExactly(reenviado);
+    }
+
+    @Test
+    void semComandoAnteriorNaoHaReenvio() {
+        publicarEmTransacao("TesteRecebido", UUID.randomUUID());
+        long antes = outbox.count();
+
+        var reenviado = transacao.execute(status ->
+                publicadorMensagens.reenviar(Filas.EXECUTION_COMMANDS, "TesteRecebido", UUID.randomUUID()));
+
+        assertThat(reenviado).isEmpty();
+        assertThat(outbox.count()).isEqualTo(antes);
+        assertThatThrownBy(() -> publicadorMensagens.reenviar(Filas.EXECUTION_COMMANDS, "TesteRecebido", UUID.randomUUID()))
+                .as("fora de transacao").isInstanceOf(IllegalTransactionStateException.class);
+    }
+
     private Envelope publicarEmTransacao(String tipo, UUID ordemServicoId) {
         Envelope envelope = fabrica.novo(tipo, UUID.randomUUID(), ordemServicoId, Map.of("campo", "valor"));
         transacao.executeWithoutResult(status -> publicadorMensagens.publicar(Filas.EXECUTION_COMMANDS, envelope));

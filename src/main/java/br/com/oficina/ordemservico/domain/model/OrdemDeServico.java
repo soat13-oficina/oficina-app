@@ -274,20 +274,30 @@ public class OrdemDeServico {
             throw new RegraDeNegocioException("Descricao do servico e obrigatoria no fechamento do diagnostico");
         }
         // Mao de obra nao e definida no fechamento (e financeiro do orcamento): registra apenas a descricao.
-        servicos.add(new ServicoOrdem(descricaoServico, null));
+        // Diagnostico reaberto e fechado de novo com o mesmo servico nao o duplica.
+        if (servicos.stream().noneMatch(servico -> servico.getDescricao().equals(descricaoServico))) {
+            servicos.add(new ServicoOrdem(descricaoServico, null));
+        }
         if (pecas != null) {
             pecasPrevistas.addAll(pecas);
         }
         alterarStatus(StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO);
     }
 
-    public void enviarParaOrcamento() {
+    /**
+     * O orcamento nao pode ser gerado com as pecas do diagnostico (peca inexistente): o diagnostico
+     * volta ao mecanico, que o fecha de novo informando as pecas. Chamado pela Saga ao receber
+     * {@code OrcamentoFalhou}. Os servicos ficam; as pecas, que causaram a falha, saem.
+     */
+    public void reabrirDiagnostico() {
         if (status != StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
-            throw new RegraDeNegocioException("Diagnostico so pode ser enviado para orcamento quando concluido");
+            throw new RegraDeNegocioException("Diagnostico so pode ser reaberto quando concluido");
         }
-        alterarStatus(StatusOrdemDeServico.ORCAMENTO_GERADO);
+        pecasPrevistas.clear();
+        alterarStatus(StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO);
     }
 
+    /** Orcamento gerado pelo Billing e enviado ao cliente (evento {@code OrcamentoGerado}). */
     public void enviarParaAprovacao() {
         if (status != StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
             throw new RegraDeNegocioException("Ordem de servico so pode ser enviada para aprovacao com diagnostico concluido");
@@ -296,14 +306,35 @@ public class OrdemDeServico {
     }
 
     /**
-     * Orcamento aprovado: a ordem entra na fila de execucao. Chamado pelo orquestrador da Saga ao
-     * receber {@code OrcamentoAprovado} - quem aprova e o orcamento, a ordem so reage (ADR 0004).
+     * Orcamento aprovado e pecas reservadas: falta o pagamento. Chamado pelo orquestrador da Saga ao
+     * receber {@code PecasReservadas} - quem aprova e o orcamento, a ordem so reage (ADR 0004).
      */
-    public void aprovarOrcamento() {
+    public void aguardarPagamento() {
         if (status != StatusOrdemDeServico.AGUARDANDO_APROVACAO) {
-            throw new RegraDeNegocioException("Orcamento so pode ser aprovado quando a ordem estiver aguardando aprovacao");
+            throw new RegraDeNegocioException("Ordem so pode aguardar pagamento depois da aprovacao do orcamento");
+        }
+        alterarStatus(StatusOrdemDeServico.AGUARDANDO_PAGAMENTO);
+    }
+
+    /** Pagamento confirmado: a ordem entra na fila de execucao ({@code PagamentoConfirmado}). */
+    public void confirmarPagamento() {
+        if (status != StatusOrdemDeServico.AGUARDANDO_PAGAMENTO) {
+            throw new RegraDeNegocioException("Pagamento so pode ser confirmado quando a ordem estiver aguardando pagamento");
         }
         alterarStatus(StatusOrdemDeServico.AGUARDANDO_EXECUCAO);
+    }
+
+    /** Pagamento recusado ou expirado: a Saga desfaz reserva e orcamento e a ordem e cancelada. */
+    public void cancelarPorPagamento(MotivoEncerramento motivo) {
+        if (motivo != MotivoEncerramento.PAGAMENTO_RECUSADO && motivo != MotivoEncerramento.PAGAMENTO_EXPIRADO) {
+            throw new IllegalArgumentException("Motivo de cancelamento por pagamento invalido: " + motivo);
+        }
+        if (status != StatusOrdemDeServico.AGUARDANDO_PAGAMENTO) {
+            throw new RegraDeNegocioException("Ordem so pode ser cancelada por pagamento quando estiver aguardando pagamento");
+        }
+        alterarStatus(StatusOrdemDeServico.CANCELADA);
+        motivoEncerramento = motivo;
+        finalizadaEm = LocalDateTime.now();
     }
 
     public void iniciarExecucao() {
@@ -319,6 +350,16 @@ public class OrdemDeServico {
         }
         alterarStatus(StatusOrdemDeServico.OS_FINALIZADA);
         motivoEncerramento = MotivoEncerramento.SERVICO_CONCLUIDO;
+        finalizadaEm = LocalDateTime.now();
+    }
+
+    /** Mecanico abortou a execucao: a Saga estorna o pagamento e libera as pecas. */
+    public void abortarExecucao() {
+        if (status != StatusOrdemDeServico.SERVICO_EM_ANDAMENTO) {
+            throw new RegraDeNegocioException("Execucao so pode ser abortada quando estiver em andamento");
+        }
+        alterarStatus(StatusOrdemDeServico.CANCELADA);
+        motivoEncerramento = MotivoEncerramento.FALHA_EXECUCAO;
         finalizadaEm = LocalDateTime.now();
     }
 
@@ -338,14 +379,6 @@ public class OrdemDeServico {
         }
         alterarStatus(StatusOrdemDeServico.OS_FINALIZADA);
         motivoEncerramento = MotivoEncerramento.ORCAMENTO_EXPIRADO;
-        finalizadaEm = LocalDateTime.now();
-    }
-
-    public void finalizar() {
-        if (status != StatusOrdemDeServico.ORCAMENTO_GERADO) {
-            throw new RegraDeNegocioException("Ordem de servico so pode ser finalizada com orcamento gerado");
-        }
-        alterarStatus(StatusOrdemDeServico.OS_FINALIZADA);
         finalizadaEm = LocalDateTime.now();
     }
 

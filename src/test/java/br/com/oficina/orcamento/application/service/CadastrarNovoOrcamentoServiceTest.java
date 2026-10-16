@@ -11,9 +11,6 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import br.com.oficina.cliente.domain.model.Cliente;
-import br.com.oficina.cliente.domain.model.TipoCliente;
-import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
 import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
@@ -22,60 +19,120 @@ import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
 import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
-import br.com.oficina.support.persistence.TestClienteRepository;
+import br.com.oficina.ponte.CatalogoDePecasDoEstoque;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
 import br.com.oficina.support.persistence.TestPecaInsumoRepository;
 
+/** Fase 4: o orcamento nasce do snapshot do comando GerarOrcamento - sem consultar o cliente. */
 class CadastrarNovoOrcamentoServiceTest {
 
     private static final String PECA_ID = "peca-001";
+    private static final UUID CLIENTE_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
+    private static final UUID SAGA_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
+
+    private final TestOrcamentoRepository repository = new TestOrcamentoRepository();
+    private final TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
+    private final CadastrarNovoOrcamentoService service =
+            new CadastrarNovoOrcamentoService(repository, new CatalogoDePecasDoEstoque(pecaInsumoRepository));
 
     @Test
-    void deveCadastrarNovoOrcamento() {
-        TestOrcamentoRepository repository = new TestOrcamentoRepository();
-        TestClienteRepository clienteRepository = new TestClienteRepository();
-        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
-        UUID clienteId = UUID.fromString("44444444-4444-4444-4444-444444444444");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678909", TipoCliente.PF));
+    void cadastraComSnapshotDoClienteEPrecoDoCatalogo() {
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
-        CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(repository, clienteRepository, pecaInsumoRepository);
 
-        service.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
-                "orc-1",
-                clienteId.toString(),
-                "33333333-3333-3333-3333-333333333333",
-                "44444444-4444-4444-4444-444444444444",
+        UUID id = service.cadastrarNovoOrcamento(comando("orc-1", List.of(new PecaOrcamentoInput(PECA_ID, 1)), new BigDecimal("150.00"), BigDecimal.ZERO));
+
+        Orcamento orcamento = repository.buscarPorNumeroOrcamento("orc-1").orElseThrow();
+        assertNotNull(id);
+        assertEquals(id, orcamento.getId());
+        assertEquals(new BigDecimal("400.00"), orcamento.getValorTotal());
+        assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, orcamento.getStatus());
+        assertEquals(CLIENTE_ID, orcamento.getClienteId());
+        assertEquals("Joao Silva", orcamento.getClienteNome());
+        assertEquals("12345678909", orcamento.getClienteCpf());
+        assertEquals(SAGA_ID, orcamento.getSagaId());
+        assertEquals("Pastilha dianteira", orcamento.getPecasOrcamento().get(0).getDescricao());
+    }
+
+    @Test
+    void numeroRepetidoEConflitoDeNegocio() {
+        repository.salvar(orcamentoExistente("orc-1", UUID.randomUUID()));
+
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class,
+                () -> service.cadastrarNovoOrcamento(comando("orc-1", List.of(), new BigDecimal("100.00"), BigDecimal.ZERO)));
+
+        assertEquals("Ja existe orcamento cadastrado com o mesmo numero.", exception.getMessage());
+    }
+
+    @Test
+    void umOrcamentoPorOrdemDeServico() {
+        repository.salvar(orcamentoExistente("orc-antigo", UUID.fromString("33333333-3333-3333-3333-333333333333")));
+
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class,
+                () -> service.cadastrarNovoOrcamento(comando("orc-2", List.of(), new BigDecimal("100.00"), BigDecimal.ZERO)));
+
+        assertEquals("Ja existe orcamento para a ordem de servico informada.", exception.getMessage());
+    }
+
+    @Test
+    void listaTodasAsPecasInexistentes() {
+        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
+
+        PecasNaoEncontradasException exception = assertThrows(PecasNaoEncontradasException.class,
+                () -> service.cadastrarNovoOrcamento(comando("orc-1", List.of(
+                        new PecaOrcamentoInput(PECA_ID, 1),
+                        new PecaOrcamentoInput("sumiu-1", 1),
+                        new PecaOrcamentoInput("sumiu-2", 2)), new BigDecimal("100.00"), BigDecimal.ZERO)));
+
+        assertEquals(List.of("sumiu-1", "sumiu-2"), exception.getPecaInsumoIds());
+    }
+
+    @Test
+    void recusaQuantidadeZeradaMaoDeObraAusenteValidadeAusenteEDescontoMaiorQueOTotal() {
+        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha", "Bosch", new BigDecimal("10.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.cadastrarNovoOrcamento(
+                comando("orc-1", List.of(new PecaOrcamentoInput(PECA_ID, 0)), new BigDecimal("100.00"), BigDecimal.ZERO)));
+        assertThrows(RegraDeNegocioException.class, () -> service.cadastrarNovoOrcamento(
+                comando("orc-2", List.of(), null, BigDecimal.ZERO)));
+        assertThrows(RegraDeNegocioException.class, () -> service.cadastrarNovoOrcamento(
+                comando("orc-3", List.of(), new BigDecimal("-1.00"), BigDecimal.ZERO)));
+        assertThrows(RegraDeNegocioException.class, () -> service.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
+                "orc-4", cliente(), UUID.randomUUID(), UUID.randomUUID(), "ABC1D23", "Toyota", "Corolla", "Revisao",
+                List.of(), List.of(), new BigDecimal("10.00"), null, null, null, SAGA_ID)));
+        RegraDeNegocioException desconto = assertThrows(RegraDeNegocioException.class, () -> service.cadastrarNovoOrcamento(
+                comando("orc-5", List.of(new PecaOrcamentoInput(PECA_ID, 1)), new BigDecimal("10.00"), new BigDecimal("50.00"))));
+        assertEquals("Desconto nao pode ser maior que o valor total do orcamento.", desconto.getMessage());
+    }
+
+    private static CadastrarNovoOrcamentoCommand comando(String numero, List<PecaOrcamentoInput> pecas, BigDecimal maoDeObra, BigDecimal desconto) {
+        return new CadastrarNovoOrcamentoCommand(
+                numero,
+                cliente(),
+                UUID.fromString("33333333-3333-3333-3333-333333333333"),
+                UUID.fromString("66666666-6666-6666-6666-666666666666"),
                 "ABC1D23",
                 "Toyota",
                 "Corolla",
                 "Troca de pastilhas",
                 List.of("Troca de pastilhas"),
-                List.of(new PecaOrcamentoInput(PECA_ID, 1)),
-                new BigDecimal("150.00"),
-                BigDecimal.ZERO,
+                pecas,
+                maoDeObra,
+                desconto,
                 LocalDateTime.of(2030, 1, 10, 10, 0),
-                "Prioridade alta"));
-
-        assertEquals(1, repository.buscarTodos().size());
-        assertEquals(new BigDecimal("400.00"), repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getValorTotal());
-        assertEquals(StatusOrcamento.AGUARDANDO_APROVACAO, repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getStatus());
-        assertNotNull(repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getId());
-        assertEquals(clienteId, repository.buscarPorNumeroOrcamento("orc-1").orElseThrow().getClienteId());
+                "Prioridade alta",
+                SAGA_ID);
     }
 
-    @Test
-    void deveFalharQuandoNumeroOrcamentoJaExiste() {
-        TestOrcamentoRepository repository = new TestOrcamentoRepository();
-        TestClienteRepository clienteRepository = new TestClienteRepository();
-        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
-        UUID clienteId = UUID.fromString("44444444-4444-4444-4444-444444444444");
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678909", TipoCliente.PF));
-        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
-        repository.salvar(new Orcamento(
-                "orc-1",
-                clienteId,
-                UUID.fromString("33333333-3333-3333-3333-333333333333"),
-                UUID.fromString("44444444-4444-4444-4444-444444444444"),
+    private static CadastrarNovoOrcamentoCommand.ClienteOrcamento cliente() {
+        return new CadastrarNovoOrcamentoCommand.ClienteOrcamento(CLIENTE_ID, "Joao Silva", "12345678909");
+    }
+
+    private static Orcamento orcamentoExistente(String numero, UUID ordemDeServicoId) {
+        return new Orcamento(
+                numero,
+                CLIENTE_ID,
+                ordemDeServicoId,
+                UUID.randomUUID(),
                 "Joao Silva",
                 "12345678909",
                 "ABC1D23",
@@ -89,57 +146,6 @@ class CadastrarNovoOrcamentoServiceTest {
                 LocalDateTime.of(2030, 1, 1, 10, 0),
                 LocalDateTime.of(2030, 1, 10, 10, 0),
                 "Prioridade alta",
-                StatusOrcamento.AGUARDANDO_APROVACAO));
-        CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(repository, clienteRepository, pecaInsumoRepository);
-
-        RegraDeNegocioException exception = assertThrows(
-                RegraDeNegocioException.class,
-                () -> service.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
-                        "orc-1",
-                        clienteId.toString(),
-                        "77777777-7777-7777-7777-777777777777",
-                        "88888888-8888-8888-8888-888888888888",
-                        "XYZ9Z99",
-                        "Honda",
-                        "City",
-                        "Revisao",
-                        List.of("Revisao"),
-                        List.of(new PecaOrcamentoInput(PECA_ID, 1)),
-                        new BigDecimal("100.00"),
-                        BigDecimal.ZERO,
-                        LocalDateTime.of(2030, 2, 1, 10, 0),
-                        "Duplicado")));
-
-        assertEquals("Ja existe orcamento cadastrado com o mesmo numero.", exception.getMessage());
-    }
-
-    @Test
-    void deveFalharQuandoClienteNaoExiste() {
-        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
-        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
-        CadastrarNovoOrcamentoService service = new CadastrarNovoOrcamentoService(
-                new TestOrcamentoRepository(),
-                new TestClienteRepository(),
-                pecaInsumoRepository);
-
-        RecursoNaoEncontradoException exception = assertThrows(
-                RecursoNaoEncontradoException.class,
-                () -> service.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
-                        "orc-1",
-                        UUID.fromString("99999999-9999-9999-9999-999999999999").toString(),
-                        "33333333-3333-3333-3333-333333333333",
-                        "44444444-4444-4444-4444-444444444444",
-                        "ABC1D23",
-                        "Toyota",
-                        "Corolla",
-                        "Troca de pastilhas",
-                        List.of("Troca de pastilhas"),
-                        List.of(new PecaOrcamentoInput(PECA_ID, 1)),
-                        new BigDecimal("150.00"),
-                        BigDecimal.ZERO,
-                        LocalDateTime.of(2030, 1, 10, 10, 0),
-                        "Prioridade alta")));
-
-        assertEquals("Cliente nao encontrado para o identificador informado.", exception.getMessage());
+                StatusOrcamento.AGUARDANDO_APROVACAO);
     }
 }
