@@ -7,10 +7,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.AprovarOrcamentoCommand;
+import br.com.oficina.orcamento.application.saga.EventosOrcamento;
 import br.com.oficina.orcamento.application.usecase.AprovarOrcamentoUseCase;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
@@ -28,15 +30,25 @@ public class AprovarOrcamentoService implements AprovarOrcamentoUseCase {
     private final OrcamentoRepository orcamentoRepository;
     private final ReservarPecaUseCase reservarPecaUseCase;
     private final LiberarReservaPecaUseCase liberarReservaPecaUseCase;
+    private final EventosOrcamento eventos;
 
     @Autowired
     public AprovarOrcamentoService(
             OrcamentoRepository orcamentoRepository,
             ReservarPecaUseCase reservarPecaUseCase,
-            LiberarReservaPecaUseCase liberarReservaPecaUseCase) {
+            LiberarReservaPecaUseCase liberarReservaPecaUseCase,
+            EventosOrcamento eventos) {
         this.orcamentoRepository = orcamentoRepository;
         this.reservarPecaUseCase = reservarPecaUseCase;
         this.liberarReservaPecaUseCase = liberarReservaPecaUseCase;
+        this.eventos = eventos;
+    }
+
+    public AprovarOrcamentoService(
+            OrcamentoRepository orcamentoRepository,
+            ReservarPecaUseCase reservarPecaUseCase,
+            LiberarReservaPecaUseCase liberarReservaPecaUseCase) {
+        this(orcamentoRepository, reservarPecaUseCase, liberarReservaPecaUseCase, EventosOrcamento.NENHUM);
     }
 
     public AprovarOrcamentoService(
@@ -46,7 +58,12 @@ public class AprovarOrcamentoService implements AprovarOrcamentoUseCase {
         });
     }
 
+    /**
+     * Aprova e publica {@code OrcamentoAprovado} na mesma transacao: quem leva a ordem de servico
+     * adiante e o orquestrador da Saga, ao receber o evento - o orcamento nao toca a OS (ADR 0003).
+     */
     @Override
+    @Transactional
     public Orcamento aprovarOrcamento(AprovarOrcamentoCommand command) {
         log.info("Iniciando aprovacao de orcamento. numeroOrcamento={}", command.numeroOrcamento());
         Orcamento orcamento = orcamentoRepository.buscarPorNumeroOrcamento(command.numeroOrcamento())
@@ -87,6 +104,7 @@ public class AprovarOrcamentoService implements AprovarOrcamentoUseCase {
 
         orcamento.aprovar();
         orcamentoRepository.atualizar(orcamento);
+        eventos.orcamentoAprovado(orcamento, command.canal());
         log.info("Orcamento aprovado com sucesso. numeroOrcamento={}, pecasReservadas={}",
                 command.numeroOrcamento(), pecasReservadas.size());
         return orcamento;

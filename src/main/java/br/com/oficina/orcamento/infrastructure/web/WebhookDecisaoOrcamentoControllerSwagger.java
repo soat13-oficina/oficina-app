@@ -18,8 +18,10 @@ public interface WebhookDecisaoOrcamentoControllerSwagger {
 
     @Operation(
             summary = "Registrar decisão externa de orçamento",
-            description = "Processa a decisão (APROVADO/REJEITADO) de um orçamento. A operação é atômica "
-                    + "(decisão do orçamento, reserva de peças e atualização da OS). Decisões idênticas a uma "
+            description = "Processa a decisão (APROVADO/REJEITADO) de um orçamento. Decisão do orçamento, reserva "
+                    + "de peças e o evento da Saga (OrcamentoAprovado/OrcamentoRejeitado) são gravados na mesma "
+                    + "transação; a ordem de serviço é movida pelo orquestrador da Saga logo depois, de forma "
+                    + "assíncrona (Fase 4). Decisões idênticas a uma "
                     + "já registrada são idempotentes; decisões divergentes resultam em conflito (409). "
                     + "Autenticado via header X-Webhook-Token (token de integração gerado ou o segredo "
                     + "estático ORCAMENTO_WEBHOOK_SECRET) — não usa o Bearer JWT das demais rotas.",
@@ -29,10 +31,10 @@ public interface WebhookDecisaoOrcamentoControllerSwagger {
                     description = "Decisão processada com sucesso, ou decisão idêntica à já registrada (idempotente)",
                     content = @Content(schema = @Schema(implementation = DecisaoOrcamentoResponse.class))),
             @ApiResponse(responseCode = "400",
-                    description = "Entrada inválida (decisão ausente) ou orçamento/OS em estado inválido para decisão",
+                    description = "Entrada inválida (decisão ausente) ou orçamento em estado inválido para decisão",
                     content = @Content),
             @ApiResponse(responseCode = "404",
-                    description = "Orçamento inexistente, ou ordem de serviço vinculada inexistente",
+                    description = "Orçamento inexistente",
                     content = @Content),
             @ApiResponse(responseCode = "409",
                     description = "Decisão divergente de uma decisão já registrada para o orçamento",

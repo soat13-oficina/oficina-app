@@ -41,3 +41,8 @@ mensageria:
   servico: oficina-os-service
   outbox:
     agendamento-habilitado: false
+
+# Os testes aplicam os prazos chamando o orquestrador com o relogio que quiserem.
+saga:
+  prazos:
+    agendamento-habilitado: false

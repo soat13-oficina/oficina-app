@@ -31,6 +31,11 @@ class TransicoesCicloDeVidaTest {
         ordem.enviarParaAprovacao();
         assertEquals(SituacaoOrdemDeServico.AGUARDANDO_APROVACAO, ordem.getSituacao());
 
+        // Fase 4: a Saga leva a ordem para a fila de execucao ao receber OrcamentoAprovado.
+        ordem.aprovarOrcamento();
+        assertEquals(StatusOrdemDeServico.AGUARDANDO_EXECUCAO, ordem.getStatus());
+        assertEquals(SituacaoOrdemDeServico.EXECUCAO, ordem.getSituacao());
+
         ordem.iniciarExecucao();
         assertEquals(SituacaoOrdemDeServico.EXECUCAO, ordem.getSituacao());
 
@@ -67,11 +72,39 @@ class TransicoesCicloDeVidaTest {
     }
 
     @Test
-    void deveRecusarIniciarExecucaoForaDeAguardandoAprovacao() {
+    void deveRecusarIniciarExecucaoForaDeAguardandoExecucao() {
         OrdemDeServico ordem = novaOrdem();
         ordem.iniciarDiagnostico();
         RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, ordem::iniciarExecucao);
-        assertEquals("Execucao so pode iniciar quando a ordem estiver aguardando aprovacao", exception.getMessage());
+        assertEquals("Execucao so pode iniciar quando a ordem estiver aguardando execucao", exception.getMessage());
+    }
+
+    @Test
+    void deveRecusarAprovarOrcamentoForaDeAguardandoAprovacao() {
+        OrdemDeServico ordem = novaOrdem();
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, ordem::aprovarOrcamento);
+        assertEquals("Orcamento so pode ser aprovado quando a ordem estiver aguardando aprovacao", exception.getMessage());
+    }
+
+    @Test
+    void deveEncerrarComoExpiradoQuandoOPrazoDeDecisaoVence() {
+        OrdemDeServico ordem = novaOrdem();
+        ordem.iniciarDiagnostico();
+        ordem.concluirDiagnostico();
+        ordem.enviarParaAprovacao();
+
+        ordem.expirarOrcamento();
+
+        assertEquals(SituacaoOrdemDeServico.FINALIZADA, ordem.getSituacao());
+        assertEquals(MotivoEncerramento.ORCAMENTO_EXPIRADO, ordem.getMotivoEncerramento());
+        assertNotNull(ordem.getFinalizadaEm());
+    }
+
+    @Test
+    void deveRecusarExpirarOrcamentoForaDeAguardandoAprovacao() {
+        OrdemDeServico ordem = novaOrdem();
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, ordem::expirarOrcamento);
+        assertEquals("Orcamento so pode expirar quando a ordem estiver aguardando aprovacao", exception.getMessage());
     }
 
     @Test
@@ -95,6 +128,7 @@ class TransicoesCicloDeVidaTest {
         assertEquals(SituacaoOrdemDeServico.DIAGNOSTICO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO));
         assertEquals(SituacaoOrdemDeServico.AGUARDANDO_APROVACAO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.ORCAMENTO_GERADO));
         assertEquals(SituacaoOrdemDeServico.AGUARDANDO_APROVACAO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.AGUARDANDO_APROVACAO));
+        assertEquals(SituacaoOrdemDeServico.EXECUCAO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.AGUARDANDO_EXECUCAO));
         assertEquals(SituacaoOrdemDeServico.EXECUCAO, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.SERVICO_EM_ANDAMENTO));
         assertEquals(SituacaoOrdemDeServico.FINALIZADA, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.OS_FINALIZADA));
         assertEquals(SituacaoOrdemDeServico.ENTREGUE, SituacaoOrdemDeServico.fromStatus(StatusOrdemDeServico.ENTREGUE));
@@ -103,7 +137,7 @@ class TransicoesCicloDeVidaTest {
 
     @Test
     void naoDeveExistirStatusOrfaoNoVocabulario() {
-        assertEquals(8, StatusOrdemDeServico.values().length);
+        assertEquals(9, StatusOrdemDeServico.values().length);
         for (StatusOrdemDeServico status : StatusOrdemDeServico.values()) {
             assertNotNull(SituacaoOrdemDeServico.fromStatus(status));
         }

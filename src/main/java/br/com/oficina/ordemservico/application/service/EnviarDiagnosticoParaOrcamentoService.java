@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import br.com.oficina.ordemservico.domain.model.ServicoOrdem;
 import br.com.oficina.ordemservico.domain.model.SituacaoOrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServicoAlterado;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
+import br.com.oficina.ordemservico.saga.application.PassosDaSaga;
 
 @Service
 public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoParaOrcamentoUseCase {
@@ -30,14 +32,25 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
     private final OrdemDeServicoRepository ordemDeServicoRepository;
     private final CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase;
     private final ApplicationEventPublisher eventPublisher;
+    private final PassosDaSaga passosDaSaga;
 
     public EnviarDiagnosticoParaOrcamentoService(
             OrdemDeServicoRepository ordemDeServicoRepository,
             CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase,
             ApplicationEventPublisher eventPublisher) {
+        this(ordemDeServicoRepository, cadastrarNovoOrcamentoUseCase, eventPublisher, PassosDaSaga.NENHUM);
+    }
+
+    @Autowired
+    public EnviarDiagnosticoParaOrcamentoService(
+            OrdemDeServicoRepository ordemDeServicoRepository,
+            CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase,
+            ApplicationEventPublisher eventPublisher,
+            PassosDaSaga passosDaSaga) {
         this.ordemDeServicoRepository = ordemDeServicoRepository;
         this.cadastrarNovoOrcamentoUseCase = cadastrarNovoOrcamentoUseCase;
         this.eventPublisher = eventPublisher;
+        this.passosDaSaga = passosDaSaga;
     }
 
     @Override
@@ -67,7 +80,10 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
                 .toList();
 
         String numeroOrcamento = "ORC-" + UUID.randomUUID();
-        cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
+        // Transitorio (Passo 1): o orcamento ainda nasce aqui, de forma sincrona; no Passo 3 vira o
+        // comando GerarOrcamento da Saga. O orcamento leva o sagaId para os eventos que publicar.
+        UUID sagaId = passosDaSaga.sagaIdDaOrdem(ordemDeServico.getId());
+        UUID orcamentoId = cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
                 numeroOrcamento,
                 ordemDeServico.getCliente().getId().toString(),
                 ordemDeServico.getId().toString(),
@@ -81,9 +97,11 @@ public class EnviarDiagnosticoParaOrcamentoService implements EnviarDiagnosticoP
                 request.valorMaoDeObra(),
                 request.desconto(),
                 request.validade(),
-                request.observacoes()));
+                request.observacoes(),
+                sagaId));
 
         ordemDeServicoRepository.salvar(ordemDeServico);
+        passosDaSaga.orcamentoGerado(ordemDeServico.getId(), orcamentoId, request.validade());
         eventPublisher.publishEvent(StatusOrdemDeServicoAlterado.de(ordemDeServico, situacaoAnterior, anteriorDesde));
         log.info("Diagnostico enviado para orcamento com sucesso. numeroOrdemServico={}, numeroOrcamento={}, situacao={}",
                 ordemDeServico.getNumeroOrdemServico(),

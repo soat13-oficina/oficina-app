@@ -4,8 +4,10 @@ import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.ordemservico.application.command.IniciarExecucaoCommand;
@@ -14,6 +16,7 @@ import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.SituacaoOrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServicoAlterado;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
+import br.com.oficina.ordemservico.saga.application.PassosDaSaga;
 
 @Service
 public class IniciarExecucaoService implements IniciarExecucaoUseCase {
@@ -21,15 +24,26 @@ public class IniciarExecucaoService implements IniciarExecucaoUseCase {
 
     private final OrdemDeServicoRepository ordemDeServicoRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final PassosDaSaga passosDaSaga;
 
     public IniciarExecucaoService(
             OrdemDeServicoRepository ordemDeServicoRepository,
             ApplicationEventPublisher eventPublisher) {
+        this(ordemDeServicoRepository, eventPublisher, PassosDaSaga.NENHUM);
+    }
+
+    @Autowired
+    public IniciarExecucaoService(
+            OrdemDeServicoRepository ordemDeServicoRepository,
+            ApplicationEventPublisher eventPublisher,
+            PassosDaSaga passosDaSaga) {
         this.ordemDeServicoRepository = ordemDeServicoRepository;
         this.eventPublisher = eventPublisher;
+        this.passosDaSaga = passosDaSaga;
     }
 
     @Override
+    @Transactional
     public void iniciarExecucao(IniciarExecucaoCommand command) {
         log.info("Iniciando execucao da ordem de servico. numeroOrdemServico={}", command.numeroOrdemServico());
         OrdemDeServico ordemDeServico = ordemDeServicoRepository.buscarPorNumero(command.numeroOrdemServico())
@@ -38,6 +52,7 @@ public class IniciarExecucaoService implements IniciarExecucaoUseCase {
         LocalDateTime anteriorDesde = ordemDeServico.getSituacaoAlteradaEm();
         ordemDeServico.iniciarExecucao();
         ordemDeServicoRepository.salvar(ordemDeServico);
+        passosDaSaga.execucaoIniciada(ordemDeServico.getId());
         eventPublisher.publishEvent(StatusOrdemDeServicoAlterado.de(ordemDeServico, situacaoAnterior, anteriorDesde));
         log.info("Execucao iniciada. numeroOrdemServico={}, situacao={}",
                 ordemDeServico.getNumeroOrdemServico(),

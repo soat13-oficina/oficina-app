@@ -3,6 +3,7 @@ package br.com.oficina.orcamento.application.command;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 public record CadastrarNovoOrcamentoCommand(
         String numeroOrcamento,
@@ -18,6 +19,26 @@ public record CadastrarNovoOrcamentoCommand(
         BigDecimal valorMaoDeObra,
         BigDecimal desconto,
         LocalDateTime validade,
-        String observacoes) {
-}
+        String observacoes,
+        /* Saga da OS (Fase 4); nulo quando o orcamento nao nasce de uma Saga. */
+        UUID sagaId) {
 
+    public CadastrarNovoOrcamentoCommand(
+            String numeroOrcamento,
+            String clienteId,
+            String ordemDeServicoId,
+            String funcionarioId,
+            String placaVeiculo,
+            String marcaVeiculo,
+            String modeloVeiculo,
+            String descricaoDiagnostico,
+            List<String> servicosPropostos,
+            List<PecaOrcamentoInput> pecasPrevistas,
+            BigDecimal valorMaoDeObra,
+            BigDecimal desconto,
+            LocalDateTime validade,
+            String observacoes) {
+        this(numeroOrcamento, clienteId, ordemDeServicoId, funcionarioId, placaVeiculo, marcaVeiculo, modeloVeiculo,
+                descricaoDiagnostico, servicosPropostos, pecasPrevistas, valorMaoDeObra, desconto, validade, observacoes, null);
+    }
+}

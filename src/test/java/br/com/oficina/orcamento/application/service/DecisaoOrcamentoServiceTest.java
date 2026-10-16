@@ -1,114 +1,100 @@
 package br.com.oficina.orcamento.application.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import br.com.oficina.cliente.domain.model.Cliente;
-import br.com.oficina.cliente.domain.model.TipoCliente;
+import br.com.oficina.common.application.mensageria.Envelope;
 import br.com.oficina.common.domain.exception.ConflitoDeRecursoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.orcamento.application.command.DecidirOrcamentoExternamenteCommand;
 import br.com.oficina.orcamento.application.result.DecisaoOrcamentoResult;
+import br.com.oficina.orcamento.application.saga.EventosOrcamento;
+import br.com.oficina.orcamento.domain.model.CanalDecisao;
 import br.com.oficina.orcamento.domain.model.DecisaoOrcamento;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
-import br.com.oficina.ordemservico.domain.model.Funcionario;
-import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
-import br.com.oficina.ordemservico.domain.model.SituacaoOrdemDeServico;
-import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
-import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
-import br.com.oficina.veiculo.domain.model.TipoCombustivel;
-import br.com.oficina.veiculo.domain.model.Veiculo;
 
+/**
+ * Fase 4: a decisao externa decide SO o orcamento e publica o evento da Saga. Quem move a ordem de
+ * servico e o orquestrador (coberto em OrquestradorSagaOrdemServicoTest e no BDD).
+ */
 class DecisaoOrcamentoServiceTest {
 
-    private static final String NUMERO_OS = "OS-DECISAO-001";
     private static final String NUMERO_ORC = "ORC-DECISAO-001";
+    private static final UUID ORDEM_ID = UUID.fromString("a1111111-1111-1111-1111-111111111111");
 
     private TestOrcamentoRepository orcamentoRepository;
-    private TestOrdemDeServicoRepository ordemDeServicoRepository;
+    private EventosRegistrados eventos;
     private DecidirOrcamentoExternamenteService service;
 
     @BeforeEach
     void setUp() {
         orcamentoRepository = new TestOrcamentoRepository();
-        ordemDeServicoRepository = new TestOrdemDeServicoRepository();
-
-        AprovarOrcamentoService aprovarService = new AprovarOrcamentoService(orcamentoRepository, cmd -> {});
-        RejeitarOrcamentoService rejeitarService = new RejeitarOrcamentoService(orcamentoRepository);
-
-        service = new DecidirOrcamentoExternamenteService(
-                orcamentoRepository,
-                ordemDeServicoRepository,
-                aprovarService,
-                rejeitarService,
-                event -> {});
+        eventos = new EventosRegistrados();
+        AprovarOrcamentoService aprovarService = new AprovarOrcamentoService(orcamentoRepository, cmd -> {}, cmd -> {}, eventos);
+        RejeitarOrcamentoService rejeitarService = new RejeitarOrcamentoService(orcamentoRepository, cmd -> {}, eventos);
+        service = new DecidirOrcamentoExternamenteService(orcamentoRepository, aprovarService, rejeitarService);
     }
 
     @Test
-    void deveAprovarOrcamentoEMoverOsParaExecucao() {
-        OrdemDeServico ordem = ordemEmAguardandoAprovacao();
-        Orcamento orc = orcamentoAguardandoAprovacao(ordem.getId());
+    void aprovacaoDecideOOrcamentoEPublicaOEventoParaASaga() {
+        orcamentoAguardandoAprovacao();
 
         DecisaoOrcamentoResult resultado = service.decidir(
                 new DecidirOrcamentoExternamenteCommand(NUMERO_ORC, DecisaoOrcamento.APROVADO));
 
-        assertEquals(NUMERO_ORC, resultado.numeroOrcamento());
-        assertEquals(NUMERO_OS, resultado.numeroOrdemServico());
-        assertEquals(SituacaoOrdemDeServico.EXECUCAO.getDescricao(), resultado.situacao());
-
-        Orcamento orcAtualizado = orcamentoRepository.buscarPorNumeroOrcamento(NUMERO_ORC).orElseThrow();
-        assertEquals(StatusOrcamento.APROVADO, orcAtualizado.getStatus());
-
-        OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorNumero(NUMERO_OS).orElseThrow();
-        assertEquals(StatusOrdemDeServico.SERVICO_EM_ANDAMENTO, ordemAtualizada.getStatus());
+        assertEquals(new DecisaoOrcamentoResult(NUMERO_ORC, StatusOrcamento.APROVADO, ORDEM_ID), resultado);
+        assertEquals(StatusOrcamento.APROVADO, orcamentoRepository.buscarPorNumeroOrcamento(NUMERO_ORC).orElseThrow().getStatus());
+        assertEquals(List.of("APROVADO:INTEGRACAO"), eventos.publicados);
     }
 
     @Test
-    void deveRejeitarOrcamentoEMoverOsParaFinalizada() {
-        OrdemDeServico ordem = ordemEmAguardandoAprovacao();
-        Orcamento orc = orcamentoAguardandoAprovacao(ordem.getId());
+    void rejeicaoDecideOOrcamentoEPublicaOEventoParaASaga() {
+        orcamentoAguardandoAprovacao();
 
         DecisaoOrcamentoResult resultado = service.decidir(
                 new DecidirOrcamentoExternamenteCommand(NUMERO_ORC, DecisaoOrcamento.REJEITADO));
 
-        assertEquals(SituacaoOrdemDeServico.FINALIZADA.getDescricao(), resultado.situacao());
-
-        Orcamento orcAtualizado = orcamentoRepository.buscarPorNumeroOrcamento(NUMERO_ORC).orElseThrow();
-        assertEquals(StatusOrcamento.REJEITADO, orcAtualizado.getStatus());
-
-        OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorNumero(NUMERO_OS).orElseThrow();
-        assertEquals(StatusOrdemDeServico.OS_FINALIZADA, ordemAtualizada.getStatus());
+        assertEquals(StatusOrcamento.REJEITADO, resultado.statusOrcamento());
+        assertEquals(List.of("REJEITADO:INTEGRACAO"), eventos.publicados);
     }
 
     @Test
-    void deveRetornarSituacaoAtualEmRetryIdenticoDeAprovacao() {
-        OrdemDeServico ordem = ordemEmAguardandoAprovacao();
-        orcamentoAguardandoAprovacao(ordem.getId());
+    void retryIdenticoEhIdempotenteENaoPublicaDeNovo() {
+        orcamentoAguardandoAprovacao();
 
         service.decidir(new DecidirOrcamentoExternamenteCommand(NUMERO_ORC, DecisaoOrcamento.APROVADO));
         DecisaoOrcamentoResult resultado = service.decidir(
                 new DecidirOrcamentoExternamenteCommand(NUMERO_ORC, DecisaoOrcamento.APROVADO));
 
-        assertNotNull(resultado);
-        assertEquals(NUMERO_ORC, resultado.numeroOrcamento());
+        assertEquals(StatusOrcamento.APROVADO, resultado.statusOrcamento());
+        assertEquals(1, eventos.publicados.size());
     }
 
     @Test
-    void deveRejeitarDecisaoDivergente() {
-        OrdemDeServico ordem = ordemEmAguardandoAprovacao();
-        orcamentoAguardandoAprovacao(ordem.getId());
+    void retryIdenticoDeRejeicaoTambemEhIdempotente() {
+        orcamentoAguardandoAprovacao();
 
+        service.decidir(new DecidirOrcamentoExternamenteCommand(NUMERO_ORC, DecisaoOrcamento.REJEITADO));
+        DecisaoOrcamentoResult resultado = service.decidir(
+                new DecidirOrcamentoExternamenteCommand(NUMERO_ORC, DecisaoOrcamento.REJEITADO));
+
+        assertEquals(StatusOrcamento.REJEITADO, resultado.statusOrcamento());
+    }
+
+    @Test
+    void decisaoDivergenteDaRegistradaEhConflito() {
+        orcamentoAguardandoAprovacao();
         service.decidir(new DecidirOrcamentoExternamenteCommand(NUMERO_ORC, DecisaoOrcamento.APROVADO));
 
         ConflitoDeRecursoException exception = assertThrows(
@@ -119,24 +105,22 @@ class DecisaoOrcamentoServiceTest {
     }
 
     @Test
-    void deveRejeitarDecisaoQuandoOsNaoEstaEmAguardandoAprovacao() {
-        UUID ordemId = UUID.randomUUID();
-        ordemDeServicoRepository.salvar(OrdemDeServico.reconstituir(
-                ordemId, NUMERO_OS, funcionario(), cliente(), veiculo(),
-                StatusOrdemDeServico.SERVICO_EM_ANDAMENTO, LocalDateTime.now(), null, null));
-        orcamentoAguardandoAprovacao(ordemId);
+    void orcamentoCanceladoNaoRecebeDecisao() {
+        Orcamento orcamento = orcamentoAguardandoAprovacao();
+        orcamento.cancelar();
+        orcamentoRepository.atualizar(orcamento);
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
                 () -> service.decidir(new DecidirOrcamentoExternamenteCommand(NUMERO_ORC, DecisaoOrcamento.APROVADO)));
 
-        assertEquals("Ordem de servico so pode receber decisao quando estiver aguardando aprovacao.", exception.getMessage());
+        assertEquals("Orcamento so pode receber decisao quando estiver aguardando aprovacao.", exception.getMessage());
+        assertEquals(List.of(), eventos.publicados);
     }
 
     @Test
-    void deveRejeitarDecisaoSemTipoDefinido() {
-        ordemEmAguardandoAprovacao();
-        orcamentoAguardandoAprovacao(ordemDeServicoRepository.buscarPorNumero(NUMERO_OS).orElseThrow().getId());
+    void decisaoEhObrigatoria() {
+        orcamentoAguardandoAprovacao();
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
@@ -145,20 +129,11 @@ class DecisaoOrcamentoServiceTest {
         assertEquals("Decisao do orcamento e obrigatoria.", exception.getMessage());
     }
 
-    private OrdemDeServico ordemEmAguardandoAprovacao() {
-        UUID id = UUID.randomUUID();
-        OrdemDeServico ordem = OrdemDeServico.reconstituir(
-                id, NUMERO_OS, funcionario(), cliente(), veiculo(),
-                StatusOrdemDeServico.AGUARDANDO_APROVACAO, LocalDateTime.now(), null, null);
-        ordemDeServicoRepository.salvar(ordem);
-        return ordemDeServicoRepository.buscarPorNumero(NUMERO_OS).orElseThrow();
-    }
-
-    private Orcamento orcamentoAguardandoAprovacao(UUID ordemId) {
+    private Orcamento orcamentoAguardandoAprovacao() {
         Orcamento orc = new Orcamento(
                 NUMERO_ORC,
                 UUID.randomUUID(),
-                ordemId,
+                ORDEM_ID,
                 UUID.randomUUID(),
                 "Maria",
                 "12345678909",
@@ -177,17 +152,23 @@ class DecisaoOrcamentoServiceTest {
         return orcamentoRepository.salvar(orc);
     }
 
-    private static Funcionario funcionario() {
-        return Funcionario.reconstituir(UUID.randomUUID(), "Joao", "12345678909");
-    }
+    /** Dublê escrito a mão (sem Mockito, como o resto da suite). */
+    static class EventosRegistrados implements EventosOrcamento {
+        final List<String> publicados = new ArrayList<>();
 
-    private static Cliente cliente() {
-        return Cliente.reconstituir(UUID.randomUUID(), "Maria", "12345678909", TipoCliente.PF);
-    }
+        @Override
+        public void orcamentoAprovado(Orcamento orcamento, CanalDecisao canal) {
+            publicados.add("APROVADO:" + canal);
+        }
 
-    private static Veiculo veiculo() {
-        UUID clienteId = UUID.randomUUID();
-        return Veiculo.reconstituir(UUID.randomUUID(), clienteId, "ABC1D23", "Toyota", "Corolla",
-                "Toyota Motor Corporation", 2024, 177, "AUTOMATICO", TipoCombustivel.FLEX);
+        @Override
+        public void orcamentoRejeitado(Orcamento orcamento, CanalDecisao canal) {
+            publicados.add("REJEITADO:" + canal);
+        }
+
+        @Override
+        public void orcamentoCancelado(Envelope comando, Orcamento orcamento) {
+            publicados.add("CANCELADO");
+        }
     }
 }

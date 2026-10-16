@@ -1,7 +1,11 @@
 package br.com.oficina.orcamento.application.usecase;
 
+import java.util.UUID;
+
 import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
 
 public interface CadastrarNovoOrcamentoUseCase {
-    void cadastrarNovoOrcamento(CadastrarNovoOrcamentoCommand command);
+
+    /** @return id do orcamento criado */
+    UUID cadastrarNovoOrcamento(CadastrarNovoOrcamentoCommand command);
 }

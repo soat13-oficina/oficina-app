@@ -295,9 +295,20 @@ public class OrdemDeServico {
         alterarStatus(StatusOrdemDeServico.AGUARDANDO_APROVACAO);
     }
 
-    public void iniciarExecucao() {
+    /**
+     * Orcamento aprovado: a ordem entra na fila de execucao. Chamado pelo orquestrador da Saga ao
+     * receber {@code OrcamentoAprovado} - quem aprova e o orcamento, a ordem so reage (ADR 0004).
+     */
+    public void aprovarOrcamento() {
         if (status != StatusOrdemDeServico.AGUARDANDO_APROVACAO) {
-            throw new RegraDeNegocioException("Execucao so pode iniciar quando a ordem estiver aguardando aprovacao");
+            throw new RegraDeNegocioException("Orcamento so pode ser aprovado quando a ordem estiver aguardando aprovacao");
+        }
+        alterarStatus(StatusOrdemDeServico.AGUARDANDO_EXECUCAO);
+    }
+
+    public void iniciarExecucao() {
+        if (status != StatusOrdemDeServico.AGUARDANDO_EXECUCAO) {
+            throw new RegraDeNegocioException("Execucao so pode iniciar quando a ordem estiver aguardando execucao");
         }
         alterarStatus(StatusOrdemDeServico.SERVICO_EM_ANDAMENTO);
     }
@@ -317,6 +328,16 @@ public class OrdemDeServico {
         }
         alterarStatus(StatusOrdemDeServico.OS_FINALIZADA);
         motivoEncerramento = MotivoEncerramento.ORCAMENTO_RECUSADO;
+        finalizadaEm = LocalDateTime.now();
+    }
+
+    /** Prazo de decisao da Saga vencido sem resposta do cliente. */
+    public void expirarOrcamento() {
+        if (status != StatusOrdemDeServico.AGUARDANDO_APROVACAO) {
+            throw new RegraDeNegocioException("Orcamento so pode expirar quando a ordem estiver aguardando aprovacao");
+        }
+        alterarStatus(StatusOrdemDeServico.OS_FINALIZADA);
+        motivoEncerramento = MotivoEncerramento.ORCAMENTO_EXPIRADO;
         finalizadaEm = LocalDateTime.now();
     }
 
