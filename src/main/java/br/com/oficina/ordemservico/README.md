@@ -137,9 +137,9 @@ POST /{num}/diagnostico/iniciar                      → DIAGNOSTICO_EM_ANDAMENT
 POST /{num}/diagnostico/concluir                     → DIAGNOSTICO_CONCLUIDO
 POST /{num}/diagnostico/enviar-para-orcamento (202)  → Saga GERANDO_ORCAMENTO
    OrcamentoGerado                                   → AGUARDANDO_APROVACAO
-POST /orcamentos/{n}/aprovacao (ou integração)       → Saga RESERVANDO_PECAS
-   PecasReservadas                                   → AGUARDANDO_PAGAMENTO (link em GET /orcamentos/{n}/pagamento)
-POST /pagamentos/{id}/simulacao  APROVADO            → AGUARDANDO_EXECUCAO
+OrcamentoAprovado (Billing: cliente, funcionário ou integração) → Saga RESERVANDO_PECAS
+   PecasReservadas                                   → AGUARDANDO_PAGAMENTO (link em GET /sagas/{ordemServicoId})
+PagamentoConfirmado (Billing: webhook do Mercado Pago) → AGUARDANDO_EXECUCAO
 POST /{num}/execucao/iniciar                         → SERVICO_EM_ANDAMENTO
 POST /{num}/servico/concluir                         → OS_FINALIZADA (peças baixadas do estoque)
 POST /{num}/entrega                                  → ENTREGUE

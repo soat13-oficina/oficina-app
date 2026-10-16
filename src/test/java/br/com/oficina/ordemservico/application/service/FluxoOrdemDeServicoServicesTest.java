@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
-import br.com.oficina.orcamento.application.command.PecaOrcamentoInput;
 import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
 import br.com.oficina.ordemservico.application.command.ConcluirServicoCommand;
 import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;

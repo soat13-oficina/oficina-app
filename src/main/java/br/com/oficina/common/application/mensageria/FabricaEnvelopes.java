@@ -42,7 +42,7 @@ public class FabricaEnvelopes {
 
     /**
      * Mesma fabrica assinando como outro servico ({@code source}). Transitorio: os participantes que
-     * ainda moram no monolito (orcamento, pagamento, estoque) assinam como o servico para onde vao,
+     * ainda moram no monolito (hoje, o estoque) assinam como o servico para onde vao,
      * como o contrato exige - o orquestrador nao distingue se o evento veio daqui ou da fila.
      */
     public FabricaEnvelopes paraServico(String outroServico) {

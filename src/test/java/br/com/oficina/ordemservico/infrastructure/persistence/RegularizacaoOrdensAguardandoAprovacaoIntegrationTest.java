@@ -2,124 +2,67 @@ package br.com.oficina.ordemservico.infrastructure.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
+
+import javax.sql.DataSource;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
-import br.com.oficina.cliente.domain.model.Cliente;
-import br.com.oficina.cliente.domain.model.TipoCliente;
-import br.com.oficina.cliente.domain.repository.ClienteRepository;
-import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
-import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
-import br.com.oficina.ordemservico.domain.model.Funcionario;
-import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
-import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
-import br.com.oficina.veiculo.domain.model.TipoCombustivel;
-import br.com.oficina.veiculo.domain.model.Veiculo;
-import jakarta.persistence.EntityManager;
-
-@SpringBootTest
-@Transactional
+/**
+ * V17: OS em AGUARDANDO_APROVACAO sem orcamento voltam para DIAGNOSTICO_CONCLUIDO. Roda no esquema
+ * do Flyway (Postgres): a tabela {@code orcamentos} nao tem mais entidade neste servico (o orcamento
+ * mora no Billing desde o Passo 3), mas continua no banco ate a migration que a remove.
+ */
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:tc:postgresql:16-alpine:///oficina_esquema",
+        "spring.datasource.driver-class-name=org.testcontainers.jdbc.ContainerDatabaseDriver",
+        "spring.flyway.enabled=true",
+        "spring.jpa.hibernate.ddl-auto=validate",
+        "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect"
+})
 class RegularizacaoOrdensAguardandoAprovacaoIntegrationTest {
 
-    @Autowired
-    private OrdemDeServicoRepository ordemDeServicoRepository;
+    private static final String COM_ORCAMENTO = "40000003-0000-0000-0000-000000000001";
+    private static final String ORFA = "40000009-0000-0000-0000-000000000001";
 
     @Autowired
-    private ClienteRepository clienteRepository;
-
-    @Autowired
-    private CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    @Autowired
-    private EntityManager entityManager;
+    private DataSource dataSource;
 
     @Test
     void deveReverterOrdensSemOrcamentoEPreservarAsComOrcamento() throws Exception {
-        UUID clienteId = clienteRepository.salvar(new Cliente("Maria", "20110101103", TipoCliente.PF)).getId();
-
-        // OS válida: AGUARDANDO_APROVACAO COM orçamento associado (na Fase 4 o orçamento vem do Billing,
-        // por GerarOrcamento; aqui ele é cadastrado direto e a OS é movida como o OrcamentoGerado faria).
-        UUID idValida = persistirOrdemEmDiagnosticoConcluido("OS-VALIDA", clienteId);
-        cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
-                "ORC-VALIDA",
-                new CadastrarNovoOrcamentoCommand.ClienteOrcamento(clienteId, "Maria", "20110101103"),
-                idValida,
-                UUID.fromString("71111111-1111-1111-1111-111111111111"),
-                "ABC1D23",
-                "Toyota",
-                "Corolla",
-                "Servico de diagnostico",
-                List.of("Servico de diagnostico"),
-                List.of(),
-                new BigDecimal("200.00"),
-                BigDecimal.ZERO,
-                LocalDateTime.of(2030, 1, 1, 0, 0),
-                null,
-                null));
-        entityManager.flush();
-        jdbcTemplate.update("UPDATE ordens_de_servico SET status = 'AGUARDANDO_APROVACAO' WHERE id = ?", idValida);
-
-        // OS órfã: simula o estado legado — AGUARDANDO_APROVACAO SEM orçamento.
-        UUID idOrfa = persistirOrdemEmDiagnosticoConcluido("OS-ORFA", clienteId);
-        entityManager.flush();
-        jdbcTemplate.update("UPDATE ordens_de_servico SET status = 'AGUARDANDO_APROVACAO' WHERE id = ?", idOrfa);
-
-        assertEquals("AGUARDANDO_APROVACAO", status(idValida));
-        assertEquals("AGUARDANDO_APROVACAO", status(idOrfa));
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.execute("TRUNCATE clientes, funcionarios, pecas_insumos CASCADE");
+        // OS-V24-3 esta em AGUARDANDO_APROVACAO com orcamento.
+        new ResourceDatabasePopulator(new ClassPathResource("sql/ordens-com-orcamento-aprovado.sql")).execute(dataSource);
+        // OS orfa: o estado legado, AGUARDANDO_APROVACAO sem orcamento.
+        jdbc.update("""
+                INSERT INTO ordens_de_servico (id, numero_ordem_servico, funcionario_id, funcionario_nome, cliente_id, veiculo_id,
+                  cliente_nome, veiculo_placa, veiculo_marca, veiculo_modelo, veiculo_fabricante, veiculo_ano, veiculo_potencia,
+                  veiculo_cambio, veiculo_tipo, status)
+                SELECT ?::uuid, 'OS-ORFA', funcionario_id, funcionario_nome, cliente_id, veiculo_id, cliente_nome, veiculo_placa,
+                  veiculo_marca, veiculo_modelo, veiculo_fabricante, veiculo_ano, veiculo_potencia, veiculo_cambio, veiculo_tipo,
+                  'AGUARDANDO_APROVACAO'
+                FROM ordens_de_servico WHERE id = ?::uuid
+                """, ORFA, COM_ORCAMENTO);
 
         String sql = carregarMigracaoV17();
-        int afetadas = jdbcTemplate.update(sql);
 
-        assertEquals(1, afetadas, "apenas a OS órfã deve ser regularizada");
-        assertEquals("DIAGNOSTICO_CONCLUIDO", status(idOrfa), "OS órfã revertida");
-        assertEquals("AGUARDANDO_APROVACAO", status(idValida), "OS com orçamento preservada");
-
-        // Idempotência: reexecutar não afeta mais nenhuma OS.
-        int afetadasNaReexecucao = jdbcTemplate.update(sql);
-        assertEquals(0, afetadasNaReexecucao, "migração é idempotente");
+        assertEquals(1, jdbc.update(sql), "apenas a OS orfa deve ser regularizada");
+        assertEquals("DIAGNOSTICO_CONCLUIDO", status(jdbc, ORFA), "OS orfa revertida");
+        assertEquals("AGUARDANDO_APROVACAO", status(jdbc, COM_ORCAMENTO), "OS com orcamento preservada");
+        assertEquals(0, jdbc.update(sql), "migracao e idempotente");
     }
 
-    private UUID persistirOrdemEmDiagnosticoConcluido(String numero, UUID clienteId) {
-        OrdemDeServico ordem = OrdemDeServico.abrir(
-                null,
-                numero,
-                Funcionario.reconstituir(UUID.fromString("71111111-1111-1111-1111-111111111111"), "Joao", null),
-                Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF),
-                Veiculo.reconstituir(
-                        UUID.nameUUIDFromBytes(("veiculo-" + numero).getBytes(StandardCharsets.UTF_8)),
-                        clienteId,
-                        "ABC1D23",
-                        "Toyota",
-                        "Corolla",
-                        "Toyota Motor Corporation",
-                        2024,
-                        177,
-                        "AUTOMATICO",
-                        TipoCombustivel.FLEX));
-        ordem.iniciarDiagnostico();
-        ordem.concluirDiagnostico("Servico de diagnostico", List.of());
-        ordemDeServicoRepository.salvar(ordem);
-        return ordemDeServicoRepository.buscarPorNumero(numero).orElseThrow().getId();
+    private static String status(JdbcTemplate jdbc, String id) {
+        return jdbc.queryForObject("SELECT status FROM ordens_de_servico WHERE id = ?::uuid", String.class, id);
     }
 
-    private String status(UUID id) {
-        return jdbcTemplate.queryForObject("SELECT status FROM ordens_de_servico WHERE id = ?", String.class, id);
-    }
-
-    private String carregarMigracaoV17() throws Exception {
+    private static String carregarMigracaoV17() throws Exception {
         byte[] bytes = new ClassPathResource(
                 "db/migration/V17__regularizar_ordens_aguardando_aprovacao_sem_orcamento.sql")
                 .getInputStream().readAllBytes();

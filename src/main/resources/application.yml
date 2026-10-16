@@ -83,19 +83,16 @@ management:
 observabilidade:
   ambiente: ${AMBIENTE:local}
 
-orcamento:
-  webhook:
-    secret: ${ORCAMENTO_WEBHOOK_SECRET:segredo-desenvolvimento}
-
 notificacao:
   reprocessamento:
     max-tentativas: ${NOTIFICACAO_MAX_TENTATIVAS:5}
     intervalo: ${NOTIFICACAO_INTERVALO:300000} # intervalo do job em ms (5 min)
     carencia-segundos: ${NOTIFICACAO_CARENCIA:60} # janela de carência antes de reprocessar
 
-# Mensageria da Saga (ADR 0005). Toda mensagem passa pelo outbox (outbox_mensagens) e e entregue
-# pelo transporte ativo: "memoria" no Passo 1 da Fase 4 (participantes ainda neste processo),
-# "sqs" a partir do Passo 3.
+# Mensageria da Saga (ADR 0005). Toda mensagem passa pelo outbox (outbox_mensagens). Desde o Passo 3
+# o Billing e outro servico: billing-commands sai pelo SQS e as respostas dele chegam em
+# os-saga-replies (ligar mensageria.sqs.* no ambiente). execution-commands continua no processo
+# (estoque ainda aqui) ate o Passo 4.
 mensageria:
   # source do envelope: nome logico do servico (docs/arquitetura/convencoes-de-nomes.md).
   servico: oficina-os-service
@@ -132,13 +129,3 @@ saga:
     agendamento-habilitado: true
     intervalo-ms: ${SAGA_PRAZOS_INTERVALO_MS:30000}
 
-# Pagamento do orcamento (ADR 0007). Gateway simulado ate o Mercado Pago entrar (Passo 3):
-# POST /pagamentos/{id}/simulacao faz o papel do cliente pagando e do webhook do provedor.
-pagamento:
-  simulacao:
-    habilitada: ${PAGAMENTO_SIMULACAO_HABILITADA:true}
-  simulado:
-    link-base: ${PAGAMENTO_LINK_BASE:https://pagamento-simulado.oficina.local/checkout}
-  expiracao:
-    agendamento-habilitado: true
-    intervalo-ms: ${PAGAMENTO_EXPIRACAO_INTERVALO_MS:30000}

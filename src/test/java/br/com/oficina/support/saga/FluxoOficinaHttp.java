@@ -17,7 +17,6 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.web.context.WebApplicationContext;
 
-import com.jayway.jsonpath.JsonPath;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
@@ -26,9 +25,6 @@ import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteReposi
 import br.com.oficina.common.infrastructure.mensageria.PublicadorOutbox;
 import br.com.oficina.common.infrastructure.mensageria.SpringDataMensagemProcessadaRepository;
 import br.com.oficina.common.infrastructure.mensageria.SpringDataOutboxMensagemRepository;
-import br.com.oficina.orcamento.domain.model.Orcamento;
-import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
-import br.com.oficina.orcamento.infrastructure.persistence.SpringDataOrcamentoRepository;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
@@ -37,7 +33,6 @@ import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataHistoric
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataOrdemDeServicoRepository;
 import br.com.oficina.ordemservico.saga.infrastructure.persistence.SpringDataRegistroPassoSagaRepository;
 import br.com.oficina.ordemservico.saga.infrastructure.persistence.SpringDataSagaOrdemServicoRepository;
-import br.com.oficina.pagamento.infrastructure.persistence.SpringDataPagamentoRepository;
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
 import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import br.com.oficina.pecainsumo.domain.repository.PecaInsumoRepository;
@@ -49,8 +44,9 @@ import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 import br.com.oficina.veiculo.infrastructure.persistence.SpringDataVeiculoRepository;
 
 /**
- * Conduz o ciclo de vida da OS pelas APIs HTTP reais (MockMvc), como o atendente, o mecanico e o
- * cliente fariam - usado pelo teste do orquestrador e pelos passos do BDD.
+ * Conduz o ciclo de vida da OS pelas APIs HTTP reais (MockMvc), como o atendente e o mecanico
+ * fariam - usado pelo teste do orquestrador, pelos passos do BDD e pelo teste de contrato. O lado do
+ * Billing (orcamento, decisao do cliente, pagamento) e o {@link BillingSimulado}.
  *
  * <p>A mensageria roda em memoria e o agendamento do outbox esta desligado nos testes: o que um
  * pod faria a cada segundo, aqui e {@link #processarMensagens()}.
@@ -79,8 +75,7 @@ public class FluxoOficinaHttp {
         bean(SpringDataHistoricoStatusOrdemDeServicoRepository.class).deleteAll();
         bean(SpringDataOutboxMensagemRepository.class).deleteAll();
         bean(SpringDataMensagemProcessadaRepository.class).deleteAll();
-        bean(SpringDataPagamentoRepository.class).deleteAll();
-        bean(SpringDataOrcamentoRepository.class).deleteAll();
+        billing().limpar();
         bean(SpringDataReservaPecaRepository.class).deleteAll();
         bean(SpringDataOrdemDeServicoRepository.class).deleteAll();
         bean(SpringDataVeiculoRepository.class).deleteAll();
@@ -157,35 +152,44 @@ public class FluxoOficinaHttp {
                 .getNumeroOrcamento();
     }
 
-    public Optional<Orcamento> orcamento(String numeroOrdem) {
-        return bean(OrcamentoRepository.class).buscarPorOrdemDeServicoId(ordem(numeroOrdem).getId());
+    public BillingSimulado billing() {
+        return bean(BillingSimulado.class);
     }
 
-    public void clienteAprova(String numeroOrcamento) throws Exception {
-        mvc.perform(post("/orcamentos/" + numeroOrcamento + "/aprovacao").with(CLIENTE).with(csrf()))
-                .andExpect(status().isOk());
+    /** Orcamento que o Billing (simulado) gerou para a OS. */
+    public Optional<BillingSimulado.OrcamentoSimulado> orcamento(String numeroOrdem) {
+        return billing().orcamentoDaOrdem(ordem(numeroOrdem).getId());
     }
 
-    public void clienteRejeita(String numeroOrcamento) throws Exception {
-        mvc.perform(post("/orcamentos/" + numeroOrcamento + "/rejeicao").with(CLIENTE).with(csrf()))
-                .andExpect(status().isNoContent());
+    public void clienteAprova(String numeroOrcamento) {
+        billing().decidir(numeroOrcamento, true, "CLIENTE");
     }
 
-    /** Cobranca do orcamento ({@code GET /orcamentos/{n}/pagamento}). */
-    public ResultActions pagamento(String numeroOrcamento) throws Exception {
-        return mvc.perform(get("/orcamentos/" + numeroOrcamento + "/pagamento").with(ATENDENTE));
+    public void clienteRejeita(String numeroOrcamento) {
+        billing().decidir(numeroOrcamento, false, "CLIENTE");
     }
 
-    public UUID pagamentoId(String numeroOrcamento) throws Exception {
-        String corpo = pagamento(numeroOrcamento).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        return UUID.fromString(JsonPath.read(corpo, "$.pagamentoId"));
+    public Optional<BillingSimulado.PagamentoSimulado> pagamento(String numeroOrcamento) {
+        return billing().pagamentoDoOrcamento(numeroOrcamento);
     }
 
-    /** O cliente paga (ou o cartao e recusado): faz o papel do checkout + webhook do provedor. */
-    public ResultActions simularPagamento(String numeroOrcamento, String resultado) throws Exception {
-        return mvc.perform(post("/pagamentos/" + pagamentoId(numeroOrcamento) + "/simulacao").with(ATENDENTE).with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{ \"resultado\": \"%s\", \"motivo\": \"Cartao recusado pelo emissor\" }".formatted(resultado)));
+    public UUID pagamentoId(String numeroOrcamento) {
+        return pagamento(numeroOrcamento).orElseThrow(() -> new IllegalStateException("Orcamento sem cobranca: " + numeroOrcamento))
+                .getId();
+    }
+
+    /** O cliente paga ({@code APROVADO}) ou o cartao e recusado ({@code RECUSADO}): checkout + webhook do provedor. */
+    public void simularPagamento(String numeroOrcamento, String resultado) {
+        if ("APROVADO".equals(resultado)) {
+            billing().pagar(numeroOrcamento);
+        } else {
+            billing().recusarPagamento(numeroOrcamento);
+        }
+    }
+
+    /** O Billing expira a cobranca vencida. */
+    public void expirarPagamento(String numeroOrcamento) {
+        billing().expirarPagamento(numeroOrcamento);
     }
 
     public void acao(String numero, String caminho) throws Exception {

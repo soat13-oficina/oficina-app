@@ -14,14 +14,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-import br.com.oficina.orcamento.infrastructure.persistence.SpringDataOrcamentoRepository;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
 import br.com.oficina.ordemservico.saga.application.OrquestradorSagaOrdemServico;
 import br.com.oficina.ordemservico.saga.domain.model.RegistroPassoSaga;
 import br.com.oficina.ordemservico.saga.domain.model.SagaOrdemServico;
 import br.com.oficina.ordemservico.saga.domain.repository.SagaOrdemServicoRepository;
-import br.com.oficina.pagamento.application.ResultadoPagamentoService;
 import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import br.com.oficina.pecainsumo.domain.repository.PecaInsumoRepository;
 import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataPecaInsumoRepository;
@@ -34,8 +32,10 @@ import io.cucumber.java.pt.Entao;
 import io.cucumber.java.pt.Quando;
 
 /**
- * Passos dos cenarios da Saga. Tudo passa pelas APIs HTTP reais; a mensageria assincrona e
- * "esperada" processando o outbox antes de cada verificacao - o que o agendamento faria em ~1 s.
+ * Passos dos cenarios da Saga. O lado do OS passa pelas APIs HTTP reais; o do Billing (orcamento,
+ * decisao do cliente, pagamento) e o {@code BillingSimulado}, que responde como o contrato manda. A
+ * mensageria assincrona e "esperada" processando o outbox antes de cada verificacao - o que o
+ * agendamento faria em ~1 s.
  */
 public class SagaSteps {
 
@@ -50,12 +50,6 @@ public class SagaSteps {
 
     @Autowired
     private SagaOrdemServicoRepository sagas;
-
-    @Autowired
-    private SpringDataOrcamentoRepository orcamentos;
-
-    @Autowired
-    private ResultadoPagamentoService resultadoPagamento;
 
     @Autowired
     private PecaInsumoRepository pecaInsumoRepository;
@@ -137,21 +131,21 @@ public class SagaSteps {
     }
 
     @Quando("o cliente paga")
-    public void clientePaga() throws Exception {
+    public void clientePaga() {
         fluxo.processarMensagens();
-        fluxo.simularPagamento(numeroOrcamento, "APROVADO").andExpect(status().isOk());
+        fluxo.simularPagamento(numeroOrcamento, "APROVADO");
     }
 
     @Quando("o pagamento é recusado")
-    public void pagamentoRecusado() throws Exception {
+    public void pagamentoRecusado() {
         fluxo.processarMensagens();
-        fluxo.simularPagamento(numeroOrcamento, "RECUSADO").andExpect(status().isOk());
+        fluxo.simularPagamento(numeroOrcamento, "RECUSADO");
     }
 
     @Quando("o prazo de pagamento vence")
     public void prazoDePagamentoVence() {
         fluxo.processarMensagens();
-        assertThat(resultadoPagamento.expirarVencidos(LocalDateTime.now().plusDays(2))).isEqualTo(1);
+        fluxo.expirarPagamento(numeroOrcamento);
     }
 
     @Quando("o mecânico inicia e conclui a execução")
@@ -214,31 +208,30 @@ public class SagaSteps {
         fluxo.processarMensagens();
         String link = saga().getLinkPagamento();
         assertThat(link).isNotBlank();
-        fluxo.pagamento(numeroOrcamento)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDENTE"))
-                .andExpect(jsonPath("$.linkPagamento").value(link));
+        assertThat(fluxo.pagamento(numeroOrcamento)).hasValueSatisfying(pagamento -> {
+            assertThat(pagamento.getStatus()).hasToString("PENDENTE");
+            assertThat(pagamento.getLinkPagamento()).isEqualTo(link);
+        });
     }
 
     @E("o orçamento fica {string}")
     public void orcamentoFica(String status) {
         fluxo.processarMensagens();
-        assertThat(orcamentos.findAll()).singleElement()
-                .satisfies(orcamento -> assertThat(orcamento.getStatus()).hasToString(status));
+        assertThat(fluxo.orcamento(numeroOrdem))
+                .hasValueSatisfying(orcamento -> assertThat(orcamento.getStatus()).hasToString(status));
     }
 
     @E("nenhum orçamento é gerado")
     public void nenhumOrcamento() {
         fluxo.processarMensagens();
-        assertThat(orcamentos.findAll()).isEmpty();
+        assertThat(fluxo.orcamento(numeroOrdem)).isEmpty();
     }
 
     @E("o pagamento fica {string}")
-    public void pagamentoFica(String status) throws Exception {
+    public void pagamentoFica(String status) {
         fluxo.processarMensagens();
-        fluxo.pagamento(numeroOrcamento)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(status));
+        assertThat(fluxo.pagamento(numeroOrcamento))
+                .hasValueSatisfying(pagamento -> assertThat(pagamento.getStatus()).hasToString(status));
     }
 
     @E("a peça {string} fica com {int} unidades reservadas e {int} em estoque")
