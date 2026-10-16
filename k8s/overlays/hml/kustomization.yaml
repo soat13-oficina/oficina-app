@@ -3,7 +3,7 @@
 #
 #   kubectl apply -k k8s/overlays/hml
 #
-# Os marcadores __IMAGE_REPO__, __IMAGE_TAG__ e __SES_IAM_ROLE_ARN__ são
+# Os marcadores __IMAGE_REPO__, __IMAGE_TAG__ e __IRSA_ROLE_ARN__ são
 # preenchidos pela pipeline; app.env recebe DB_URL e AWS_SES_REMETENTE lá também.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
