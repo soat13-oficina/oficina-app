@@ -149,6 +149,13 @@ spec:
                 secretKeyRef:
                   name: oficina-app-secrets
                   key: JWT_SECRET
+            # X-Service-Token das rotas /internal/** (oficina/<env>/service-token, infra/ deste
+            # repositorio): o Billing usa o mesmo valor para consultar precos das pecas.
+            - name: SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-app-secrets
+                  key: SERVICE_TOKEN
           # Probes nos endpoints nativos do Spring Boot Actuator
           # (management.endpoint.health.probes em application.yml).
           # startupProbe segura liveness/readiness até a app subir (Flyway +

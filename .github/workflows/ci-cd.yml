@@ -13,11 +13,15 @@ name: CI/CD (aplicacao)
 # O dispatch existe para REIMPLANTAR sem inventar commit: a plataforma e efemera
 # (apply/destroy sob demanda para nao pagar ocioso) e, como o ECR vive no repo
 # oficina-infra-k8s, um destroy leva a imagem junto. Subir o ambiente de novo e
-# entao: dispatch em infra-k8s -> infra-database -> lambda-auth -> AQUI, sem push.
+# entao: dispatch em infra-k8s -> infra-database -> Infra (OS Service) deste repo ->
+# infra/ do Billing -> lambda-auth -> AQUI, sem push.
 #
-# A INFRAESTRUTURA VIVE FORA DESTE REPOSITÓRIO (Fase 3):
-#   oficina-infra-k8s        VPC, EKS, ECR e a IAM Role de SES
+# INFRAESTRUTURA de que este deploy depende:
+#   oficina-infra-k8s        VPC, EKS e ECR
 #   oficina-infra-database   RDS oficina-db-hml e oficina-db-prd
+#   infra/ (este repo)       fila os-saga-replies + DLQ, Role IRSA (SQS + SES) e o
+#                            segredo oficina/<env>/service-token - workflow infra.yml, manual
+#   oficina-billing-service  fila billing-commands (o OS manda os comandos do Billing)
 #   oficina-lambda-auth      API Gateway, Lambdas e o segredo do JWT
 # Todos precisam estar aplicados antes do primeiro deploy daquele ambiente.
 #
@@ -265,14 +269,17 @@ jobs:
           echo "db_user=$DB_USER" >> "$GITHUB_OUTPUT"
           echo "db_pass=$DB_PASS" >> "$GITHUB_OUTPUT"
 
-      # A Role e criada pelo Terraform de oficina-infra-k8s com nome previsivel
-      # "<cluster>-ses-send-email" e confia no ServiceAccount oficina-api nos
-      # dois namespaces de ambiente.
-      - name: Descobre o ARN da IAM Role de SES
-        id: ses
+      # A Role e criada pelo infra/ deste repositorio (workflow "Infra (OS Service)") com nome
+      # previsivel "oficina-<env>-oficina-os-service": SQS da Saga + SES, confiando so na
+      # ServiceAccount oficina-api do namespace do ambiente.
+      - name: Descobre o ARN da IAM Role do servico
+        id: irsa
         run: |
-          ROLE_ARN=$(aws iam get-role --role-name "${EKS_CLUSTER}-ses-send-email" \
-            --query 'Role.Arn' --output text)
+          ROLE="oficina-${AMBIENTE}-oficina-os-service"
+          if ! ROLE_ARN=$(aws iam get-role --role-name "$ROLE" --query 'Role.Arn' --output text 2>/dev/null); then
+            echo "::error::Role $ROLE nao encontrada. Rode o workflow 'Infra (OS Service)' (apply em $AMBIENTE) antes deste deploy: ele cria a fila os-saga-replies, a Role e o service-token."
+            exit 1
+          fi
           echo "role_arn=$ROLE_ARN" >> "$GITHUB_OUTPUT"
 
       - name: Garante o namespace
@@ -305,15 +312,27 @@ jobs:
           fi
           echo "::add-mask::$JWT_SECRET"
 
+          # Token das rotas /internal/** (o Billing consulta precos das pecas). Criado pelo infra/
+          # deste repositorio; o Billing le o mesmo segredo.
+          SERVICE_TOKEN=$(aws secretsmanager get-secret-value \
+            --secret-id "oficina/${AMBIENTE}/service-token" \
+            --query SecretString --output text 2>/dev/null || true)
+          if [ -z "$SERVICE_TOKEN" ]; then
+            echo "::error::Segredo oficina/${AMBIENTE}/service-token nao encontrado. Rode o workflow 'Infra (OS Service)' (apply em $AMBIENTE)."
+            exit 1
+          fi
+          echo "::add-mask::$SERVICE_TOKEN"
+
           kubectl create secret generic oficina-app-secrets \
             --namespace "$NAMESPACE" \
             --from-literal=JWT_SECRET="$JWT_SECRET" \
+            --from-literal=SERVICE_TOKEN="$SERVICE_TOKEN" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Preenche o overlay de ${{ env.AMBIENTE }}
         env:
           JDBC_URL: ${{ steps.db.outputs.jdbc_url }}
-          SES_ROLE_ARN: ${{ steps.ses.outputs.role_arn }}
+          IRSA_ROLE_ARN: ${{ steps.irsa.outputs.role_arn }}
           REGISTRY: ${{ needs.build.outputs.registry }}
           TAG: ${{ needs.build.outputs.tag }}
         run: |
@@ -331,7 +350,7 @@ jobs:
 
           sed -i "s#__IMAGE_REPO__#${REGISTRY}/${ECR_REPOSITORY}#" "$OVERLAY/kustomization.yaml"
           sed -i "s#__IMAGE_TAG__#${TAG}#"                          "$OVERLAY/kustomization.yaml"
-          sed -i "s#__SES_IAM_ROLE_ARN__#${SES_ROLE_ARN}#"          "$OVERLAY/patch-serviceaccount.yaml"
+          sed -i "s#__IRSA_ROLE_ARN__#${IRSA_ROLE_ARN}#"            "$OVERLAY/patch-serviceaccount.yaml"
 
           echo "--- manifesto final ---"
           kubectl kustomize "$OVERLAY"
