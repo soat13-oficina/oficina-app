@@ -23,7 +23,6 @@ name: CI/CD (aplicacao)
 #
 # Configuração necessária no repositório:
 #   Secrets:   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-#              ORCAMENTO_WEBHOOK_SECRET (opcional, ver job de deploy)
 #   Variables: AWS_SES_REMETENTE (endereço verificado no SES)
 #              AWS_REGION (opcional, default us-east-1)
 
@@ -287,7 +286,6 @@ jobs:
         env:
           DB_USER: ${{ steps.db.outputs.db_user }}
           DB_PASS: ${{ steps.db.outputs.db_pass }}
-          WEBHOOK_SECRET_INPUT: ${{ secrets.ORCAMENTO_WEBHOOK_SECRET }}
         run: |
           kubectl create secret generic oficina-db-credentials \
             --namespace "$NAMESPACE" \
@@ -307,22 +305,9 @@ jobs:
           fi
           echo "::add-mask::$JWT_SECRET"
 
-          WEBHOOK_SECRET="$WEBHOOK_SECRET_INPUT"
-          if [ -z "$WEBHOOK_SECRET" ]; then
-            # Preserva o valor ja aplicado, para nao invalidar webhooks a cada deploy.
-            WEBHOOK_SECRET=$(kubectl -n "$NAMESPACE" get secret oficina-app-secrets \
-              -o jsonpath='{.data.ORCAMENTO_WEBHOOK_SECRET}' 2>/dev/null | base64 -d || true)
-          fi
-          if [ -z "$WEBHOOK_SECRET" ]; then
-            WEBHOOK_SECRET=$(openssl rand -base64 36)
-            echo "::warning::ORCAMENTO_WEBHOOK_SECRET nao configurado como secret do repositorio; um valor aleatorio foi gerado para este ambiente."
-          fi
-          echo "::add-mask::$WEBHOOK_SECRET"
-
           kubectl create secret generic oficina-app-secrets \
             --namespace "$NAMESPACE" \
             --from-literal=JWT_SECRET="$JWT_SECRET" \
-            --from-literal=ORCAMENTO_WEBHOOK_SECRET="$WEBHOOK_SECRET" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Preenche o overlay de ${{ env.AMBIENTE }}

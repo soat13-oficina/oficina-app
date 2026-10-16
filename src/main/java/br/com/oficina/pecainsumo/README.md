@@ -96,11 +96,13 @@ resposta; `LiberarReserva` repetido confirma com lista vazia.
 |---|---|---|
 | `ordemservico` (Saga) | só mensagens | Consome `ReservarPecas` e `LiberarReserva`; publica `PecasReservadas`, `ReservaFalhou` e `ReservaLiberada` |
 | `ordemservico` | porta `ReservasDaOrdem` | A conclusão do serviço chama `ConsumirReservasDaOrdemUseCase` pela ponte |
-| `ordemservico` / `orcamento` | porta `CatalogoPecas` | Existência (diagnóstico) e preço/descrição (orçamento) das peças, pela ponte `CatalogoDePecasDoEstoque` |
+| `ordemservico` | porta `CatalogoPecas` | Existência das peças do diagnóstico, pela ponte `CatalogoDePecasDoEstoque` |
 
 ## Dependências Externas
 
-Nenhuma.
+| Serviço | Como | Detalhe |
+|---|---|---|
+| `oficina-billing-service` | `POST /internal/pecas-insumos/consulta` (`X-Service-Token`) | Preço e descrição das peças para gerar o orçamento |
 
 ## Pontos de Entrada REST
 

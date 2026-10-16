@@ -2,7 +2,6 @@ package br.com.oficina.contratos;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -28,28 +27,34 @@ import br.com.oficina.common.infrastructure.mensageria.OutboxMensagemEntity;
 import br.com.oficina.common.infrastructure.mensageria.SpringDataOutboxMensagemRepository;
 import br.com.oficina.ordemservico.saga.application.OrquestradorSagaOrdemServico;
 import br.com.oficina.ordemservico.saga.domain.model.MensagensSaga;
-import br.com.oficina.pagamento.application.ResultadoPagamentoService;
 import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataPecaInsumoRepository;
 import br.com.oficina.support.contratos.ContratosDeMensagens;
 import br.com.oficina.support.saga.FluxoOficinaHttp;
 
 /**
- * Teste de contrato do produtor (ADR 0005): roda os caminhos da Saga dentro do monolito e valida
- * cada mensagem que passou pelo outbox - comandos do orquestrador e eventos dos participantes que
- * ainda moram aqui - contra o JSON Schema do seu {@code type} em {@code docs/contratos/schemas}.
- * Quando Billing e Execution sairem, cada um valida as proprias mensagens no seu repositorio.
+ * Teste de contrato do produtor (ADR 0005): roda os caminhos da Saga e valida cada mensagem que
+ * passou pelo outbox contra o JSON Schema do seu {@code type} em {@code docs/contratos/schemas}:
+ * <ul>
+ *   <li>comandos do orquestrador e eventos do estoque (participante que ainda mora aqui);</li>
+ *   <li>eventos do {@code BillingSimulado}: o duble do Billing tambem tem de seguir o contrato, senao
+ *       os testes do OS provariam a Saga contra respostas que o Billing de verdade nao manda. O
+ *       Billing valida as proprias mensagens no repositorio dele.</li>
+ * </ul>
  */
 @SpringBootTest
 class ContratoDasMensagensDaSagaTest {
 
-    /** Tudo o que o monolito produz hoje. Diagnostico e execucao ainda nao sao mensagens (Passo 4). */
+    /** Tudo o que o OS produz hoje. Diagnostico e execucao ainda nao sao mensagens (Passo 4). */
     private static final Set<String> PRODUZIDAS = Set.of(
             MensagensSaga.GERAR_ORCAMENTO, MensagensSaga.RESERVAR_PECAS, MensagensSaga.SOLICITAR_PAGAMENTO,
             MensagensSaga.REVERTER_APROVACAO, MensagensSaga.CANCELAR_ORCAMENTO, MensagensSaga.LIBERAR_RESERVA,
             MensagensSaga.ESTORNAR_PAGAMENTO,
+            MensagensSaga.PECAS_RESERVADAS, MensagensSaga.RESERVA_FALHOU, MensagensSaga.RESERVA_LIBERADA);
+
+    /** Respostas do Billing, aqui produzidas pelo BillingSimulado. */
+    private static final Set<String> DO_BILLING_SIMULADO = Set.of(
             MensagensSaga.ORCAMENTO_GERADO, MensagensSaga.ORCAMENTO_FALHOU, MensagensSaga.ORCAMENTO_APROVADO,
             MensagensSaga.ORCAMENTO_REJEITADO, MensagensSaga.APROVACAO_REVERTIDA, MensagensSaga.ORCAMENTO_CANCELADO,
-            MensagensSaga.PECAS_RESERVADAS, MensagensSaga.RESERVA_FALHOU, MensagensSaga.RESERVA_LIBERADA,
             MensagensSaga.PAGAMENTO_SOLICITADO, MensagensSaga.PAGAMENTO_CONFIRMADO, MensagensSaga.PAGAMENTO_RECUSADO,
             MensagensSaga.PAGAMENTO_EXPIRADO, MensagensSaga.PAGAMENTO_ESTORNADO, MensagensSaga.ESTORNO_FALHOU);
 
@@ -63,9 +68,6 @@ class ContratoDasMensagensDaSagaTest {
 
     @Autowired
     private OrquestradorSagaOrdemServico orquestrador;
-
-    @Autowired
-    private ResultadoPagamentoService resultadoPagamento;
 
     @Autowired
     private SpringDataPecaInsumoRepository pecas;
@@ -93,7 +95,7 @@ class ContratoDasMensagensDaSagaTest {
     }
 
     @Test
-    void todaMensagemQueOMonolitoProduzRespeitaOContrato() throws Exception {
+    void todaMensagemQueOOsEOBillingSimuladoProduzemRespeitaOContrato() throws Exception {
         caminhoFelizAteAConclusao();
         rejeicao();
         estoqueInsuficiente();
@@ -112,8 +114,8 @@ class ContratoDasMensagensDaSagaTest {
         }
 
         assertThat(erros).as("mensagens fora do contrato").isEmpty();
-        assertThat(tipos).as("todo tipo produzido foi exercitado").containsAll(PRODUZIDAS);
-        assertThat(CONTRATOS.tipos()).as("todo tipo produzido tem schema").containsAll(PRODUZIDAS);
+        assertThat(tipos).as("todo tipo produzido foi exercitado").containsAll(PRODUZIDAS).containsAll(DO_BILLING_SIMULADO);
+        assertThat(CONTRATOS.tipos()).as("todo tipo produzido tem schema").containsAll(PRODUZIDAS).containsAll(DO_BILLING_SIMULADO);
     }
 
     private String aguardandoPagamento(String placa, int estoque) throws Exception {
@@ -128,7 +130,7 @@ class ContratoDasMensagensDaSagaTest {
 
     private void caminhoFelizAteAConclusao() throws Exception {
         String numero = aguardandoPagamento("CTR1A11", 5);
-        fluxo.simularPagamento(fluxo.orcamento(numero).orElseThrow().getNumeroOrcamento(), "APROVADO").andExpect(status().isOk());
+        fluxo.simularPagamento(fluxo.orcamento(numero).orElseThrow().getNumeroOrcamento(), "APROVADO");
         fluxo.processarMensagens();
         fluxo.acao(numero, "/execucao/iniciar");
         fluxo.acao(numero, "/servico/concluir");
@@ -147,19 +149,19 @@ class ContratoDasMensagensDaSagaTest {
 
     private void pagamentoRecusado() throws Exception {
         String numero = aguardandoPagamento("CTR4A44", 5);
-        fluxo.simularPagamento(fluxo.orcamento(numero).orElseThrow().getNumeroOrcamento(), "RECUSADO").andExpect(status().isOk());
+        fluxo.simularPagamento(fluxo.orcamento(numero).orElseThrow().getNumeroOrcamento(), "RECUSADO");
         fluxo.processarMensagens();
     }
 
     private void pagamentoExpirado() throws Exception {
-        aguardandoPagamento("CTR5A55", 5);
-        resultadoPagamento.expirarVencidos(LocalDateTime.now().plusDays(2));
+        String numero = aguardandoPagamento("CTR5A55", 5);
+        fluxo.expirarPagamento(fluxo.orcamento(numero).orElseThrow().getNumeroOrcamento());
         fluxo.processarMensagens();
     }
 
     private void execucaoAbortada() throws Exception {
         String numero = aguardandoPagamento("CTR6A66", 5);
-        fluxo.simularPagamento(fluxo.orcamento(numero).orElseThrow().getNumeroOrcamento(), "APROVADO").andExpect(status().isOk());
+        fluxo.simularPagamento(fluxo.orcamento(numero).orElseThrow().getNumeroOrcamento(), "APROVADO");
         fluxo.processarMensagens();
         fluxo.acao(numero, "/execucao/iniciar");
         fluxo.abortarExecucao(numero, "Peca incompativel");
@@ -176,7 +178,7 @@ class ContratoDasMensagensDaSagaTest {
         orquestrador.processarPrazosVencidos(LocalDateTime.now());
     }
 
-    /** O simulador sempre estorna; EstornoFalhou sai quando o pagamento nao existe. */
+    /** O Billing simulado responde EstornoFalhou quando o pagamento nao existe. */
     private void estornoDePagamentoInexistente() throws Exception {
         String numero = fluxo.abrirOrdem("CTR8A88");
         UUID ordemId = fluxo.ordem(numero).getId();

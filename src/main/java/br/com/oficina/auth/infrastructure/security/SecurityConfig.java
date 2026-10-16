@@ -20,7 +20,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
-    private final WebhookTokenFilter webhookTokenFilter;
     private final ServiceTokenFilter serviceTokenFilter;
 
     @Bean
@@ -36,13 +35,11 @@ public class SecurityConfig {
                 // management responde na 8081, porta que NAO consta no Service - o permitAll
                 // aqui serve ao desenvolvimento local, onde tudo ainda vive na 8080.
                 .requestMatchers("/actuator/prometheus").permitAll()
-                .requestMatchers("/integracoes/orcamentos/*/decisao").permitAll()
                 // Chamadas entre servicos: fora do gateway, autenticadas pelo X-Service-Token.
                 .requestMatchers("/internal/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .addFilterBefore(webhookTokenFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(serviceTokenFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

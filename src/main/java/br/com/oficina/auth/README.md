@@ -3,8 +3,11 @@
 ## Objetivo
 
 Prover autenticação stateless via JWT para todos os endpoints protegidos da API, além de
-gerenciar o registro e login de usuários do sistema. Protege também o endpoint de webhook
-de decisão de orçamento com um token compartilhado (`X-Webhook-Token`).
+gerenciar o registro e login de usuários do sistema. Protege também as rotas internas
+(`/internal/**`, chamadas entre serviços) com o `X-Service-Token`.
+
+> O webhook de decisão de orçamento e os tokens de integração (`/integracoes/**`) saíram para o
+> `oficina-billing-service` junto com o orçamento (Fase 4, Passo 3).
 
 ## Responsabilidade Principal
 
@@ -21,18 +24,14 @@ validação de usuários com acesso ao sistema.
 | Login | `POST /api/auth/login` | Autentica com email e senha; retorna JWT válido por 24h |
 | Registro | `POST /api/auth/register` | Cria novo usuário; retorna JWT imediatamente após criação |
 | Validação JWT | Filtro automático | Valida o Bearer token em cada requisição para rotas protegidas |
-| Gerar token de integração | `POST /integracoes/tokens` | (JWT) Emite um token opaco para o webhook; segredo exibido **uma única vez**, armazenado só como hash |
-| Listar tokens de integração | `GET /integracoes/tokens` | (JWT) Lista tokens (rótulo, status, autoria); nunca expõe o segredo |
-| Revogar token de integração | `DELETE /integracoes/tokens/{id}` | (JWT) Revoga um token; deixa de ser aceito no webhook |
-| Validação Webhook | Filtro automático | Valida o header `X-Webhook-Token` no endpoint de decisão (token de integração gerado **ou** segredo estático na transição) |
+| Validação de serviço | Filtro automático | Valida o header `X-Service-Token` nas rotas `/internal/**` |
 
 ### Mecanismos de Segurança
 
 | Componente | Responsabilidade |
 |---|---|
 | `JwtAuthenticationFilter` | Extrai e valida o Bearer token do header `Authorization`; autentica o contexto Spring Security |
-| `WebhookTokenFilter` | Valida o header `X-Webhook-Token` no path `POST /integracoes/orcamentos/*/decisao`; aceita um **token de integração gerado ATIVO** (lookup por hash) **ou** o segredo estático (coexistência temporária); retorna 401 se ausente/inválido/revogado |
-| `TokenIntegracaoService` | Gera (segredo via `SecureRandom`, hash SHA-256), valida (lookup por hash) e revoga tokens de integração; persiste apenas o hash + autoria |
+| `ServiceTokenFilter` | Valida o header `X-Service-Token` em `/internal/**` contra `seguranca.service-token` (`SERVICE_TOKEN`); vazio = recusa tudo; 401 se ausente/inválido |
 | `JwtUtil` | Gera e valida tokens JWT usando HMAC-SHA; o subject do token é o email do usuário |
 | `UserDetailsServiceImpl` | Carrega `UserDetails` a partir do email para validação pelo Spring Security |
 | `SecurityConfig` | Define a cadeia de filtros, política stateless e lista de rotas públicas |
@@ -44,7 +43,7 @@ validação de usuários com acesso ao sistema.
 |---|---|
 | `/api/auth/**` | Login e registro de usuário |
 | `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html` | Documentação OpenAPI |
-| `POST /integracoes/orcamentos/*/decisao` | Webhook de decisão; protegido por token dedicado (`X-Webhook-Token`), não por JWT |
+| `/internal/**` | Chamadas entre serviços; protegidas pelo `X-Service-Token`, não por JWT (fora do API Gateway) |
 
 ## Ciclo de Vida
 
@@ -127,7 +126,7 @@ indiretamente de `auth` por estarem protegidos pela `SecurityFilterChain`.
 | `auth/infrastructure/security/SecurityConfig.java` | Define `SecurityFilterChain`, política stateless, rotas públicas e ordem dos filtros |
 | `auth/infrastructure/security/JwtUtil.java` | Geração e validação de tokens JWT |
 | `auth/infrastructure/security/JwtAuthenticationFilter.java` | Filtro por requisição para autenticação via Bearer token |
-| `auth/infrastructure/security/WebhookTokenFilter.java` | Filtro para o endpoint de webhook de orçamento |
+| `auth/infrastructure/security/ServiceTokenFilter.java` | Filtro das rotas internas entre serviços |
 | `auth/infrastructure/controller/AuthController.java` | Controller de login e registro |
 | `auth/infrastructure/repository/UsuarioRepository.java` | Spring Data JPA para `Usuario` |
 | `db/migration/V1__init_schema.sql` | Cria a tabela `usuarios` |
@@ -138,9 +137,8 @@ indiretamente de `auth` por estarem protegidos pela `SecurityFilterChain`.
   (sem use cases nem services) — acessa Spring Data e Spring Security diretamente. A
   constituição reconhece essa exceção como a única permitida para módulos de autenticação
   JWT stateless.
-- **`WebhookTokenFilter` executado antes do `JwtAuthenticationFilter`**: a ordem no
-  `SecurityConfig` é `webhookTokenFilter → jwtAuthFilter → UsernamePasswordAuthenticationFilter`.
-  O webhook é autenticado apenas pelo token dedicado, sem necessitar de JWT.
+- **`ServiceTokenFilter` executado antes do `JwtAuthenticationFilter`**: as rotas internas são
+  autenticadas apenas pelo token de serviço, sem JWT.
 - **Token JWT sem claims de autorização (roles)**: o token carrega somente o subject (email).
   Não há RBAC (Role-Based Access Control) — toda rota protegida é acessível a qualquer
   usuário autenticado.

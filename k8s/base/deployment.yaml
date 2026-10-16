@@ -149,11 +149,6 @@ spec:
                 secretKeyRef:
                   name: oficina-app-secrets
                   key: JWT_SECRET
-            - name: ORCAMENTO_WEBHOOK_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: oficina-app-secrets
-                  key: ORCAMENTO_WEBHOOK_SECRET
           # Probes nos endpoints nativos do Spring Boot Actuator
           # (management.endpoint.health.probes em application.yml).
           # startupProbe segura liveness/readiness até a app subir (Flyway +

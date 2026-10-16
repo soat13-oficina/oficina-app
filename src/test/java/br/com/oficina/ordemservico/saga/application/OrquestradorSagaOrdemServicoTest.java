@@ -2,6 +2,7 @@ package br.com.oficina.ordemservico.saga.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -10,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -32,7 +35,6 @@ import br.com.oficina.common.application.mensageria.Filas;
 import br.com.oficina.common.application.mensageria.PublicadorMensagens;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
 import br.com.oficina.common.infrastructure.mensageria.SpringDataOutboxMensagemRepository;
-import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import br.com.oficina.ordemservico.domain.model.AlteracaoStatusOrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.MotivoEncerramento;
 import br.com.oficina.ordemservico.domain.model.OrigemAlteracaoStatus;
@@ -44,18 +46,17 @@ import br.com.oficina.ordemservico.saga.domain.model.SagaOrdemServico;
 import br.com.oficina.ordemservico.saga.domain.model.StatusSaga;
 import br.com.oficina.ordemservico.saga.domain.repository.SagaOrdemServicoRepository;
 import br.com.oficina.ordemservico.saga.infrastructure.persistence.SpringDataSagaOrdemServicoRepository;
-import br.com.oficina.pagamento.application.ResultadoPagamentoService;
-import br.com.oficina.pagamento.domain.model.Pagamento;
-import br.com.oficina.pagamento.domain.model.StatusPagamento;
-import br.com.oficina.pagamento.domain.repository.PagamentoRepository;
 import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataPecaInsumoRepository;
+import br.com.oficina.support.saga.BillingSimulado.PagamentoSimulado;
+import br.com.oficina.support.saga.BillingSimulado.StatusOrcamento;
+import br.com.oficina.support.saga.BillingSimulado.StatusPagamento;
 import br.com.oficina.support.saga.FluxoOficinaHttp;
 
 /**
- * Saga ponta a ponta dentro do monolito: APIs HTTP reais, outbox, transporte em memoria, consumidor
- * idempotente, orquestrador e os participantes (orcamento e pagamento - futuro Billing; estoque -
- * futura Execution).
+ * Saga ponta a ponta no OS: APIs HTTP reais, outbox, transporte em memoria, consumidor idempotente,
+ * orquestrador e os participantes - o estoque (futura Execution) ainda mora aqui; o Billing e o
+ * {@code BillingSimulado}, que responde como o contrato manda.
  */
 @SpringBootTest
 class OrquestradorSagaOrdemServicoTest {
@@ -88,12 +89,6 @@ class OrquestradorSagaOrdemServicoTest {
 
     @Autowired
     private TransactionTemplate transacao;
-
-    @Autowired
-    private PagamentoRepository pagamentos;
-
-    @Autowired
-    private ResultadoPagamentoService resultadoPagamento;
 
     @Autowired
     private SpringDataPecaInsumoRepository springDataPecas;
@@ -145,8 +140,8 @@ class OrquestradorSagaOrdemServicoTest {
         return orcamento;
     }
 
-    private Pagamento pagamentoDaOrdem(String numero) {
-        return pagamentos.buscarPorOrcamento(fluxo.orcamento(numero).orElseThrow().getId()).get(0);
+    private PagamentoSimulado pagamentoDaOrdem(String numero) {
+        return fluxo.pagamento(fluxo.orcamento(numero).orElseThrow().getNumeroOrcamento()).orElseThrow();
     }
 
     private PecaInsumo peca(String pecaId) {
@@ -222,16 +217,16 @@ class OrquestradorSagaOrdemServicoTest {
         assertThat(peca(pecaId).getQuantidadeReservada()).isEqualTo(2);
         assertThat(peca(pecaId).getQuantidadeDisponivel()).isEqualTo(3);
         SagaOrdemServico aguardandoPagamento = saga(numero);
-        Pagamento cobranca = pagamentoDaOrdem(numero);
+        PagamentoSimulado cobranca = pagamentoDaOrdem(numero);
         assertThat(aguardandoPagamento.getStatus()).isEqualTo(StatusSaga.AGUARDANDO_PAGAMENTO);
         assertThat(aguardandoPagamento.getPagamentoId()).isEqualTo(cobranca.getId());
         assertThat(aguardandoPagamento.getLinkPagamento()).isEqualTo(cobranca.getLinkPagamento()).contains(cobranca.getId().toString());
         assertThat(cobranca.getStatus()).isEqualTo(StatusPagamento.PENDENTE);
         assertThat(cobranca.getValor()).isEqualByComparingTo("360.00");
         assertThat(aguardandoPagamento.getPrazoExpiraEm()).as("prazo do pagamento + margem")
-                .isEqualTo(cobranca.getExpiraEm().plusMinutes(10));
+                .isCloseTo(LocalDateTime.ofInstant(cobranca.getExpiraEm(), ZoneId.systemDefault()).plusMinutes(10), within(1, ChronoUnit.MILLIS));
 
-        fluxo.simularPagamento(orcamento, "APROVADO").andExpect(status().isOk());
+        fluxo.simularPagamento(orcamento, "APROVADO");
         fluxo.processarMensagens();
 
         assertThat(fluxo.ordem(numero).getStatus()).isEqualTo(StatusOrdemDeServico.AGUARDANDO_EXECUCAO);
@@ -288,7 +283,7 @@ class OrquestradorSagaOrdemServicoTest {
         String numero = diagnosticadaComPeca("SAG5A55", pecaId, 2);
         String orcamento = ateAguardarPagamento(numero);
 
-        fluxo.simularPagamento(orcamento, "RECUSADO").andExpect(status().isOk());
+        fluxo.simularPagamento(orcamento, "RECUSADO");
         fluxo.processarMensagens();
 
         assertThat(fluxo.ordem(numero).getStatus()).isEqualTo(StatusOrdemDeServico.CANCELADA);
@@ -298,18 +293,15 @@ class OrquestradorSagaOrdemServicoTest {
         assertThat(pagamentoDaOrdem(numero).getStatus()).isEqualTo(StatusPagamento.RECUSADO);
         assertThat(peca(pecaId).getQuantidadeReservada()).isZero();
         assertThat(peca(pecaId).getQuantidadeEstoque()).isEqualTo(5);
-
-        fluxo.simularPagamento(orcamento, "APROVADO").andExpect(status().isConflict());
     }
 
     @Test
     void pagamentoExpiradoNoBillingCancelaAOrdem() throws Exception {
         String pecaId = fluxo.cadastrarPeca("Filtro", 5);
         String numero = diagnosticadaComPeca("SAG6A66", pecaId, 1);
-        ateAguardarPagamento(numero);
+        String orcamento = ateAguardarPagamento(numero);
 
-        assertThat(resultadoPagamento.expirarVencidos(LocalDateTime.now())).as("ainda no prazo").isZero();
-        assertThat(resultadoPagamento.expirarVencidos(LocalDateTime.now().plusDays(2))).isEqualTo(1);
+        fluxo.expirarPagamento(orcamento);
         fluxo.processarMensagens();
 
         assertThat(fluxo.ordem(numero).getStatus()).isEqualTo(StatusOrdemDeServico.CANCELADA);
@@ -346,7 +338,7 @@ class OrquestradorSagaOrdemServicoTest {
         String pecaId = fluxo.cadastrarPeca("Filtro", 5);
         String numero = diagnosticadaComPeca("SAG8A88", pecaId, 2);
         String orcamento = ateAguardarPagamento(numero);
-        fluxo.simularPagamento(orcamento, "APROVADO").andExpect(status().isOk());
+        fluxo.simularPagamento(orcamento, "APROVADO");
         fluxo.processarMensagens();
         fluxo.acao(numero, "/execucao/iniciar");
 

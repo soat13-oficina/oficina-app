@@ -24,10 +24,6 @@ import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
 import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
-import br.com.oficina.orcamento.domain.model.Orcamento;
-import br.com.oficina.orcamento.domain.model.PecaOrcamento;
-import br.com.oficina.orcamento.domain.model.StatusOrcamento;
-import br.com.oficina.orcamento.infrastructure.persistence.SpringDataOrcamentoRepository;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
@@ -73,9 +69,6 @@ class OrdemDeServicoControllerTest {
 
     @Autowired
     private SpringDataFuncionarioRepository springDataFuncionarioRepository;
-
-    @Autowired
-    private SpringDataOrcamentoRepository springDataOrcamentoRepository;
 
     @Autowired
     private SpringDataPecaInsumoRepository springDataPecaInsumoRepository;
@@ -164,15 +157,14 @@ class OrdemDeServicoControllerTest {
         fluxo.processarMensagens();
         situacao(numero, "Aguardando Aprovação");
 
-        // O orcamento aprova e publica OrcamentoAprovado; a Saga reserva as pecas e pede o pagamento.
-        String numeroOrcamento = springDataOrcamentoRepository.findAll().get(0).getNumeroOrcamento();
-        mockMvc.perform(post("/orcamentos/" + numeroOrcamento + "/aprovacao").with(user("tester")).with(csrf()))
-                .andExpect(status().isOk());
+        // O cliente aprova no Billing, que publica OrcamentoAprovado; a Saga reserva as pecas e pede o pagamento.
+        String numeroOrcamento = fluxo.orcamento(numero).orElseThrow().getNumeroOrcamento();
+        fluxo.clienteAprova(numeroOrcamento);
         situacao(numero, "Aguardando Aprovação");
         fluxo.processarMensagens();
         situacao(numero, "Aguardando Pagamento");
 
-        fluxo.simularPagamento(numeroOrcamento, "APROVADO").andExpect(status().isOk());
+        fluxo.simularPagamento(numeroOrcamento, "APROVADO");
         fluxo.processarMensagens();
         situacao(numero, "Execução");
 

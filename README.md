@@ -2,6 +2,13 @@
 
 Backend monolítico para gestão de Oficina Mecânica, desenvolvido com **Java 21 + Spring Boot 4 + PostgreSQL**.
 
+> **Fase 4 (em andamento):** este repositório vira o **OS Service** — dono da ordem de serviço e
+> orquestrador da Saga ([ADR 0004](docs/adr/0004-saga-orquestrada.md)). Orçamento, pagamento
+> (Mercado Pago), webhook de decisão e tokens de integração já saíram para o
+> [`oficina-billing-service`](https://github.com/soat13-oficina/oficina-billing-service), que conversa
+> com o OS pelas filas SQS `billing-commands` / `os-saga-replies`
+> ([mensageria local](docs/arquitetura/mensageria-local.md)). Estoque e execução saem no Passo 4.
+
 ## Fase 3 — objetivo desta fase
 
 A Fase 2 entregou containerização, Kubernetes na AWS, Terraform e CI/CD — tudo
@@ -108,7 +115,10 @@ Isso sobe um container PostgreSQL com as credenciais padrão:
 ./mvnw spring-boot:run
 ```
 
-Alternativamente, `docker-compose up -d` sobe banco **e** aplicação
+Para a Saga andar (orçamento, decisão, pagamento) o Billing precisa estar no ar: veja
+[Mensageria da Saga: desenvolvimento local](docs/arquitetura/mensageria-local.md#localstack-no-docker-compose).
+
+Alternativamente, `docker-compose up -d` sobe banco, LocalStack (filas SQS) **e** aplicação
 containerizados (usa o `Dockerfile` multi-stage do projeto).
 
 O Flyway executa as migrations automaticamente na inicialização. A aplicação fica disponível em `http://localhost:8080`.
@@ -345,10 +355,13 @@ O token expira em **24 horas**. Para renovar, basta fazer login novamente.
 | Ordens de Serviço (`/ordens-servico`) | `POST`, `GET`, `GET /{numeroOrdemServico}`, `PUT /{numeroOrdemServico}`, `DELETE /{numeroOrdemServico}`, `GET /metricas/tempo-medio`, `GET /{numeroOrdemServico}/acompanhamento` |
 | Diagnóstico da OS | `POST /ordens-servico/{numeroOrdemServico}/diagnostico/iniciar`, `POST /ordens-servico/{numeroOrdemServico}/diagnostico/concluir`, `POST /ordens-servico/{numeroOrdemServico}/diagnostico/enviar-para-orcamento` |
 | Execução e entrega da OS | `POST /ordens-servico/{numeroOrdemServico}/execucao/iniciar`, `POST /ordens-servico/{numeroOrdemServico}/servico/concluir`, `POST /ordens-servico/{numeroOrdemServico}/finalizacao`, `POST /ordens-servico/{numeroOrdemServico}/entrega` |
-| Orçamentos (`/orcamentos`) | `POST /{orcamentoId}/aprovacao`, `POST /{orcamentoId}/rejeicao`, `GET /{orcamentoId}`, `GET`, `PUT /{orcamentoId}`, `DELETE /{orcamentoId}` |
 | Peças e Insumos (`/pecas-insumos`) | `POST`, `GET`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/adicionar-estoque`, `POST /{id}/remover-estoque`, `POST /{id}/reservar`, `POST /{id}/liberar-reserva`, `POST /{id}/consumir` |
-| Webhook de decisão de orçamento (`/integracoes/orcamentos`) | `POST /{numeroOrcamento}/decisao` — exige o header `X-Webhook-Token`, aceitando um token de integração gerado (ver abaixo) ou o segredo estático `ORCAMENTO_WEBHOOK_SECRET` (coexistência temporária) |
-| Tokens de integração (`/integracoes/tokens`) | `POST` (gerar), `GET` (listar), `DELETE /{id}` (revogar) — autenticado via JWT, como as demais rotas |
+| Saga da OS (`/sagas`) | `GET /{ordemServicoId}` — estado, link de pagamento e história da Saga |
+| Interno (`/internal`, fora do API Gateway) | `POST /pecas-insumos/consulta` — catálogo de peças para o Billing; exige `X-Service-Token` (`SERVICE_TOKEN`) |
+
+> **Orçamentos, pagamentos, webhooks (decisão e Mercado Pago) e tokens de integração** moram no
+> [`oficina-billing-service`](https://github.com/soat13-oficina/oficina-billing-service) desde o
+> Passo 3 da Fase 4.
 
 > **Notificações**: não expõem endpoint REST. São disparadas internamente (padrão outbox) a cada mudança de status da OS e reprocessadas por um scheduler em caso de falha de envio. O transporte de e-mail é resolvido por Spring Profile: SMTP/Mailhog (`SMTP_HOST`/`SMTP_PORT`, default) em desenvolvimento, ou Amazon SES com o profile `ses` em produção — ver [Configuração de e-mail em produção (Amazon SES)](#configuração-de-e-mail-em-produção-amazon-ses).
 
@@ -362,7 +375,7 @@ src/main/java/br/com/oficina/
 ├── cliente/            # CRUD de clientes (PF/PJ, validacao CPF/CNPJ)
 ├── veiculo/            # CRUD de veiculos (placa formato antigo e Mercosul)
 ├── ordemservico/       # Bounded context principal — ciclo de vida da OS
-├── orcamento/          # Orcamentos vinculados a OS
+├── ponte/              # Adaptadores transitorios OS <-> estoque (somem no Passo 4)
 ├── pecainsumo/         # Estoque de pecas e insumos
 ├── common/             # Excecoes globais e ApiExceptionHandler
 └── config/             # SwaggerConfig, FlywayConfig
@@ -576,6 +589,9 @@ como *status check* obrigatório na proteção de `master` e `homologacao`.
 | `SPRING_PROFILES_ACTIVE` | não definido (SMTP/Mailhog); `ses` ativa o envio via Amazon SES em produção |
 | `AWS_SES_REGION` | *(apenas com profile `ses`)* região AWS do SES, ex. `us-east-1` |
 | `AWS_SES_REMETENTE` | *(apenas com profile `ses`)* endereço remetente, já verificado no SES |
+| `SERVICE_TOKEN` | vazio = nenhuma chamada a `/internal/**` aceita |
+| `MENSAGERIA_SQS_HABILITADO`, `MENSAGERIA_SQS_ENVIO`, `MENSAGERIA_SQS_CONSUMO` | `false`, vazio, vazio — com o Billing fora do processo: `true`, `billing-commands`, `os-saga-replies` ([detalhes](docs/arquitetura/mensageria-local.md)) |
+| `AMBIENTE`, `AWS_ENDPOINT_URL_SQS`, `AWS_REGION` | `local`, vazio (AWS), `us-east-1` — nome das filas `oficina-<ambiente>-<fila>.fifo` e LocalStack |
 
 ## Configuração de e-mail em produção (Amazon SES)
 

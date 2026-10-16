@@ -58,11 +58,11 @@ services:
       # Rotas /internal/** (o Billing consulta as pecas aqui ate a Execution existir).
       SERVICE_TOKEN: ${SERVICE_TOKEN:-token-de-servico-local}
       # Mensageria: tudo em memoria por padrao. Para mandar os comandos do Billing pelo SQS do
-      # LocalStack: MENSAGERIA_SQS_HABILITADO=true, MENSAGERIA_SQS_ENVIO=billing-commands,
-      # MENSAGERIA_SQS_CONSUMO=os-saga-replies (ver docs/arquitetura/mensageria-local.md).
-      MENSAGERIA_SQS_HABILITADO: ${MENSAGERIA_SQS_HABILITADO:-false}
-      MENSAGERIA_SQS_ENVIO: ${MENSAGERIA_SQS_ENVIO:-}
-      MENSAGERIA_SQS_CONSUMO: ${MENSAGERIA_SQS_CONSUMO:-}
+      # O Billing e outro servico (oficina-billing-service): billing-commands vai pelo SQS do
+      # LocalStack e as respostas voltam em os-saga-replies (docs/arquitetura/mensageria-local.md).
+      MENSAGERIA_SQS_HABILITADO: ${MENSAGERIA_SQS_HABILITADO:-true}
+      MENSAGERIA_SQS_ENVIO: ${MENSAGERIA_SQS_ENVIO:-billing-commands}
+      MENSAGERIA_SQS_CONSUMO: ${MENSAGERIA_SQS_CONSUMO:-os-saga-replies}
       AWS_ENDPOINT_URL_SQS: http://localstack:4566
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: test
