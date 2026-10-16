@@ -102,8 +102,11 @@ public class FluxoOficinaHttp {
 
     /** Cliente, funcionario e veiculo; devolve o numero da OS aberta por POST /ordens-servico. */
     public String abrirOrdem(String placa) throws Exception {
-        Cliente cliente = bean(ClienteRepository.class).salvar(new Cliente("Maria", "52998224725", TipoCliente.PF));
-        Funcionario funcionario = bean(SpringDataFuncionarioRepository.class).save(new Funcionario("Ana Atendente", "12345678909"));
+        // Mesmo cliente e funcionario para todas as OSs do cenario (documento e CPF sao unicos).
+        Cliente cliente = bean(ClienteRepository.class).buscarPorDocumento("52998224725")
+                .orElseGet(() -> bean(ClienteRepository.class).salvar(new Cliente("Maria", "52998224725", TipoCliente.PF)));
+        Funcionario funcionario = bean(SpringDataFuncionarioRepository.class).findByCpf("12345678909")
+                .orElseGet(() -> bean(SpringDataFuncionarioRepository.class).save(new Funcionario("Ana Atendente", "12345678909")));
         bean(VeiculoRepository.class).salvar(new Veiculo(
                 cliente.getId(), placa, "Toyota", "Corolla", "Toyota Motor Corporation", 2020, 177, "AUTOMATICO", TipoCombustivel.FLEX));
         mvc.perform(post("/ordens-servico").with(ATENDENTE).with(csrf())

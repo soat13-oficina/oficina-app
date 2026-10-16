@@ -14,12 +14,15 @@ import br.com.oficina.common.application.mensageria.PublicadorMensagens;
 @Component
 public class EventosEstoque {
 
+    /** {@code source} dos eventos: o servico para onde o estoque vai (contrato). */
+    static final String SERVICO = "oficina-execution-service";
+
     private final PublicadorMensagens publicador;
     private final FabricaEnvelopes fabrica;
 
     public EventosEstoque(PublicadorMensagens publicador, FabricaEnvelopes fabrica) {
         this.publicador = publicador;
-        this.fabrica = fabrica;
+        this.fabrica = fabrica.paraServico(SERVICO);
     }
 
     public void responder(Envelope comando, String tipo, Object payload) {

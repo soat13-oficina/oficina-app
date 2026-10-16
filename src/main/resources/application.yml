@@ -49,6 +49,11 @@ jwt:
   secret: ${JWT_SECRET:SUA_CHAVE_SECRETA_MUITO_SEGURA_E_LONGA_PARA_O_JWT_DA_OFICINA_2026}
   expiration: 86400000 # 1 dia em milissegundos
 
+# Header X-Service-Token das rotas /internal/** (chamadas entre servicos, fora do API Gateway).
+# Segredo oficina/<env>/service-token; vazio = nenhuma chamada interna e aceita.
+seguranca:
+  service-token: ${SERVICE_TOKEN:}
+
 
 # Health checks consumidos pelos probes do Kubernetes (k8s/base/deployment.yaml)
 # e pelo HEALTHCHECK do Dockerfile:
@@ -94,7 +99,18 @@ notificacao:
 mensageria:
   # source do envelope: nome logico do servico (docs/arquitetura/convencoes-de-nomes.md).
   servico: oficina-os-service
-  transporte: ${MENSAGERIA_TRANSPORTE:memoria}
+  # SQS FIFO (ADR 0005), fila a fila conforme os servicos sao extraidos. Fila fora de "envio" e
+  # entregue dentro do processo (participante ainda no monolito). Nome fisico:
+  # oficina-<ambiente>-<fila>.fifo. Ver docs/arquitetura/mensageria-local.md para o LocalStack.
+  sqs:
+    habilitado: ${MENSAGERIA_SQS_HABILITADO:false}
+    envio: ${MENSAGERIA_SQS_ENVIO:}          # ex.: billing-commands
+    consumo: ${MENSAGERIA_SQS_CONSUMO:}      # ex.: os-saga-replies
+    ambiente: ${AMBIENTE:local}
+    endpoint: ${AWS_ENDPOINT_URL_SQS:}       # LocalStack: http://localhost:4566
+    regiao: ${AWS_REGION:us-east-1}
+    espera: PT20S
+    max-mensagens: 10
   outbox:
     agendamento-habilitado: true
     intervalo-ms: ${MENSAGERIA_OUTBOX_INTERVALO_MS:1000}

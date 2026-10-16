@@ -40,6 +40,15 @@ public class FabricaEnvelopes {
         this.relogio = relogio;
     }
 
+    /**
+     * Mesma fabrica assinando como outro servico ({@code source}). Transitorio: os participantes que
+     * ainda moram no monolito (orcamento, pagamento, estoque) assinam como o servico para onde vao,
+     * como o contrato exige - o orquestrador nao distingue se o evento veio daqui ou da fila.
+     */
+    public FabricaEnvelopes paraServico(String outroServico) {
+        return new FabricaEnvelopes(jsonMapper, outroServico, relogio);
+    }
+
     /** Comando do orquestrador, ou evento espontaneo: sem {@code causationId}. */
     public Envelope novo(String tipo, UUID sagaId, UUID ordemServicoId, Object payload) {
         return montar(tipo, sagaId, ordemServicoId, null, payload);
