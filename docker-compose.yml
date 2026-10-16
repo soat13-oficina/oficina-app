@@ -25,6 +25,24 @@ services:
       - "8025:8025"
     restart: unless-stopped
 
+  # Filas SQS FIFO da Saga (ADR 0005). Imagem fixada: as 2026.x exigem token de conta.
+  # Ver docs/arquitetura/mensageria-local.md.
+  localstack:
+    image: localstack/localstack:4.14.0
+    container_name: oficina_localstack
+    environment:
+      SERVICES: sqs
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./scripts/localstack:/etc/localstack/init/ready.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name oficina-local-os-saga-replies.fifo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
   api:
     build: .
     container_name: oficina_api
@@ -37,6 +55,18 @@ services:
       JWT_SECRET: ${JWT_SECRET:-ASjhd8213u41jksaJD7HS8AJDkjsaDH871A2132KJDQ293N12BDKS}
       SMTP_HOST: mailhog
       SMTP_PORT: 1025
+      # Rotas /internal/** (o Billing consulta as pecas aqui ate a Execution existir).
+      SERVICE_TOKEN: ${SERVICE_TOKEN:-token-de-servico-local}
+      # Mensageria: tudo em memoria por padrao. Para mandar os comandos do Billing pelo SQS do
+      # LocalStack: MENSAGERIA_SQS_HABILITADO=true, MENSAGERIA_SQS_ENVIO=billing-commands,
+      # MENSAGERIA_SQS_CONSUMO=os-saga-replies (ver docs/arquitetura/mensageria-local.md).
+      MENSAGERIA_SQS_HABILITADO: ${MENSAGERIA_SQS_HABILITADO:-false}
+      MENSAGERIA_SQS_ENVIO: ${MENSAGERIA_SQS_ENVIO:-}
+      MENSAGERIA_SQS_CONSUMO: ${MENSAGERIA_SQS_CONSUMO:-}
+      AWS_ENDPOINT_URL_SQS: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
     depends_on:
       db:
         condition: service_healthy

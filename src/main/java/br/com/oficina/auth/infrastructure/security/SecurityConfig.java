@@ -21,6 +21,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final WebhookTokenFilter webhookTokenFilter;
+    private final ServiceTokenFilter serviceTokenFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -36,10 +37,13 @@ public class SecurityConfig {
                 // aqui serve ao desenvolvimento local, onde tudo ainda vive na 8080.
                 .requestMatchers("/actuator/prometheus").permitAll()
                 .requestMatchers("/integracoes/orcamentos/*/decisao").permitAll()
+                // Chamadas entre servicos: fora do gateway, autenticadas pelo X-Service-Token.
+                .requestMatchers("/internal/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(webhookTokenFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(serviceTokenFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

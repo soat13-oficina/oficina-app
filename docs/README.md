@@ -14,7 +14,8 @@ exigência do enunciado ao documento correspondente.
 | [`arquitetura/modelo-de-dados.md`](arquitetura/modelo-de-dados.md) | Diagrama ER, explicação dos relacionamentos e ajustes do modelo relacional |
 | [`rfc/`](rfc/) | RFCs: escolha da nuvem, do banco de dados e da estratégia de autenticação |
 | [`adr/`](adr/) | ADRs da aplicação: estratégia de escala e snapshot em OS/orçamentos; Fase 4 (0003–0008): microsserviços, Saga, mensageria, DynamoDB, Mercado Pago e exposição |
-| [`contratos/`](contratos/) | Fase 4: contratos dos comandos e eventos da Saga ([`mensagens.md`](contratos/mensagens.md)) e JSON Schemas |
+| [`contratos/`](contratos/) | Fase 4: contratos dos comandos e eventos da Saga ([`mensagens.md`](contratos/mensagens.md)) e JSON Schemas; REST entre serviços ([`rest-interno.md`](contratos/rest-interno.md)) |
+| [`arquitetura/mensageria-local.md`](arquitetura/mensageria-local.md) | Fase 4: transporte por fila (memória ou SQS), receptor, DLQ e LocalStack no docker-compose |
 | [`arquitetura/convencoes-de-nomes.md`](arquitetura/convencoes-de-nomes.md) | Fase 4: nomes de serviços, filas, tabelas, segredos e recursos AWS |
 | [`spikes/`](spikes/) | Fase 4: spike de compatibilidade (Spring Boot 4 × Cucumber × AWS SDK × LocalStack × Mercado Pago) |
 

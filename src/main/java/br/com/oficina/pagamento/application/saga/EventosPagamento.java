@@ -23,12 +23,15 @@ import br.com.oficina.pagamento.domain.model.Pagamento;
 @Component
 public class EventosPagamento {
 
+    /** {@code source} dos eventos: o servico para onde o pagamento vai (contrato). */
+    static final String SERVICO = "oficina-billing-service";
+
     private final PublicadorMensagens publicador;
     private final FabricaEnvelopes fabrica;
 
     public EventosPagamento(PublicadorMensagens publicador, FabricaEnvelopes fabrica) {
         this.publicador = publicador;
-        this.fabrica = fabrica;
+        this.fabrica = fabrica.paraServico(SERVICO);
     }
 
     public void solicitado(Envelope comando, Pagamento pagamento) {

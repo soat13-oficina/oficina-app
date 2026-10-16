@@ -18,12 +18,15 @@ import br.com.oficina.orcamento.domain.model.Orcamento;
 @Component
 public class PublicadorEventosOrcamento implements EventosOrcamento {
 
+    /** {@code source} dos eventos: o servico para onde o orcamento vai (contrato). */
+    static final String SERVICO = "oficina-billing-service";
+
     private final PublicadorMensagens publicador;
     private final FabricaEnvelopes fabrica;
 
     public PublicadorEventosOrcamento(PublicadorMensagens publicador, FabricaEnvelopes fabrica) {
         this.publicador = publicador;
-        this.fabrica = fabrica;
+        this.fabrica = fabrica.paraServico(SERVICO);
     }
 
     @Override

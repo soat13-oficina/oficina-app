@@ -122,6 +122,11 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>ses</artifactId>
         </dependency>
+        <!-- Fase 4: mensageria da Saga por SQS FIFO (ADR 0005), SDK puro, sem Spring Cloud AWS. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sqs</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -172,12 +177,26 @@
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- SQS do LocalStack nos testes do transporte (imagem fixada em 4.14.0: as 2026.x exigem token). -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>localstack</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- Fase 4: regra de arquitetura que impede novos acoplamentos entre os modulos que viram
              microsservicos (ordemservico, orcamento, pecainsumo). Ver ArquiteturaModulosTest. -->
         <dependency>
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
             <version>1.5.1</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Fase 4: teste de contrato das mensagens da Saga contra docs/contratos/schemas (JSON
+             Schema 2020-12). A linha 3.x usa o Jackson 3 (tools.jackson), o mesmo do Boot 4. -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>3.0.8</version>
             <scope>test</scope>
         </dependency>
         <!-- Fase 4: BDD (Cucumber) do ciclo de vida da OS coordenado pela Saga. Ver src/test/resources/features. -->
@@ -359,6 +378,7 @@
                                     <includes>
                                         <include>br/com/oficina/common/application/mensageria</include>
                                         <include>br/com/oficina/common/infrastructure/mensageria</include>
+                                        <include>br/com/oficina/common/infrastructure/mensageria/*</include>
                                         <include>br/com/oficina/ordemservico/saga/*</include>
                                         <include>br/com/oficina/ordemservico/saga/*/*</include>
                                         <include>br/com/oficina/orcamento/application/saga</include>

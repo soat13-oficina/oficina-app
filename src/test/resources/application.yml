@@ -26,6 +26,9 @@ jwt:
   secret: chave-secreta-de-teste-para-rodar-os-testes-unitarios-2026
   expiration: 86400000
 
+seguranca:
+  service-token: token-de-servico-de-teste
+
 orcamento:
   webhook:
     secret: segredo-teste
