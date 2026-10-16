@@ -683,11 +683,11 @@ Configuração:
 | Tabela | Chave | Atributos principais | Índices |
 |---|---|---|---|
 | `oficina-<env>-execucoes` | PK `ordemServicoId` | `numeroOS`, `etapa` (`AGUARDANDO_DIAGNOSTICO`, `EM_DIAGNOSTICO`, `DIAGNOSTICO_CONCLUIDO`, `AGUARDANDO_EXECUCAO`, `EM_EXECUCAO`, `CONCLUIDA`, `ABORTADA`, `CANCELADA`), mecânico, diagnóstico (serviços, peças), histórico de etapas, `criadoEm`, `versao` | GSI `fila-por-etapa` (PK `etapa`, SK `criadoEm`) = a fila de execução |
-| `oficina-<env>-pecas` | PK `pecaId` | descrição, marca, preço, `quantidadeEstoque`, `quantidadeReservada`, código de referência, categoria, `versao` | — |
+| `oficina-<env>-pecas` | PK `pecaId` | descrição, marca, preço, `quantidadeEstoque`, `quantidadeReservada`, `quantidadeDisponivel`, código de referência, categoria, `versao` | — |
 | `oficina-<env>-reservas` | PK `ordemServicoId`, SK `pecaId` | quantidade, status (`RESERVADA`, `CONSUMIDA`, `LIBERADA`) | — |
 | `oficina-<env>-execution-controle` | PK `pk` (`MSG#<id>` ou `OUTBOX#<id>`) | idempotência (TTL 7 dias) e outbox | GSI de outbox pendente |
 
-- [ ] Reserva atômica com `TransactWriteItems`: para cada peça, `Update` com condição `quantidadeEstoque - quantidadeReservada >= :q`; `Put` da reserva; `Put` de idempotência; `Put` do evento no outbox. Condição falhou → ler as peças e publicar `ReservaFalhou` com as faltantes.
+- [ ] Reserva atômica com `TransactWriteItems`: para cada peça, `Update` com condição `quantidadeDisponivel >= :q` (o DynamoDB recusa aritmética em `ConditionExpression` — a peça guarda `quantidadeDisponivel`, ver ADR 0006); `Put` da reserva; `Put` de idempotência; `Put` do evento no outbox. Condição falhou → ler as peças e publicar `ReservaFalhou` com as faltantes.
 - [ ] Endpoints de fila, diagnóstico, execução, aborto, estoque e consulta interna de preços.
 - [ ] Consumidor de `execution-commands`, outbox para `os-saga-replies`.
 - [ ] Script de seed de peças (`scripts/seed-pecas.json` + `aws dynamodb batch-write-item`) executado pelo pipeline em hml.
@@ -1262,8 +1262,10 @@ Objetivo (13.2): diagnóstico, execução e estoque de peças saem do OS para o
 da [seção 6.8](#68-como-provocar-cada-falha-na-demonstração) passam localmente (LocalStack) — e em hml
 no dia do deploy.
 
-Leitura antes de começar: [ADR 0006](adr/0006-dynamodb-no-execution-service.md) (modelo no DynamoDB e
-reserva com `TransactWriteItems`), seção 8.3 (tabelas),
+Leitura antes de começar: [ADR 0006](adr/0006-dynamodb-no-execution-service.md) (modelo no DynamoDB,
+`quantidadeDisponivel` explícita porque o DynamoDB recusa aritmética em `ConditionExpression`, e
+reserva com `TransactWriteItems`), seção 8.3 (tabelas), o [spike](spikes/0001-compatibilidade-fase4.md)
+(DynamoDB e LocalStack já testados),
 [`contratos/mensagens.md`](contratos/mensagens.md) (fila `execution-commands` e eventos da
 Execution) e [`contratos/rest-interno.md`](contratos/rest-interno.md) (consulta de peças, que muda de
 dono).
