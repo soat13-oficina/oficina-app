@@ -27,6 +27,8 @@ public class RegistroPassoSaga {
         ADOCAO,
         ACAO_REGISTRADA,
         COMANDO_ENVIADO,
+        /** Mesmo comando, messageId novo: a resposta nao chegou no prazo. */
+        COMANDO_REENVIADO,
         EVENTO_RECEBIDO,
         EVENTO_IGNORADO,
         TIMEOUT

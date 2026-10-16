@@ -46,3 +46,8 @@ mensageria:
 saga:
   prazos:
     agendamento-habilitado: false
+
+# Os testes expiram cobrancas chamando o servico com o relogio que quiserem.
+pagamento:
+  expiracao:
+    agendamento-habilitado: false

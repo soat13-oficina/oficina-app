@@ -23,6 +23,7 @@ import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
 import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import br.com.oficina.support.persistence.TestClienteRepository;
 import br.com.oficina.support.persistence.TestOrcamentoRepository;
+import br.com.oficina.ponte.CatalogoDePecasDoEstoque;
 import br.com.oficina.support.persistence.TestPecaInsumoRepository;
 
 class AlterarOrcamentoServiceTest {
@@ -44,7 +45,7 @@ class AlterarOrcamentoServiceTest {
         Orcamento orcamento = novoOrcamento();
         orcamento.enviarParaAprovacao(LocalDateTime.of(2030, 1, 2, 9, 0));
         repository.salvar(orcamento);
-        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository, pecaInsumoRepository);
+        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository, new CatalogoDePecasDoEstoque(pecaInsumoRepository));
 
         service.alterarOrcamento(new AlterarOrcamentoCommand(
                 "orc-1",
@@ -87,7 +88,7 @@ class AlterarOrcamentoServiceTest {
         UUID clienteId = UUID.fromString("77777777-7777-7777-7777-777777777777");
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Joao Silva", "12345678909", TipoCliente.PF));
         pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Pastilha dianteira", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
-        AlterarOrcamentoService service = new AlterarOrcamentoService(new TestOrcamentoRepository(), clienteRepository, pecaInsumoRepository);
+        AlterarOrcamentoService service = new AlterarOrcamentoService(new TestOrcamentoRepository(), clienteRepository, new CatalogoDePecasDoEstoque(pecaInsumoRepository));
 
         RecursoNaoEncontradoException exception = assertThrows(
                 RecursoNaoEncontradoException.class,
@@ -121,7 +122,7 @@ class AlterarOrcamentoServiceTest {
         Orcamento orcamento = novoOrcamento();
         orcamento.aprovar();
         repository.salvar(orcamento);
-        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository, pecaInsumoRepository);
+        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository, new CatalogoDePecasDoEstoque(pecaInsumoRepository));
 
         service.alterarOrcamento(new AlterarOrcamentoCommand(
                 "orc-1",
@@ -153,7 +154,7 @@ class AlterarOrcamentoServiceTest {
         Orcamento orcamento = novoOrcamento();
         orcamento.rejeitar();
         repository.salvar(orcamento);
-        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository, pecaInsumoRepository);
+        AlterarOrcamentoService service = new AlterarOrcamentoService(repository, clienteRepository, new CatalogoDePecasDoEstoque(pecaInsumoRepository));
 
         service.alterarOrcamento(new AlterarOrcamentoCommand(
                 "orc-1",

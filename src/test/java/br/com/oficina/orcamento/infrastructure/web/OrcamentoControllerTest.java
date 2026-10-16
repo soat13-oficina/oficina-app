@@ -82,9 +82,9 @@ class OrcamentoControllerTest {
         // O orcamento e criado pelo fluxo interno (endpoint standalone POST /orcamentos foi removido).
         cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
                 "orc-1",
-                clienteId,
-                "00000000-0000-0000-0000-000000000001",
-                "00000000-0000-0000-0000-000000000002",
+                new CadastrarNovoOrcamentoCommand.ClienteOrcamento(java.util.UUID.fromString(clienteId), "Joao Silva", "12345678909"),
+                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                java.util.UUID.fromString("00000000-0000-0000-0000-000000000002"),
                 "ABC1D23",
                 "Toyota",
                 "Corolla",
@@ -94,7 +94,8 @@ class OrcamentoControllerTest {
                 new BigDecimal("150.00"),
                 BigDecimal.ZERO,
                 java.time.LocalDateTime.of(2030, 12, 31, 10, 0),
-                "Prioridade alta"));
+                "Prioridade alta",
+                null));
 
         mockMvc.perform(get("/orcamentos/orc-1")
                         .with(user("tester")))

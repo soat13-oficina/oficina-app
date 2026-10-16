@@ -1,18 +1,22 @@
 # language: pt
 Funcionalidade: Ciclo de vida da ordem de serviço coordenado pela Saga
   Como oficina, quero que a ordem de serviço avance conforme a decisão do cliente sobre o
-  orçamento, sem que o orçamento altere a ordem diretamente: o orçamento publica a decisão e
-  o orquestrador da Saga move a ordem (ADR 0004).
+  orçamento e o pagamento, sem que o orçamento altere a ordem diretamente: o orçamento publica a
+  decisão e o orquestrador da Saga move a ordem (ADR 0004).
 
   Contexto:
     Dado uma ordem de serviço aberta para o veículo "BDD1A23"
     E o diagnóstico concluído com o serviço "Troca de óleo e filtro"
     E o orçamento enviado ao cliente
 
-  Cenário: Cliente aprova e a ordem segue até a finalização
+  Cenário: Cliente aprova, paga e a ordem segue até a finalização
     Então a ordem fica "Aguardando Aprovação"
     E a saga fica "AGUARDANDO_DECISAO"
     Quando o cliente aprova o orçamento
+    Então a ordem fica "Aguardando Pagamento"
+    E a saga fica "AGUARDANDO_PAGAMENTO"
+    E o cliente recebe o link de pagamento
+    Quando o cliente paga
     Então a ordem fica "Execução"
     E a saga fica "AGUARDANDO_EXECUCAO"
     Quando o mecânico inicia e conclui a execução

@@ -28,6 +28,7 @@ import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import br.com.oficina.support.persistence.TestClienteRepository;
 import br.com.oficina.support.persistence.TestFuncionarioRepository;
 import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
+import br.com.oficina.ponte.CatalogoDePecasDoEstoque;
 import br.com.oficina.support.persistence.TestPecaInsumoRepository;
 import br.com.oficina.support.persistence.TestVeiculoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
@@ -64,7 +65,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 veiculoRepository,
                 funcionarioRepository,
                 ordemDeServicoRepository,
-                new TestPecaInsumoRepository(),
+                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
                 eventos::add);
 
         String numeroOrdemServico = service.criarNovaOrdemDeServico(
@@ -106,7 +107,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 veiculoRepository,
                 funcionarioRepository,
                 new TestOrdemDeServicoRepository(),
-                new TestPecaInsumoRepository(),
+                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
                 eventos::add);
 
         assertThrows(
@@ -142,7 +143,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 veiculoRepository,
                 funcionarioRepository,
                 ordemDeServicoRepository,
-                new TestPecaInsumoRepository(),
+                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
                 evento -> { });
 
         String numeroOrdemServico = service.criarNovaOrdemDeServico(
@@ -172,7 +173,7 @@ class CriarNovaOrdemDeServicoServiceTest {
         pecaInsumoRepository.salvar(new PecaInsumo(
                 "PECA-1", "Pastilha", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
         CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
-                clienteRepository, veiculoRepository, funcionarioRepository, ordemDeServicoRepository, pecaInsumoRepository,
+                clienteRepository, veiculoRepository, funcionarioRepository, ordemDeServicoRepository, new CatalogoDePecasDoEstoque(pecaInsumoRepository),
                 evento -> { });
 
         String numeroOrdemServico = service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(
@@ -200,7 +201,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 TipoCombustivel.FLEX));
         CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
                 clienteRepository, veiculoRepository, funcionarioRepository, new TestOrdemDeServicoRepository(),
-                new TestPecaInsumoRepository(),
+                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
                 evento -> { });
 
         RecursoNaoEncontradoException exception = assertThrows(
@@ -222,7 +223,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 new TestVeiculoRepository(),
                 new TestFuncionarioRepository(),
                 new TestOrdemDeServicoRepository(),
-                new TestPecaInsumoRepository(),
+                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
                 evento -> { });
 
         RecursoNaoEncontradoException exception = assertThrows(
@@ -256,7 +257,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 veiculoRepository,
                 new TestFuncionarioRepository(),
                 new TestOrdemDeServicoRepository(),
-                new TestPecaInsumoRepository(),
+                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
                 evento -> { });
 
         RegraDeNegocioException exception = assertThrows(

@@ -30,6 +30,12 @@ public class JpaPecaInsumoRepository implements PecaInsumoRepository {
     }
 
     @Override
+    @Transactional
+    public Optional<PecaInsumo> buscarParaAtualizar(String id) {
+        return repository.buscarComTrava(id).map(PecaInsumoJpaEntity::toDomain);
+    }
+
+    @Override
     public List<PecaInsumo> buscarTodos() {
         return repository.findAll().stream().map(PecaInsumoJpaEntity::toDomain).toList();
     }

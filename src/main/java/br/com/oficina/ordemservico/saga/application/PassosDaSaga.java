@@ -1,5 +1,6 @@
 package br.com.oficina.ordemservico.saga.application;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -17,12 +18,7 @@ public interface PassosDaSaga {
         }
 
         @Override
-        public UUID sagaIdDaOrdem(UUID ordemDeServicoId) {
-            return null;
-        }
-
-        @Override
-        public void orcamentoGerado(UUID ordemDeServicoId, UUID orcamentoId, LocalDateTime validadeOrcamento) {
+        public void solicitarOrcamento(UUID ordemDeServicoId, DadosOrcamento dados) {
         }
 
         @Override
@@ -32,15 +28,34 @@ public interface PassosDaSaga {
         @Override
         public void execucaoConcluida(UUID ordemDeServicoId) {
         }
+
+        @Override
+        public void execucaoFalhou(UUID ordemDeServicoId, String motivo) {
+        }
     };
 
     void iniciar(UUID ordemDeServicoId);
 
-    UUID sagaIdDaOrdem(UUID ordemDeServicoId);
-
-    void orcamentoGerado(UUID ordemDeServicoId, UUID orcamentoId, LocalDateTime validadeOrcamento);
+    /**
+     * Diagnostico concluido enviado para orcamento: a Saga manda {@code GerarOrcamento} ao Billing e a
+     * OS so vai para "Aguardando Aprovacao" quando o {@code OrcamentoGerado} chegar.
+     *
+     * @throws br.com.oficina.common.domain.exception.RegraDeNegocioException se o orcamento ja foi
+     *                                                                        solicitado e a resposta nao chegou
+     */
+    void solicitarOrcamento(UUID ordemDeServicoId, DadosOrcamento dados);
 
     void execucaoIniciada(UUID ordemDeServicoId);
 
     void execucaoConcluida(UUID ordemDeServicoId);
+
+    /** Mecanico abortou a execucao: a Saga estorna o pagamento e libera as pecas. */
+    void execucaoFalhou(UUID ordemDeServicoId, String motivo);
+
+    /**
+     * Dados financeiros que o atendente informa no envio para orcamento. Transitorio: com o
+     * diagnostico na Execution, a mao de obra vem por servico e a validade e definida pelo Billing.
+     */
+    record DadosOrcamento(BigDecimal valorMaoDeObra, BigDecimal desconto, LocalDateTime validade, String observacoes) {
+    }
 }

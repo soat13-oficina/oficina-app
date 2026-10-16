@@ -22,31 +22,51 @@ correspondente, e que reservas só sejam feitas se houver estoque disponível.
 | `CadastrarPecaInsumoUseCase` | `POST /pecas-insumos` | Cria nova peça com estoque inicial |
 | `AlterarPecaInsumoUseCase` | `PUT /pecas-insumos/{id}` | Atualiza dados cadastrais da peça (imutabilidade via nova instância) |
 | `ExcluirPecaInsumoUseCase` | `DELETE /pecas-insumos/{id}` | Remove peça do inventário |
-| `BuscarPecaInsumoUseCase` | `GET /pecas-insumos/{id}` | Retorna dados de uma peça por ID |
+| `BuscarPecaInsumoPorIdUseCase` | `GET /pecas-insumos/{id}` | Retorna dados de uma peça por ID |
 | `ListarPecasInsumosUseCase` | `GET /pecas-insumos` | Lista todas as peças cadastradas |
-| `ReservarPecaUseCase` | Interno (chamado por `ordemservico`) | Incrementa `quantidadeReservada`; valida estoque disponível |
-| `ConsumirPecaUseCase` | Interno (chamado por `ordemservico`) | Decrementa `quantidadeEstoque` e `quantidadeReservada` |
+| `AdicionarEstoquePecaUseCase` / `RemoverEstoquePecaUseCase` | `POST /pecas-insumos/{id}/adicionar-estoque` · `/remover-estoque` | Entrada e saída manual de estoque |
+| `ReservarPecaUseCase` / `LiberarReservaPecaUseCase` / `ConsumirPecaUseCase` | `POST /pecas-insumos/{id}/reservar` · `/liberar-reserva` · `/consumir` | Ajuste manual do contador de uma peça, sem dono. **O fluxo da OS não usa mais** — usa as reservas por OS abaixo (Fase 4) |
+| `ConsumirReservasDaOrdemUseCase` | Interno (conclusão do serviço, via `br.com.oficina.ponte.ReservasDaOrdemNoEstoque`) | Baixa do estoque as peças reservadas para a OS e marca as reservas `CONSUMIDA` — Fase 4 |
+
+### Participante da Saga (Fase 4, futura Execution Service)
+
+Comandos recebidos em `execution-commands` (`infrastructure/mensageria/ManipuladorComandosEstoque`),
+respostas em `os-saga-replies` com `causationId` = o comando (`application/saga/ReservasPelaSaga`).
+
+| Comando | Efeito | Resposta |
+|---|---|---|
+| `ReservarPecas` | **Tudo ou nada**: lê as peças com trava pessimista, em ordem de id; com qualquer peça faltando (ou fora do cadastro) não reserva nada. Grava uma linha por peça em `reservas_pecas` (V24) e soma em `quantidadeReservada` | `PecasReservadas` ou `ReservaFalhou` com as faltantes (solicitada × disponível) |
+| `LiberarReserva` | Devolve ao disponível o que está reservado para a OS e marca as reservas `LIBERADA` | `ReservaLiberada` (lista vazia se não havia reserva) |
+
+Idempotentes pelo estado: `ReservarPecas` reenviado encontra as reservas ativas da OS e só repete a
+resposta; `LiberarReserva` repetido confirma com lista vazia.
 
 ### Métodos de Domínio em `PecaInsumo`
 
 | Método | Descrição |
 |---|---|
 | `getQuantidadeDisponivel()` | `quantidadeEstoque - quantidadeReservada` — quantidade efetivamente disponível para novas reservas |
+| `reservar(qtd)` / `liberarReserva(qtd)` / `consumirReservada(qtd)` | Usados pela Saga e pela conclusão; devolvem nova instância e nunca deixam contador negativo |
 | Construtor sem `id` | Gera UUID via `UUID.randomUUID().toString()` para criação |
 | Construtor com todos os campos | Para reconstituição a partir da persistência |
 
 > `PecaInsumo` é imutável — todos os campos são `final`. Qualquer alteração cria uma nova
 > instância com os valores atualizados.
 
+`ReservaPeca` (record, Fase 4): quanto de uma peça está reservado para uma OS — `RESERVADA`,
+`CONSUMIDA` ou `LIBERADA`. Chave: OS + peça. Na Execution Service vira a tabela
+`oficina-<env>-reservas` do DynamoDB (PK `ordemServicoId`, SK `pecaId`).
+
 ### Regras de Negócio
 
-1. **Estoque disponível para reserva** — `reservarPeca(qtd)` valida que
-   `getQuantidadeDisponivel() >= qtd`; caso contrário lança `RegraDeNegocioException`.
-2. **Quantidade de reserva para consumo** — `consumirPeca(qtd)` valida que
-   `quantidadeReservada >= qtd`; impede consumo sem reserva prévia correspondente.
-3. **Quantidade positiva** — `reservarPeca()` valida que `qtd > 0`.
+1. **Estoque disponível para reserva** — reservar exige `getQuantidadeDisponivel() >= qtd`.
+2. **Quantidade de reserva para consumo** — o consumo manual (`consumirPeca`) exige
+   `quantidadeReservada >= qtd`.
+3. **Quantidade positiva** — reservas exigem `qtd > 0`.
 4. **Imutabilidade** — `AlterarPecaInsumoService` cria uma nova instância de `PecaInsumo`
    preservando `id`, `quantidadeEstoque` e `quantidadeReservada` do objeto atual.
+5. **Reserva tem dono** (Fase 4) — toda reserva feita pela Saga fica em `reservas_pecas` com a OS;
+   é o que permite liberar "a reserva desta OS" e baixar só o que ela reservou na conclusão.
 
 ## Ciclo de Vida
 
@@ -57,14 +77,15 @@ correspondente, e que reservas só sejam feitas se houver estoque disponível.
       ▼
   [Cadastrado]
       |
-      ├── AlterarPecaInsumo (PUT /pecas-insumos/{id})   [dados cadastrais]
+      ├── AlterarPecaInsumo (PUT /pecas-insumos/{id})        [dados cadastrais]
       |
-      ├── ReservarPeca (chamado por FinalizarDiagnostico / envio para orçamento)
-      |         └── quantidadeReservada += qtd
+      ├── ReservarPecas (Saga, depois da aprovação)           quantidadeReservada += qtd; reserva RESERVADA
       |
-      ├── ConsumirPeca (chamado por FinalizarOrdemDeServico)
-      |         └── quantidadeEstoque -= qtd
-      |         └── quantidadeReservada -= qtd
+      ├── LiberarReserva (Saga: pagamento recusado/expirado,  quantidadeReservada -= qtd; reserva LIBERADA
+      |                  execução abortada, reserva sem resposta)
+      |
+      ├── Conclusão do serviço (ConsumirReservasDaOrdem)      quantidadeEstoque -= qtd; quantidadeReservada -= qtd;
+      |                                                       reserva CONSUMIDA
       |
       └── ExcluirPecaInsumo (DELETE /pecas-insumos/{id})
 ```
@@ -73,8 +94,9 @@ correspondente, e que reservas só sejam feitas se houver estoque disponível.
 
 | Módulo | Direção | Detalhe |
 |---|---|---|
-| `ordemservico` | `ordemservico` consome `pecainsumo` | `FinalizarOrdemDeServicoService` chama `ConsumirPecaUseCase` para cada peça do orçamento |
-| `orcamento` | `orcamento` referencia `pecainsumo` | `PecaOrcamento` armazena `pecaInsumoId` — referência por ID, sem FK formal no domínio |
+| `ordemservico` (Saga) | só mensagens | Consome `ReservarPecas` e `LiberarReserva`; publica `PecasReservadas`, `ReservaFalhou` e `ReservaLiberada` |
+| `ordemservico` | porta `ReservasDaOrdem` | A conclusão do serviço chama `ConsumirReservasDaOrdemUseCase` pela ponte |
+| `ordemservico` / `orcamento` | porta `CatalogoPecas` | Existência (diagnóstico) e preço/descrição (orçamento) das peças, pela ponte `CatalogoDePecasDoEstoque` |
 
 ## Dependências Externas
 
@@ -199,6 +221,9 @@ Entidade JPA separada do domínio. Implementa o padrão de referência da consti
 | `pecainsumo/domain/repository/PecaInsumoRepository.java` | Port (interface) de persistência |
 | `pecainsumo/application/service/ReservarPecaService.java` | Valida disponibilidade e incrementa reserva |
 | `pecainsumo/application/service/ConsumirPecaService.java` | Valida reserva e decrementa estoque + reserva |
+| `pecainsumo/application/saga/ReservasPelaSaga.java` | `ReservarPecas` (tudo ou nada, com trava) e `LiberarReserva` — Fase 4 |
+| `pecainsumo/application/service/ConsumirReservasDaOrdemService.java` | Baixa as reservas da OS na conclusão do serviço — Fase 4 |
+| `pecainsumo/infrastructure/persistence/ReservaPecaJpaEntity.java` | Tabela `reservas_pecas` (V24), chave OS + peça |
 | `pecainsumo/infrastructure/persistence/PecaInsumoJpaEntity.java` | Adapter JPA; `fromDomain()` / `toDomain()` — **padrão de referência** |
 | `pecainsumo/infrastructure/web/PecaInsumoController.java` | Controller REST |
 
@@ -207,8 +232,9 @@ Entidade JPA separada do domínio. Implementa o padrão de referência da consti
 - **Módulo de referência arquitetural**: a constituição (Princípio I) cita `pecainsumo` /
   `PecaInsumoJpaEntity` explicitamente como o padrão correto para separação entre domínio
   e persistência. Todos os demais módulos devem eventualmente seguir este padrão.
-- **`quantidadeReservada` não zerada ao excluir peça**: se uma peça for excluída com
-  `quantidadeReservada > 0`, a reserva é descartada sem notificação às OS que a referenciavam.
+- **Excluir peça reservada**: a FK de `reservas_pecas` para `pecas_insumos` impede excluir uma
+  peça que tenha reserva registrada (Fase 4). Peças só com o contador manual
+  (`quantidadeReservada > 0` sem linha em `reservas_pecas`) ainda podem ser excluídas.
 - **Desserialização de `CategoriaPeca`**: `ApiExceptionHandler` possui tratamento especial
   para `HttpMessageNotReadableException` com enum inválido — a mensagem de erro extrai o
   nome da enum dinamicamente para o payload de resposta.

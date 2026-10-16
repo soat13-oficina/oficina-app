@@ -1,6 +1,7 @@
 package br.com.oficina.common.infrastructure.mensageria;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Limit;
@@ -12,4 +13,7 @@ public interface SpringDataOutboxMensagemRepository extends JpaRepository<Outbox
     List<OutboxMensagemEntity> findByPublicadaEmIsNullAndTentativasLessThanOrderByCriadaEmAscIdAsc(int maxTentativas, Limit limite);
 
     long countByPublicadaEmIsNull();
+
+    /** Ultima mensagem de um tipo para a OS - base do reenvio de comandos. */
+    Optional<OutboxMensagemEntity> findFirstByGroupIdAndTipoOrderByCriadaEmDesc(String groupId, String tipo);
 }

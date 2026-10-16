@@ -20,86 +20,87 @@ posterior dos registros originais.
 
 | Use Case | Endpoint | Descrição |
 |---|---|---|
-| `CadastrarNovoOrcamentoUseCase` | Interno (chamado por `ordemservico`) | Cria um orçamento a partir dos dados do diagnóstico da OS |
-| `ConsultarOrcamentoPorNumeroUseCase` | `GET /orcamentos/{numeroOrcamento}` | Retorna os dados completos de um orçamento pelo número |
+| `CadastrarNovoOrcamentoUseCase` | Interno (comando `GerarOrcamento` da Saga) | Cria o orçamento a partir do snapshot do diagnóstico que vem no comando; preço e descrição das peças pela porta `CatalogoPecas` |
+| `ConsultarOrcamentoUseCase` | `GET /orcamentos/{numeroOrcamento}` | Retorna os dados completos de um orçamento pelo número |
+| `AprovarOrcamentoUseCase` / `RejeitarOrcamentoUseCase` | `POST /orcamentos/{numero}/aprovacao` · `/rejeicao` | Decisão do cliente (JWT); só publica o evento da Saga — **não reserva peças** (Fase 4) |
 | `DecidirOrcamentoExternamenteUseCase` | `POST /integracoes/orcamentos/{numeroOrcamento}/decisao` | Registra a decisão (aprovação ou rejeição) via webhook externo |
+| `AlterarOrcamentoUseCase` / `ExcluirOrcamentoUseCase` | `PUT` / `DELETE /orcamentos/{numero}` | Manutenção do orçamento aguardando aprovação |
+
+### Participante da Saga (Fase 4, futuro Billing Service)
+
+Comandos recebidos em `billing-commands` (`infrastructure/mensageria/ManipuladorComandosOrcamento`),
+respostas em `os-saga-replies` com `causationId` = o comando. Contratos em `docs/contratos/mensagens.md`.
+
+| Comando | Classe | Resposta |
+|---|---|---|
+| `GerarOrcamento` | `application/saga/GerarOrcamentoPelaSaga` | `OrcamentoGerado` (id, número, valores, validade) ou `OrcamentoFalhou` (motivo + `pecasInvalidas` quando há peça fora do cadastro). Sem `validade`, vale `orcamento.validade-padrao` (`P7D`); sem `valorMaoDeObra` total, soma a mão de obra dos serviços |
+| `ReverterAprovacao` | `application/saga/ReverterAprovacaoPelaSaga` | `AprovacaoRevertida` — faltou estoque na reserva: `APROVADO → AGUARDANDO_APROVACAO` |
+| `CancelarOrcamento` | `application/saga/CancelarOrcamentoPelaSaga` | `OrcamentoCancelado` (com `pagamentoCancelado`) — prazo de decisão vencido ou pagamento recusado/expirado; leva junto a cobrança pendente (porta `PagamentosDoOrcamento`, módulo `pagamento`) |
+
+Todos são idempotentes pelo estado: comando reenviado por timeout (`messageId` novo) encontra o
+orçamento já gerado / revertido / cancelado e só repete a resposta. Falha de negócio não é exceção
+para o consumidor: vira `OrcamentoFalhou` e a Saga decide.
 
 ### Métodos de Domínio em `Orcamento`
 
 | Método | Transição | Guarda | Efeito |
 |---|---|---|---|
-| `enviarParaAprovacao()` | `AGUARDANDO_APROVACAO → EM_APROVACAO` | Status deve ser `AGUARDANDO_APROVACAO` | Marca o orçamento como aguardando decisão do cliente |
-| `aprovar()` | `EM_APROVACAO → APROVADO` | Status deve ser `EM_APROVACAO` | Aprova o orçamento; libera execução do serviço |
-| `rejeitar()` | `EM_APROVACAO → REJEITADO` | Status deve ser `EM_APROVACAO` | Rejeita o orçamento; encerra a OS |
+| `aprovar()` | `AGUARDANDO_APROVACAO → APROVADO` | Status deve ser `AGUARDANDO_APROVACAO` | Aprova o orçamento; a Saga reserva as peças e pede o pagamento |
+| `rejeitar()` | `AGUARDANDO_APROVACAO → REJEITADO` | Status deve ser `AGUARDANDO_APROVACAO` | Rejeita o orçamento; a Saga encerra a OS |
+| `reverterAprovacao()` | `APROVADO → AGUARDANDO_APROVACAO` | Aprovado (já aguardando = nada muda) | Compensação `ReverterAprovacao` |
+| `cancelar()` | `AGUARDANDO_APROVACAO` ou `APROVADO → CANCELADO` | Já cancelado = nada muda; rejeitado = erro | Compensação `CancelarOrcamento` |
 
 ### Cálculo de Valor
 
 | Campo | Fórmula |
 |---|---|
 | `valorPecas` | `sum(peca.precoUnitario × peca.quantidade)` para cada `PecaOrcamento` |
-| `valorTotal` | `valorMaoDeObra + valorPecas - desconto` |
+| `valorTotal` | `valorMaoDeObra + valorPecas - desconto` (desconto maior que o total = `OrcamentoFalhou`) |
 
 ### Regras de Negócio
 
 1. **Snapshot de dados** — `clienteNome`, `clienteCpf`, `placaVeiculo`, `marcaVeiculo` e
-   `modeloVeiculo` são copiados da OS no momento da criação e não são alterados mesmo que
-   o cadastro original mude.
+   `modeloVeiculo` vêm do comando `GerarOrcamento` (snapshot da OS) e não são alterados mesmo que
+   o cadastro original mude. O orçamento não consulta cliente nem OS (ADR 0003).
 2. **Idempotência de decisão** — se o webhook enviar a mesma decisão que já foi registrada,
    o `DecidirOrcamentoExternamenteService` retorna o estado atual sem erro.
 3. **Conflito de decisão** — se o webhook enviar uma decisão diferente da já registrada, é
    lançada `RegraDeNegocioException`.
-4. **Número único** — o número do orçamento é gerado como UUID no momento da criação.
-5. **Peças do orçamento** — `PecaOrcamento` é um value object embutido na OS; contém
-   referência à `PecaInsumo` (id + nome) e quantidade + preço unitário no momento do
-   orçamento.
-6. **Decisão publica evento da Saga** (Fase 4) — aprovar e rejeitar (pelo JWT ou pelo webhook)
-   gravam `OrcamentoAprovado` / `OrcamentoRejeitado` no outbox **na mesma transação** da decisão,
-   com o canal (`CLIENTE`, `FUNCIONARIO` ou `INTEGRACAO`). O orçamento **não altera mais a OS**:
-   quem a move é o orquestrador da Saga ao receber o evento (ADR 0004).
-7. **Cancelamento por compensação** (Fase 4) — o comando `CancelarOrcamento` da Saga (prazo de
-   decisão vencido) leva o orçamento a `CANCELADO` e responde `OrcamentoCancelado`. É idempotente
-   pelo estado: um comando repetido sobre orçamento já cancelado só republica a confirmação.
-8. **Saga de origem** — o orçamento guarda o `sagaId` da OS (coluna `saga_id`, V23) para os
+4. **Um orçamento por OS** — `CadastrarNovoOrcamentoService` recusa um segundo orçamento para a
+   mesma OS; o número é `ORC-<uuid>`.
+5. **Peças do orçamento** — `PecaOrcamento` guarda id, descrição e preço da peça **no momento do
+   orçamento** (consultados pela porta `CatalogoPecas`; no Billing vira REST
+   `POST /internal/pecas-insumos/consulta`). Todas as peças fora do cadastro são listadas juntas
+   (`PecasNaoEncontradasException`).
+6. **Decisão publica evento da Saga** — aprovar e rejeitar (pelo JWT ou pelo webhook) gravam
+   `OrcamentoAprovado` / `OrcamentoRejeitado` no outbox **na mesma transação** da decisão, com o
+   canal (`CLIENTE`, `FUNCIONARIO` ou `INTEGRACAO`). O orçamento **não altera a OS nem o estoque**:
+   a Saga move a OS e manda reservar as peças (ADR 0004).
+7. **Saga de origem** — o orçamento guarda o `sagaId` da OS (coluna `saga_id`, V23) para os
    eventos que publica.
 
 ## Ciclo de Vida
 
 ```
-[Orçamento criado por CadastrarNovoOrcamento]
-              |
-              | (chamado por EnviarDiagnosticoParaOrcamentoService)
-              ▼
-    [AGUARDANDO_APROVACAO]
-              |
-              | enviarParaAprovacao()
-              ▼
-       [EM_APROVACAO]
-              |
-     ┌────────┴────────┐
-     |                 |
-  aprovar()        rejeitar()
-     |                 |
-     ▼                 ▼
-[APROVADO]        [REJEITADO]
-     |                 |
-     ▼                 ▼
- OrcamentoAprovado  OrcamentoRejeitado     (eventos da Saga, via outbox)
-     |                 |
-     ▼                 ▼
- [Saga: OS vai     [Saga: OS finalizada com
-  para a fila de    MotivoEncerramento.ORCAMENTO_RECUSADO]
-  execução]
+GerarOrcamento (Saga) ──► [AGUARDANDO_APROVACAO] ──► OrcamentoGerado
+                               │          ▲
+               aprovar()       │          │ reverterAprovacao()  (ReverterAprovacao: estoque insuficiente)
+                               ▼          │
+                          [APROVADO] ─────┘
+                               │
+                               └── cancelar() (CancelarOrcamento: pagamento recusado/expirado) ──► [CANCELADO]
 
-[AGUARDANDO_APROVACAO] --CancelarOrcamento (prazo vencido)--> [CANCELADO] --> OrcamentoCancelado
+[AGUARDANDO_APROVACAO] ── rejeitar() ──► [REJEITADO]            → OrcamentoRejeitado
+[AGUARDANDO_APROVACAO] ── cancelar() (prazo de decisão vencido) ──► [CANCELADO] → OrcamentoCancelado
 ```
 
 ## Dependências Internas
 
 | Módulo | Direção | Detalhe |
 |---|---|---|
-| `ordemservico` | `ordemservico` cria e consulta `orcamento` | `EnviarDiagnosticoParaOrcamentoService` chama `CadastrarNovoOrcamentoUseCase`; `FinalizarOrdemDeServicoService` consulta o orçamento para consumir peças |
-| `ordemservico` (Saga) | **só por mensagens** (Fase 4) | Publica `OrcamentoAprovado`, `OrcamentoRejeitado` e `OrcamentoCancelado` (fila `os-saga-replies`); consome `CancelarOrcamento` (fila `billing-commands`). Contratos em `docs/contratos/mensagens.md` |
-| `pecainsumo` | `ordemservico` consome `pecainsumo` via orçamento | `FinalizarOrdemDeServicoService` itera `orcamento.getPecasOrcamento()` e chama `ConsumirPecaUseCase` para cada peça |
+| `ordemservico` (Saga) | **só por mensagens** | Consome `GerarOrcamento`, `ReverterAprovacao` e `CancelarOrcamento` (fila `billing-commands`); publica `OrcamentoGerado`, `OrcamentoFalhou`, `OrcamentoAprovado`, `OrcamentoRejeitado`, `AprovacaoRevertida` e `OrcamentoCancelado` (fila `os-saga-replies`) |
+| `pagamento` | mesmo serviço (Billing) | Porta `PagamentosDoOrcamento`: o cancelamento do orçamento cancela a cobrança pendente; o `pagamento` lê o orçamento (valor) e o cancela no estorno |
+| `pecainsumo` | porta `CatalogoPecas` | Preço e descrição das peças na criação, via `br.com.oficina.ponte.CatalogoDePecasDoEstoque` (sem import do estoque) |
 
 ## Dependências Externas
 
@@ -169,11 +170,10 @@ Todos os endpoints abaixo exigem autenticação, exceto o webhook.
 
 | Valor | Descrição |
 |---|---|
-| `AGUARDANDO_APROVACAO` | Orçamento criado, aguarda envio para aprovação |
-| `EM_APROVACAO` | Enviado ao cliente, aguardando decisão |
+| `AGUARDANDO_APROVACAO` | Orçamento gerado pela Saga, aguardando a decisão do cliente (também depois de uma aprovação revertida) |
 | `APROVADO` | Cliente aprovou |
 | `REJEITADO` | Cliente rejeitou |
-| `CANCELADO` | Compensação da Saga: prazo de decisão vencido (Fase 4) |
+| `CANCELADO` | Compensação da Saga: prazo de decisão vencido, pagamento recusado/expirado ou execução abortada (estorno) — Fase 4 |
 
 ### `PecaOrcamento` — Value Object (`@Embeddable`)
 
@@ -198,6 +198,8 @@ Todos os endpoints abaixo exigem autenticação, exceto o webhook.
 | `orcamento/domain/model/Orcamento.java` | Aggregate root; cálculo de `valorTotal`; máquina de estados |
 | `orcamento/domain/model/PecaOrcamento.java` | Value object embutido; snapshot de peça |
 | `orcamento/domain/model/StatusOrcamento.java` | Enum dos 4 estados do orçamento |
+| `orcamento/application/saga/` | Participante da Saga: `GerarOrcamento`, `ReverterAprovacao`, `CancelarOrcamento` e os eventos publicados |
+| `orcamento/application/port/` | Portas `CatalogoPecas` (estoque) e `PagamentosDoOrcamento` (pagamento) |
 | `orcamento/domain/repository/OrcamentoRepository.java` | Port de persistência |
 | `orcamento/application/service/CadastrarNovoOrcamentoService.java` | Cria o orçamento; calcula valores; persiste |
 | `orcamento/application/service/DecidirOrcamentoExternamenteService.java` | Lógica de idempotência; publica evento de mudança de status |
@@ -208,9 +210,9 @@ Todos os endpoints abaixo exigem autenticação, exceto o webhook.
 - **Preço das peças no orçamento é snapshot**: `precoUnitario` em `PecaOrcamento` é o
   preço da peça no momento da criação do orçamento — variações de preço na `PecaInsumo`
   após o orçamento não afetam o valor já calculado.
-- **Relação com `OrdemDeServico`**: o orçamento referencia a OS pelo `numeroOrdemServico`
-  (string), não por FK direta. A OS é localizada via `OrdemDeServicoRepository` nos
-  services que precisam dela.
+- **Relação com `OrdemDeServico`**: o orçamento guarda o `ordemDeServicoId` e o `sagaId`, mas não
+  importa nada do módulo `ordemservico` (regra ArchUnit) — tudo o que precisa da OS chega no
+  comando `GerarOrcamento`.
 - **Webhook é rota pública**: `POST /integracoes/orcamentos/*/decisao` não exige JWT —
   protegida exclusivamente pelo header `X-Webhook-Token` validado pelo `WebhookTokenFilter`.
 
@@ -254,9 +256,10 @@ envolvidos já usam propagação `REQUIRED`, a aprovação/rejeição do orçame
 atualização da OS **confirmam juntas ou revertem juntas**. A notificação permanece `@Async` (best-effort),
 fora da transação. A compensação de reserva por estoque insuficiente foi preservada.
 
-**Fase 4**: a OS saiu desta transação. Agora confirmam juntos a decisão do orçamento, a reserva de
-peças e o evento da Saga no outbox (`DecidirOrcamentoAtomicidadeIntegrationTest`); a OS é movida pelo
-orquestrador ao consumir o evento.
+**Fase 4**: a OS e a reserva de peças saíram desta transação. Agora confirmam juntos a decisão do
+orçamento e o evento da Saga no outbox (`DecidirOrcamentoAtomicidadeIntegrationTest`); a Saga reserva
+as peças (`ReservarPecas`, tudo ou nada) e move a OS ao consumir o evento. Estoque insuficiente vira a
+compensação `ReverterAprovacao`.
 
 **Estado**: resolvido.
 

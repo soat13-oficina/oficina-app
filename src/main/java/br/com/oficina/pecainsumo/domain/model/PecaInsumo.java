@@ -77,4 +77,26 @@ public class PecaInsumo {
     public CategoriaPeca getCategoria() {
         return categoria;
     }
+
+    /** Reserva para uma OS (passo ReservarPecas da Saga). Sem disponivel suficiente e erro de programacao: confira antes. */
+    public PecaInsumo reservar(int quantidade) {
+        if (quantidade <= 0 || quantidade > getQuantidadeDisponivel()) {
+            throw new IllegalArgumentException("Reserva invalida: solicitado " + quantidade + ", disponivel " + getQuantidadeDisponivel());
+        }
+        return comQuantidades(quantidadeEstoque, quantidadeReservada + quantidade);
+    }
+
+    /** Devolve ao disponivel o que estava reservado (compensacao LiberarReserva). Nunca deixa a reserva negativa. */
+    public PecaInsumo liberarReserva(int quantidade) {
+        return comQuantidades(quantidadeEstoque, Math.max(0, quantidadeReservada - quantidade));
+    }
+
+    /** Baixa definitiva de pecas reservadas, na conclusao do servico. Nunca deixa estoque ou reserva negativos. */
+    public PecaInsumo consumirReservada(int quantidade) {
+        return comQuantidades(Math.max(0, quantidadeEstoque - quantidade), Math.max(0, quantidadeReservada - quantidade));
+    }
+
+    private PecaInsumo comQuantidades(int estoque, int reservada) {
+        return new PecaInsumo(id, descricao, marca, preco, estoque, reservada, codigoReferencia, categoria);
+    }
 }

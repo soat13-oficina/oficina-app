@@ -24,7 +24,6 @@ import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
 import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteRepository;
-import br.com.oficina.common.infrastructure.mensageria.PublicadorOutbox;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.PecaOrcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
@@ -37,8 +36,11 @@ import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataFunciona
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataOrdemDeServicoRepository;
 import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
 import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
+import br.com.oficina.pecainsumo.domain.model.ReservaPeca;
+import br.com.oficina.pecainsumo.domain.repository.ReservaPecaRepository;
 import br.com.oficina.pecainsumo.infrastructure.persistence.PecaInsumoJpaEntity;
 import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataPecaInsumoRepository;
+import br.com.oficina.support.saga.FluxoOficinaHttp;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
@@ -79,21 +81,18 @@ class OrdemDeServicoControllerTest {
     private SpringDataPecaInsumoRepository springDataPecaInsumoRepository;
 
     @Autowired
-    private PublicadorOutbox publicadorOutbox;
+    private ReservaPecaRepository reservaPecaRepository;
 
     private MockMvc mockMvc;
+    private FluxoOficinaHttp fluxo;
 
     @BeforeEach
     void setUp() {
-        springDataOrcamentoRepository.deleteAll();
-        springDataOrdemDeServicoRepository.deleteAll();
-        springDataVeiculoRepository.deleteAll();
-        springDataClienteRepository.deleteAll();
-        springDataFuncionarioRepository.deleteAll();
-        springDataPecaInsumoRepository.deleteAll();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
+        fluxo = new FluxoOficinaHttp(mockMvc, context);
+        fluxo.limpar();
     }
 
     @Test
@@ -159,21 +158,23 @@ class OrdemDeServicoControllerTest {
         mockMvc.perform(post("/ordens-servico/" + numero + "/diagnostico/enviar-para-orcamento")
                 .with(user("tester")).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(orcamentoBody))
-                .andExpect(status().isNoContent());
-        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.situacao").value("Aguardando Aprovação"));
+                .andExpect(status().isAccepted());
+        // Fase 4: o orcamento e gerado pelo Billing (GerarOrcamento -> OrcamentoGerado) de forma assincrona.
+        situacao(numero, "Diagnóstico");
+        fluxo.processarMensagens();
+        situacao(numero, "Aguardando Aprovação");
 
-        // Fase 4: o orcamento aprova e publica OrcamentoAprovado; a Saga move a OS ao processar o outbox.
+        // O orcamento aprova e publica OrcamentoAprovado; a Saga reserva as pecas e pede o pagamento.
         String numeroOrcamento = springDataOrcamentoRepository.findAll().get(0).getNumeroOrcamento();
         mockMvc.perform(post("/orcamentos/" + numeroOrcamento + "/aprovacao").with(user("tester")).with(csrf()))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
-                .andExpect(jsonPath("$.situacao").value("Aguardando Aprovação"));
-        publicadorOutbox.publicarPendentes();
-        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.situacao").value("Execução"));
+        situacao(numero, "Aguardando Aprovação");
+        fluxo.processarMensagens();
+        situacao(numero, "Aguardando Pagamento");
+
+        fluxo.simularPagamento(numeroOrcamento, "APROVADO").andExpect(status().isOk());
+        fluxo.processarMensagens();
+        situacao(numero, "Execução");
 
         transicao(numero, "/execucao/iniciar");
         transicao(numero, "/servico/concluir");
@@ -209,6 +210,12 @@ class OrdemDeServicoControllerTest {
         mockMvc.perform(post("/ordens-servico/OS-QUALQUER/orcamento/enviar-aprovacao")
                 .with(user("tester")).with(csrf()))
                 .andExpect(status().is(not(204)));
+    }
+
+    private void situacao(String numero, String esperada) throws Exception {
+        mockMvc.perform(get("/ordens-servico/" + numero).with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situacao").value(esperada));
     }
 
     private void transicao(String numero, String caminho) throws Exception {
@@ -499,66 +506,66 @@ class OrdemDeServicoControllerTest {
     }
 
     @Test
-    void deveFinalizarOrdemDeServico() throws Exception {
+    void deveConcluirServicoBaixandoAsPecasReservadasParaAOrdem() throws Exception {
         Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "20160606624", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
         veiculoRepository.salvar(new Veiculo(
                 cliente.getId(),
                 "JKL4M56", "Jeep", "Renegade", "Stellantis", 2024, 185, "AUTOMATICO", TipoCombustivel.DIESEL));
-
-        // Create a PecaInsumo in the database with reserved stock (simulating prior reservation from approval)
         String pecaId = "filtro-oleo-001";
-        PecaInsumo pecaInsumo = new PecaInsumo(pecaId, "Filtro de oleo", "Bosch", new java.math.BigDecimal("80.00"), 10, 1, "REF-FILTRO", CategoriaPeca.FILTROS);
-        springDataPecaInsumoRepository.save(PecaInsumoJpaEntity.fromDomain(pecaInsumo));
+        springDataPecaInsumoRepository.save(PecaInsumoJpaEntity.fromDomain(
+                new PecaInsumo(pecaId, "Filtro de oleo", "Bosch", new java.math.BigDecimal("80.00"), 10, 1, "REF-FILTRO", CategoriaPeca.FILTROS)));
+        OrdemDeServico ordemDeServico = emExecucao("os-concluir-reserva", cliente, funcionario, "JKL4M56");
+        reservaPecaRepository.salvar(ReservaPeca.nova(ordemDeServico.getId(), pecaId, 1, LocalDateTime.now()));
 
-        OrdemDeServico ordemDeServico = OrdemDeServico.abrir(
+        transicao("os-concluir-reserva", "/servico/concluir");
+
+        PecaInsumo peca = springDataPecaInsumoRepository.findById(pecaId).orElseThrow().toDomain();
+        assert peca.getQuantidadeEstoque() == 9;
+        assert peca.getQuantidadeReservada() == 0;
+        assert reservaPecaRepository.buscarPorOrdemDeServico(ordemDeServico.getId()).get(0).status() == ReservaPeca.Status.CONSUMIDA;
+        situacao("os-concluir-reserva", "Finalizada");
+    }
+
+    @Test
+    void deveAbortarExecucaoCancelandoAOrdem() throws Exception {
+        Cliente cliente = clienteRepository.salvar(new Cliente("Bianca", "20160606624", TipoCliente.PF));
+        Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Marcos", null));
+        veiculoRepository.salvar(new Veiculo(
+                cliente.getId(),
+                "ABT4M56", "Jeep", "Renegade", "Stellantis", 2024, 185, "AUTOMATICO", TipoCombustivel.DIESEL));
+        emExecucao("os-abortar-1", cliente, funcionario, "ABT4M56");
+
+        mockMvc.perform(post("/ordens-servico/os-abortar-1/execucao/abortar")
+                        .with(user("tester")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content("{ \"motivo\": \"Peca nao serve\" }"))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/ordens-servico/os-abortar-1").with(user("tester")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situacao").value("Cancelada"))
+                .andExpect(jsonPath("$.motivoEncerramento").value("FALHA_EXECUCAO"));
+        mockMvc.perform(post("/ordens-servico/os-abortar-1/execucao/abortar")
+                        .with(user("tester")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content("{ \"motivo\": \"de novo\" }"))
+                .andExpect(status().is4xxClientError());
+    }
+
+    private OrdemDeServico emExecucao(String numero, Cliente cliente, Funcionario funcionario, String placa) {
+        OrdemDeServico ordem = OrdemDeServico.abrir(
                 null,
-                "os-finalizar-1",
+                numero,
                 Funcionario.reconstituir(funcionario.getId(), funcionario.getNome(), funcionario.getCpf()),
                 cliente,
-                veiculoRepository.buscarPorPlaca("JKL4M56").orElseThrow());
-        ordemDeServico.iniciarDiagnostico();
-        ordemDeServico.concluirDiagnostico();
-        ordemDeServico.enviarParaOrcamento();
-        ordemDeServicoRepository.salvar(ordemDeServico);
-        springDataOrcamentoRepository.save(new Orcamento(
-                "ORC-001",
-                cliente.getId(),
-                ordemDeServico.getId(),
-                funcionario.getId(),
-                cliente.getNome(),
-                cliente.getCpfOuCnpj(),
-                "JKL4M56",
-                "Jeep",
-                "Renegade",
-                "Troca de oleo",
-                java.util.List.of("Troca de oleo"),
-                java.util.List.of(new PecaOrcamento(pecaId, "Filtro de oleo", new java.math.BigDecimal("80.00"), 1)),
-                new java.math.BigDecimal("200.00"),
-                java.math.BigDecimal.ZERO,
-                java.time.LocalDateTime.of(2030, 1, 1, 10, 0),
-                java.time.LocalDateTime.of(2030, 1, 10, 10, 0),
-                "Finalizacao",
-                StatusOrcamento.AGUARDANDO_APROVACAO));
-
-        mockMvc.perform(post("/ordens-servico/os-finalizar-1/finalizacao")
-                        .with(user("tester"))
-                        .with(csrf()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.numeroOrdemServico").value("os-finalizar-1"))
-                .andExpect(jsonPath("$.cliente.nome").value("Bianca"))
-                .andExpect(jsonPath("$.veiculo.placa").value("JKL4M56"))
-                .andExpect(jsonPath("$.servicoRealizado").value("Troca de oleo"))
-                .andExpect(jsonPath("$.valorServico").value(200.0))
-                .andExpect(jsonPath("$.pecas[0].descricao").value("Filtro de oleo"))
-                .andExpect(jsonPath("$.pecas[0].preco").value(80.0))
-                .andExpect(jsonPath("$.valorFinal").value(280.0))
-                .andExpect(jsonPath("$.desconto").value(0));
-
-        OrdemDeServico ordemAtualizada = ordemDeServicoRepository.buscarPorNumero("os-finalizar-1")
-                .orElseThrow();
-        assert ordemAtualizada.getStatus() == StatusOrdemDeServico.OS_FINALIZADA;
-        assert ordemAtualizada.getFinalizadaEm() != null;
+                veiculoRepository.buscarPorPlaca(placa).orElseThrow());
+        ordem.iniciarDiagnostico();
+        ordem.concluirDiagnostico();
+        ordem.enviarParaAprovacao();
+        ordem.aguardarPagamento();
+        ordem.confirmarPagamento();
+        ordem.iniciarExecucao();
+        ordemDeServicoRepository.salvar(ordem);
+        return ordemDeServicoRepository.buscarPorNumero(numero).orElseThrow();
     }
 
     @Test
@@ -577,8 +584,8 @@ class OrdemDeServicoControllerTest {
                 veiculoRepository.buscarPorPlaca("ENT4G56").orElseThrow());
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();
-        ordemDeServico.enviarParaOrcamento();
-        ordemDeServico.finalizar();
+        ordemDeServico.enviarParaAprovacao();
+        ordemDeServico.recusarOrcamento();
         ordemDeServicoRepository.salvar(ordemDeServico);
 
         mockMvc.perform(post("/ordens-servico/os-entregar-1/entrega")

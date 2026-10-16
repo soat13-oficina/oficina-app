@@ -2,7 +2,6 @@ package br.com.oficina.orcamento.application.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,33 +13,23 @@ import br.com.oficina.orcamento.application.usecase.RejeitarOrcamentoUseCase;
 import br.com.oficina.orcamento.domain.model.Orcamento;
 import br.com.oficina.orcamento.domain.model.StatusOrcamento;
 import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
-import br.com.oficina.pecainsumo.application.command.LiberarReservaPecaCommand;
-import br.com.oficina.pecainsumo.application.usecase.LiberarReservaPecaUseCase;
 
 @Service
 public class RejeitarOrcamentoService implements RejeitarOrcamentoUseCase {
     private static final Logger log = LoggerFactory.getLogger(RejeitarOrcamentoService.class);
 
     private final OrcamentoRepository orcamentoRepository;
-    private final LiberarReservaPecaUseCase liberarReservaPecaUseCase;
     private final EventosOrcamento eventos;
 
-    @Autowired
-    public RejeitarOrcamentoService(
-            OrcamentoRepository orcamentoRepository,
-            LiberarReservaPecaUseCase liberarReservaPecaUseCase,
-            EventosOrcamento eventos) {
+    public RejeitarOrcamentoService(OrcamentoRepository orcamentoRepository, EventosOrcamento eventos) {
         this.orcamentoRepository = orcamentoRepository;
-        this.liberarReservaPecaUseCase = liberarReservaPecaUseCase;
         this.eventos = eventos;
     }
 
-    public RejeitarOrcamentoService(OrcamentoRepository orcamentoRepository) {
-        this(orcamentoRepository, command -> {
-        }, EventosOrcamento.NENHUM);
-    }
-
-    /** Rejeita e publica {@code OrcamentoRejeitado}; o orquestrador encerra a OS. */
+    /**
+     * Rejeita e publica {@code OrcamentoRejeitado}; o orquestrador encerra a OS. Nao ha reserva a
+     * liberar: as pecas so sao reservadas depois da aprovacao (passo ReservarPecas da Saga).
+     */
     @Override
     @Transactional
     public void rejeitarOrcamento(RejeitarOrcamentoCommand command) {
@@ -53,16 +42,6 @@ public class RejeitarOrcamentoService implements RejeitarOrcamentoUseCase {
         }
 
         orcamento.rejeitar();
-        orcamento.getPecasOrcamento().forEach(peca -> {
-            try {
-                liberarReservaPecaUseCase.liberarReserva(
-                        new LiberarReservaPecaCommand(peca.getPecaInsumoId(), peca.getQuantidade()));
-            } catch (RegraDeNegocioException exception) {
-                log.debug("Reserva inexistente ou insuficiente ao rejeitar orcamento. numeroOrcamento={}, pecaId={}",
-                        command.numeroOrcamento(),
-                        peca.getPecaInsumoId());
-            }
-        });
         orcamentoRepository.atualizar(orcamento);
         eventos.orcamentoRejeitado(orcamento, command.canal());
         log.info("Orcamento rejeitado com sucesso. numeroOrcamento={}", command.numeroOrcamento());

@@ -18,8 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.cliente.domain.repository.ClienteRepository;
-import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase;
-import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase.EnviarDiagnosticoParaOrcamentoRequest;
+import br.com.oficina.orcamento.application.command.CadastrarNovoOrcamentoCommand;
+import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
@@ -38,7 +38,7 @@ class RegularizacaoOrdensAguardandoAprovacaoIntegrationTest {
     private ClienteRepository clienteRepository;
 
     @Autowired
-    private EnviarDiagnosticoParaOrcamentoUseCase enviarDiagnosticoParaOrcamentoUseCase;
+    private CadastrarNovoOrcamentoUseCase cadastrarNovoOrcamentoUseCase;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -50,14 +50,27 @@ class RegularizacaoOrdensAguardandoAprovacaoIntegrationTest {
     void deveReverterOrdensSemOrcamentoEPreservarAsComOrcamento() throws Exception {
         UUID clienteId = clienteRepository.salvar(new Cliente("Maria", "20110101103", TipoCliente.PF)).getId();
 
-        // OS válida: passa pelo fluxo único, ficando em AGUARDANDO_APROVACAO COM orçamento associado.
+        // OS válida: AGUARDANDO_APROVACAO COM orçamento associado (na Fase 4 o orçamento vem do Billing,
+        // por GerarOrcamento; aqui ele é cadastrado direto e a OS é movida como o OrcamentoGerado faria).
         UUID idValida = persistirOrdemEmDiagnosticoConcluido("OS-VALIDA", clienteId);
-        enviarDiagnosticoParaOrcamentoUseCase.enviarDiagnosticoParaOrcamento(new EnviarDiagnosticoParaOrcamentoRequest(
-                "OS-VALIDA",
+        cadastrarNovoOrcamentoUseCase.cadastrarNovoOrcamento(new CadastrarNovoOrcamentoCommand(
+                "ORC-VALIDA",
+                new CadastrarNovoOrcamentoCommand.ClienteOrcamento(clienteId, "Maria", "20110101103"),
+                idValida,
+                UUID.fromString("71111111-1111-1111-1111-111111111111"),
+                "ABC1D23",
+                "Toyota",
+                "Corolla",
+                "Servico de diagnostico",
+                List.of("Servico de diagnostico"),
+                List.of(),
                 new BigDecimal("200.00"),
                 BigDecimal.ZERO,
                 LocalDateTime.of(2030, 1, 1, 0, 0),
+                null,
                 null));
+        entityManager.flush();
+        jdbcTemplate.update("UPDATE ordens_de_servico SET status = 'AGUARDANDO_APROVACAO' WHERE id = ?", idValida);
 
         // OS órfã: simula o estado legado — AGUARDANDO_APROVACAO SEM orçamento.
         UUID idOrfa = persistirOrdemEmDiagnosticoConcluido("OS-ORFA", clienteId);

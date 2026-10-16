@@ -19,85 +19,78 @@ veículo no momento de sua criação.
 
 | Use Case | Endpoint | Descrição |
 |---|---|---|
-| `CriarNovaOrdemDeServicoUseCase` | `POST /ordens-servico` | Abre nova OS vinculando funcionário, cliente e veículo com snapshot de dados |
+| `CriarNovaOrdemDeServicoUseCase` | `POST /ordens-servico` | Abre nova OS vinculando funcionário, cliente e veículo com snapshot de dados; inicia a Saga |
 | `AlterarOrdemDeServicoUseCase` | `PUT /ordens-servico/{numero}` | Atualiza observações e dados da OS |
 | `ExcluirOrdemDeServicoUseCase` | `DELETE /ordens-servico/{numero}` | Remove a OS permanentemente |
-| `ConsultarOrdensDeServicoUseCase` | `GET /ordens-servico` | Lista OS com filtros por número, status, situação, cliente e veículo |
+| `ConsultarOrdensDeServicoUseCase` | `GET /ordens-servico` | Lista OS com filtros por número, status, situação, cliente e veículo (a fila não traz finalizadas, entregues nem canceladas) |
 | `AcompanharOrdemDeServicoUseCase` | `GET /ordens-servico/{numero}/acompanhamento` | Retorna situação simplificada para acompanhamento pelo cliente |
 | `ConsultarStatusOrdemDeServicoUseCase` | `GET /ordens-servico/{numero}` | Retorna status técnico completo da OS |
 | `ConsultarHistoricoOrdemDeServicoUseCase` | `GET /ordens-servico/{numero}/historico` | Retorna a situação atual e **todas as mudanças de status**, com origem (`API`, `SAGA`, `TIMEOUT`, `MIGRACAO`) e saga — Fase 4 |
 | `IniciarDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/iniciar` | Transiciona OS_ABERTA → DIAGNOSTICO_EM_ANDAMENTO |
-| `ConcluirDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/concluir` | Transiciona DIAGNOSTICO_EM_ANDAMENTO → DIAGNOSTICO_CONCLUIDO; corpo opcional grava **descrição do serviço + peças** (fonte do orçamento) |
-| `EnviarDiagnosticoParaOrcamentoUseCase` | `POST /ordens-servico/{numero}/diagnostico/enviar-para-orcamento` | **Fluxo único** DIAGNOSTICO_CONCLUIDO → AGUARDANDO_APROVACAO; corpo só financeiro; deriva cliente/veículo/funcionário e **puxa peças do diagnóstico**; cria o Orçamento na mesma transação |
-| `IniciarExecucaoUseCase` | `POST /ordens-servico/{numero}/execucao/iniciar` | Transiciona AGUARDANDO_EXECUCAO → SERVICO_EM_ANDAMENTO (Fase 4: a OS chega a AGUARDANDO_EXECUCAO pela Saga, quando o orçamento é aprovado) |
-| `ConsultarSagaUseCase` | `GET /sagas/{ordemServicoId}` | Estado, prazo, compensações pendentes e a história da Saga da OS — Fase 4 |
-| `ConcluirServicoUseCase` | `POST /ordens-servico/{numero}/servico/concluir` | Transiciona SERVICO_EM_ANDAMENTO → OS_FINALIZADA; consome peças do estoque |
-| `FinalizarOrdemDeServicoUseCase` | `POST /ordens-servico/{numero}/finalizacao` | Transiciona ORCAMENTO_GERADO → OS_FINALIZADA; consome peças. **Inalcançável na prática**: nenhum controller chama `enviarParaOrcamento()`, único método que produz o status ORCAMENTO_GERADO exigido pela guarda de `finalizar()` — ver nota em "Máquina de Estados" |
+| `ConcluirDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/concluir` | Transiciona DIAGNOSTICO_EM_ANDAMENTO → DIAGNOSTICO_CONCLUIDO; corpo opcional grava **descrição do serviço + peças** (fonte do orçamento); as peças são validadas no cadastro pela porta `CatalogoPecas` |
+| `EnviarDiagnosticoParaOrcamentoUseCase` | `POST /ordens-servico/{numero}/diagnostico/enviar-para-orcamento` | **202 Accepted** — valida o que dá sem o Billing (diagnóstico concluído, mão de obra, desconto e validade; erro = 400) e pede o orçamento à Saga (`GerarOrcamento`). A OS só vai para AGUARDANDO_APROVACAO quando chega `OrcamentoGerado` — Fase 4 |
+| `IniciarExecucaoUseCase` | `POST /ordens-servico/{numero}/execucao/iniciar` | Transiciona AGUARDANDO_EXECUCAO → SERVICO_EM_ANDAMENTO (a OS chega a AGUARDANDO_EXECUCAO pela Saga, quando o pagamento é confirmado) |
+| `ConcluirServicoUseCase` | `POST /ordens-servico/{numero}/servico/concluir` | Transiciona SERVICO_EM_ANDAMENTO → OS_FINALIZADA e **baixa do estoque as peças reservadas** para a OS (porta `ReservasDaOrdem`), na mesma transação |
+| `AbortarExecucaoUseCase` | `POST /ordens-servico/{numero}/execucao/abortar` | Mecânico aborta (corpo `{ "motivo": "..." }`): SERVICO_EM_ANDAMENTO → CANCELADA (`FALHA_EXECUCAO`); a Saga estorna o pagamento e libera as peças — Fase 4 |
 | `EntregarAoClienteUseCase` | `POST /ordens-servico/{numero}/entrega` | Transiciona OS_FINALIZADA → ENTREGUE |
 | `CalcularTempoMedioExecucaoUseCase` | `GET /ordens-servico/metricas/tempo-medio` | Retorna tempo médio de execução de OS finalizadas |
+| `ConsultarSagaUseCase` | `GET /sagas/{ordemServicoId}` | Estado, prazo, link de pagamento, compensações pendentes e a história da Saga da OS — Fase 4 |
+
+> **Removido na Fase 4:** `POST /ordens-servico/{numero}/finalizacao` (`FinalizarOrdemDeServicoUseCase`).
+> Dependia do status `ORCAMENTO_GERADO`, que nenhum fluxo produzia — o endpoint nunca respondia
+> sucesso. A finalização real sempre foi `POST /{numero}/servico/concluir`.
 
 ### Máquina de Estados
 
+Setas com `[Saga]` são movidas pelo orquestrador a partir de eventos (origem `SAGA`) ou de prazos
+vencidos (origem `TIMEOUT`); as demais são ações HTTP.
+
 ```
-           OS_ABERTA
-               |
-               | iniciarDiagnostico()
-               ▼
-   DIAGNOSTICO_EM_ANDAMENTO
-               |
-               | concluirDiagnostico()
-               ▼
-     DIAGNOSTICO_CONCLUIDO
-               |
-     ┌─────────┴──────────┐
-     |                    |
-enviarParaAprovacao()  enviarParaOrcamento() [inalcançável — nenhum
-(→AGUARDANDO_APROVACAO) controller chama; ver nota abaixo]
-     |                    |
-     |             finalizar() [também inalcançável] ─┐
-     |                                               |
-     | [Decisão webhook: APROVADO]                   |
-     | aprovarOrcamento()                            |
-     ▼                                               |
-AGUARDANDO_APROVACAO                                 |
-     |                                               |
-     | iniciarExecucao()                             |
-     ▼                                               |
-SERVICO_EM_ANDAMENTO                                 |
-     |                                               |
-     | concluirServico()                             |
-     ▼                                               |
-OS_FINALIZADA ◄────────────────────────────────────┘
-     |
-     | recusarOrcamento() [Decisão webhook: REJEITADO]
-     |   ou rejeicao via DecidirOrcamentoExternamente
-     |
-OS_FINALIZADA (MotivoEncerramento.ORCAMENTO_RECUSADO)
-     |
-     | entregarAoCliente()
-     ▼
-  ENTREGUE
+OS_ABERTA
+   │ iniciarDiagnostico()
+   ▼
+DIAGNOSTICO_EM_ANDAMENTO ◄───────────────────────────┐
+   │ concluirDiagnostico()                            │ [Saga] reabrirDiagnostico()
+   ▼                                                  │ (OrcamentoFalhou com peça inválida)
+DIAGNOSTICO_CONCLUIDO ────────────────────────────────┘
+   │ [Saga] enviarParaAprovacao()      (OrcamentoGerado)
+   ▼
+AGUARDANDO_APROVACAO ──[Saga] recusarOrcamento() / expirarOrcamento()──► OS_FINALIZADA
+   │ [Saga] aguardarPagamento()        (OrcamentoAprovado + PecasReservadas)   (ORCAMENTO_RECUSADO / _EXPIRADO)
+   ▼
+AGUARDANDO_PAGAMENTO ──[Saga] cancelarPorPagamento()──► CANCELADA (PAGAMENTO_RECUSADO / _EXPIRADO)
+   │ [Saga] confirmarPagamento()       (PagamentoConfirmado)
+   ▼
+AGUARDANDO_EXECUCAO
+   │ iniciarExecucao()
+   ▼
+SERVICO_EM_ANDAMENTO ──abortarExecucao()──► CANCELADA (FALHA_EXECUCAO)
+   │ concluirServico()
+   ▼
+OS_FINALIZADA (SERVICO_CONCLUIDO)
+   │ entregarAoCliente()
+   ▼
+ENTREGUE
 ```
 
-> **Status órfãos removidos** (spec `005-ordemservico-achados-residuais`, CRI-003): os valores
-> `AGUARDANDO_ORCAMENTO`, `ORCAMENTO_APROVADO`, `AGUARDANDO_PECA` e `SERVICO_CONCLUIDO` foram
-> **removidos** do enum `StatusOrdemDeServico` por não possuírem transição alguma. Os dados
-> existentes já haviam sido realinhados pela migração `V14`. O enum passa a conter apenas os
-> 8 status alcançáveis.
+Estoque insuficiente na reserva não move a OS: ela continua em AGUARDANDO_APROVACAO e o cliente
+pode decidir de novo (a aprovação é revertida no orçamento). `ORCAMENTO_GERADO` continua no enum
+só por dados antigos — nenhum fluxo o produz.
 
 ### Situações (visão do cliente)
 
-O enum `SituacaoOrdemDeServico` é a representação simplificada para o cliente, mapeando
-múltiplos status técnicos para 6 situações legíveis:
+O enum `SituacaoOrdemDeServico` é a representação simplificada para o cliente:
 
 | Situação | Status técnicos mapeados |
 |---|---|
 | `RECEBIDA` | `OS_ABERTA` |
 | `DIAGNOSTICO` | `DIAGNOSTICO_EM_ANDAMENTO`, `DIAGNOSTICO_CONCLUIDO` |
 | `AGUARDANDO_APROVACAO` | `ORCAMENTO_GERADO`, `AGUARDANDO_APROVACAO` |
-| `EXECUCAO` | `SERVICO_EM_ANDAMENTO` |
+| `AGUARDANDO_PAGAMENTO` | `AGUARDANDO_PAGAMENTO` — Fase 4 |
+| `EXECUCAO` | `AGUARDANDO_EXECUCAO`, `SERVICO_EM_ANDAMENTO` |
 | `FINALIZADA` | `OS_FINALIZADA` |
 | `ENTREGUE` | `ENTREGUE` |
+| `CANCELADA` | `CANCELADA` — Fase 4 |
 
 ### Snapshot de Dados
 
@@ -116,83 +109,88 @@ já criadas.
 
 1. **Transições guardadas** — cada método de transição na `OrdemDeServico` verifica o
    `status` atual e lança `RegraDeNegocioException` se a transição não for permitida.
-2. **Motivo de encerramento obrigatório** — `finalizar()` e `recusarOrcamento()` registram
-   `MotivoEncerramento` (`SERVICO_CONCLUIDO` ou `ORCAMENTO_RECUSADO`).
-3. **Consumo de peças na finalização** — `FinalizarOrdemDeServicoService` itera
-   `orcamento.getPecasOrcamento()` e chama `ConsumirPecaUseCase` para cada peça antes de
-   chamar `ordemDeServico.finalizar()`.
-4. **Tempo de execução** — calculado em `FinalizarOrdemDeServicoService` como
-   `dataFinalizacao - dataAbertura`, formatado em horas ou dias dependendo da duração.
+2. **Motivo de encerramento obrigatório** — toda OS finalizada ou cancelada registra
+   `MotivoEncerramento`: `SERVICO_CONCLUIDO`, `ORCAMENTO_RECUSADO`, `ORCAMENTO_EXPIRADO`,
+   `PAGAMENTO_RECUSADO`, `PAGAMENTO_EXPIRADO` ou `FALHA_EXECUCAO`.
+3. **Baixa de peças na conclusão** — `ConcluirServicoService` consome as reservas que a Saga fez
+   para a OS (`ReservasDaOrdem.consumir`) na mesma transação da conclusão. Até a Fase 3 a
+   conclusão não baixava nada (só a finalização legada, inalcançável) e a reserva ficava presa.
+4. **Sem import entre módulos que viram serviços** — `ordemservico` não importa `orcamento`,
+   `pagamento` nem `pecainsumo` (regra ArchUnit em `ArquiteturaModulosTest`). Consultas síncronas
+   usam portas próprias (`application/port`: `CatalogoPecas`, `ReservasDaOrdem`) com adaptadores
+   transitórios em `br.com.oficina.ponte`; o resto vai por mensagens.
 5. **Evento de mudança de status** — `StatusOrdemDeServicoAlterado` é publicado sempre que
-   uma transição de status ocorre; o módulo `notificacao` escuta esse evento de forma assíncrona.
+   uma transição de situação ocorre (pela API ou pela Saga); o módulo `notificacao` escuta esse
+   evento de forma assíncrona.
 6. **Histórico de status** (Fase 4, migration V21) — toda mudança de **status** (inclusive dentro
    da mesma situação) é acumulada pelo agregado em `alterarStatus` e gravada em
    `ordem_servico_historico` pelo repositório, no mesmo `salvar()` da ordem. A origem padrão é
    `API`; o orquestrador da Saga troca para `SAGA`/`TIMEOUT` com
    `registrarOrigemDasAlteracoes(origem, sagaId)` antes de mover a ordem.
-7. **Saga orquestrada** (Fase 4, ADR 0004, migration V23) — ver a seção "Saga" abaixo.
+7. **Saga orquestrada** (Fase 4, ADR 0004, migrations V23 e V24) — ver a seção "Saga" abaixo.
 
 ## Ciclo de Vida
 
 ```
-POST /ordens-servico
-      |
-      ▼
-  [OS_ABERTA]
-      |
-      | POST /{num}/diagnostico/iniciar
-      ▼
-[DIAGNOSTICO_EM_ANDAMENTO]
-      |
-      | POST /{num}/diagnostico/concluir
-      ▼
-  [DIAGNOSTICO_CONCLUIDO]
-      |
-      | POST /{num}/diagnostico/enviar-para-orcamento  (cria Orçamento + transição, atômico)
-      ▼
-  [AGUARDANDO_APROVACAO]
-      |
-      ├── webhook aprova → POST /{num}/execucao/iniciar → [SERVICO_EM_ANDAMENTO] → POST /{num}/servico/concluir → [OS_FINALIZADA]
-      |
-      └── webhook rejeita → [OS_FINALIZADA (ORCAMENTO_RECUSADO)]
-      |
-      ▼
-  [OS_FINALIZADA]
-      |
-      | POST /{num}/entrega
-      ▼
-  [ENTREGUE]
+POST /ordens-servico                                 → OS_ABERTA (Saga AGUARDANDO_DIAGNOSTICO)
+POST /{num}/diagnostico/iniciar                      → DIAGNOSTICO_EM_ANDAMENTO
+POST /{num}/diagnostico/concluir                     → DIAGNOSTICO_CONCLUIDO
+POST /{num}/diagnostico/enviar-para-orcamento (202)  → Saga GERANDO_ORCAMENTO
+   OrcamentoGerado                                   → AGUARDANDO_APROVACAO
+POST /orcamentos/{n}/aprovacao (ou integração)       → Saga RESERVANDO_PECAS
+   PecasReservadas                                   → AGUARDANDO_PAGAMENTO (link em GET /orcamentos/{n}/pagamento)
+POST /pagamentos/{id}/simulacao  APROVADO            → AGUARDANDO_EXECUCAO
+POST /{num}/execucao/iniciar                         → SERVICO_EM_ANDAMENTO
+POST /{num}/servico/concluir                         → OS_FINALIZADA (peças baixadas do estoque)
+POST /{num}/entrega                                  → ENTREGUE
 ```
 
 ## Saga (Fase 4)
 
 O orquestrador (`saga/application/OrquestradorSagaOrdemServico`) coordena o ciclo de vida da OS
-com o módulo `orcamento` (futuro Billing Service) **só por mensagens** — outbox `outbox_mensagens`,
-transporte em memória no Passo 1, SQS a partir do Passo 3 (ADR 0005). Estado em `saga_instancia`,
-história em `saga_passos`.
+com `orcamento` e `pagamento` (futuro Billing Service) e o estoque de `pecainsumo` (futura
+Execution Service) **só por mensagens** — outbox `outbox_mensagens`, transporte em memória no
+Passo 1, SQS a partir do Passo 3 (ADR 0005). Estado em `saga_instancia`, história em
+`saga_passos`. Diagnóstico e execução ainda são ações HTTP do próprio OS (`PassosDaSaga`); viram
+eventos da Execution no Passo 4.
 
 | Momento | Quem dispara | Saga | OS |
 |---|---|---|---|
 | Abertura da OS | `POST /ordens-servico` | `AGUARDANDO_DIAGNOSTICO` | `OS_ABERTA` |
-| Envio para orçamento | `POST .../diagnostico/enviar-para-orcamento` (ainda síncrono) | `AGUARDANDO_DECISAO`, com prazo = `saga.prazo-decisao` ou a validade do orçamento | `AGUARDANDO_APROVACAO` |
-| Cliente aprova | evento `OrcamentoAprovado` | `AGUARDANDO_EXECUCAO` | `AGUARDANDO_EXECUCAO` (origem `SAGA`) |
+| Envio para orçamento | `POST .../diagnostico/enviar-para-orcamento` (202) | `GERANDO_ORCAMENTO` → comando `GerarOrcamento` | `DIAGNOSTICO_CONCLUIDO` |
+| Orçamento gerado | evento `OrcamentoGerado` | `AGUARDANDO_DECISAO`, prazo = `saga.prazo-decisao` ou a validade do orçamento | `AGUARDANDO_APROVACAO` |
+| Orçamento não gerado | evento `OrcamentoFalhou` | `AGUARDANDO_DIAGNOSTICO` (motivo guardado) | com peça inválida: `DIAGNOSTICO_EM_ANDAMENTO` sem as peças; senão fica `DIAGNOSTICO_CONCLUIDO` e o envio pode ser refeito |
+| Cliente aprova | evento `OrcamentoAprovado` | `RESERVANDO_PECAS` → comando `ReservarPecas` (tudo ou nada) | — |
+| Peças reservadas | evento `PecasReservadas` | `AGUARDANDO_PAGAMENTO` → comando `SolicitarPagamento` (prazo `saga.prazo-pagamento`) | `AGUARDANDO_PAGAMENTO` |
+| Estoque insuficiente | evento `ReservaFalhou` | `REVERTENDO_APROVACAO` → `ReverterAprovacao` → `AprovacaoRevertida` → `AGUARDANDO_DECISAO` com prazo novo | — |
+| Cobrança criada | evento `PagamentoSolicitado` | guarda `pagamentoId` e `linkPagamento`; vigia o prazo + `saga.margem-pagamento` | — |
+| Pagamento confirmado | evento `PagamentoConfirmado` | `AGUARDANDO_EXECUCAO` | `AGUARDANDO_EXECUCAO` |
+| Pagamento recusado / expirado | `PagamentoRecusado` / `PagamentoExpirado` (ou nada até o prazo + margem) | `COMPENSANDO` → `LiberarReserva` + `CancelarOrcamento` → `COMPENSADA` | `CANCELADA` (`PAGAMENTO_RECUSADO` / `PAGAMENTO_EXPIRADO`) |
 | Cliente rejeita | evento `OrcamentoRejeitado` | `ENCERRADA_SEM_EXECUCAO` | `OS_FINALIZADA` / `ORCAMENTO_RECUSADO` |
-| Prazo de decisão vence | `AgendadorPrazosSaga` (30 s) | `COMPENSANDO` → comando `CancelarOrcamento` → `OrcamentoCancelado` → `ENCERRADA_SEM_EXECUCAO` | `OS_FINALIZADA` / `ORCAMENTO_EXPIRADO` (origem `TIMEOUT`) |
-| Confirmação não chega | `AgendadorPrazosSaga` | reenvia até `saga.max-tentativas` (3); depois `FALHA_COMPENSACAO` | — |
+| Prazo de decisão vence | `AgendadorPrazosSaga` (30 s) | `COMPENSANDO` → `CancelarOrcamento` → `ENCERRADA_SEM_EXECUCAO` | `OS_FINALIZADA` / `ORCAMENTO_EXPIRADO` (origem `TIMEOUT`) |
 | Mecânico inicia / conclui | `POST .../execucao/iniciar`, `.../servico/concluir` | `EM_EXECUCAO` → `CONCLUIDA` | `SERVICO_EM_ANDAMENTO` → `OS_FINALIZADA` |
+| Mecânico aborta | `POST .../execucao/abortar` | `COMPENSANDO` → `EstornarPagamento` + `LiberarReserva` → `COMPENSADA` | `CANCELADA` (`FALHA_EXECUCAO`) |
+
+**Timeouts.** Todo comando espera resposta por `saga.prazo-resposta`. Comando de avanço
+(`GerarOrcamento`, `ReservarPecas`, `SolicitarPagamento`) sem resposta é reenviado — mesmo payload,
+`messageId` novo, a partir do outbox (`PublicadorMensagens.reenviar`) — até `saga.max-tentativas`;
+esgotou, o passo é tratado como falha (orçamento: volta a aguardar o envio; reserva: libera o que
+houver e reverte a aprovação; cobrança: cancela como pagamento expirado). Compensação sem
+confirmação é reenviada até o mesmo limite e depois a Saga para em `FALHA_COMPENSACAO` (log de
+erro, exige ação manual). `EstornoFalhou` mantém o estorno pendente e ele é pedido de novo no
+próximo prazo.
 
 Evento que não cabe no estado atual é registrado como `EVENTO_IGNORADO` e confirmado, nunca
 reprocessado em laço. OS anterior à Saga ganha uma Saga "adotada" (estado derivado do status) no
 primeiro evento — a V23 já cria uma para cada OS existente.
 
-**Ainda no monólito (próximos passos):** reserva de peças e pagamento como passos da Saga, geração
-do orçamento por comando (`GerarOrcamento`) e diagnóstico/execução como eventos da Execution.
-
 Configuração: `saga.prazo-decisao` (vazio em prd = validade do orçamento; `PT15M` em hml),
 `saga.prazo-decisao-padrao` (`P7D`), `saga.prazo-resposta` (`PT5M`), `saga.max-tentativas` (3),
+`saga.prazo-pagamento` (`PT24H`; `PT30M` em hml), `saga.margem-pagamento` (`PT10M`),
 `saga.prazos.intervalo-ms` (30000).
 
-BDD: `src/test/resources/features/saga/decisao-do-orcamento.feature` (Cucumber, roda no `./mvnw verify`).
+BDD (Cucumber, roda no `./mvnw verify`): `src/test/resources/features/saga/decisao-do-orcamento.feature`
+e `reserva-pagamento-e-compensacoes.feature`.
 
 ## Dependências Internas
 
@@ -200,15 +198,14 @@ BDD: `src/test/resources/features/saga/decisao-do-orcamento.feature` (Cucumber, 
 |---|---|---|
 | `cliente` | `ordemservico` consome `cliente` | `CriarNovaOrdemDeServicoService` busca dados do cliente para snapshot |
 | `veiculo` | `ordemservico` consome `veiculo` | `CriarNovaOrdemDeServicoService` busca dados do veículo para snapshot |
-| `orcamento` (Saga) | só mensagens | Consome `OrcamentoAprovado`, `OrcamentoRejeitado`, `OrcamentoCancelado`; envia `CancelarOrcamento` |
-| `orcamento` | `ordemservico` cria e lê `orcamento` | `EnviarDiagnosticoParaOrcamentoService` cria o orçamento; `FinalizarOrdemDeServicoService` o consulta |
-| `pecainsumo` | `ordemservico` consome `pecainsumo` | `FinalizarOrdemDeServicoService` chama `ConsumirPecaUseCase` para cada peça do orçamento |
-| `notificacao` | `ordemservico` publica evento consumido por `notificacao` | Publica `StatusOrdemDeServicoAlterado` em todas as transições de status |
+| `orcamento` / `pagamento` (Billing) | só mensagens | Envia `GerarOrcamento`, `ReverterAprovacao`, `CancelarOrcamento`, `SolicitarPagamento`, `EstornarPagamento`; consome os eventos correspondentes |
+| `pecainsumo` (Execution) | mensagens + portas | Envia `ReservarPecas` e `LiberarReserva`; `CatalogoPecas` (validação do diagnóstico) e `ReservasDaOrdem` (baixa na conclusão) via `br.com.oficina.ponte` |
+| `notificacao` | `ordemservico` publica evento consumido por `notificacao` | Publica `StatusOrdemDeServicoAlterado` em todas as transições de situação |
 
 ## Dependências Externas
 
-Nenhuma direta. A integração com sistema externo (decisão de orçamento via webhook) é
-tratada pelo módulo `orcamento`.
+Nenhuma direta. O provedor de pagamento (simulado no Passo 1, Mercado Pago no Passo 3) e a
+decisão de orçamento por integração são tratados pelos módulos `pagamento` e `orcamento`.
 
 ## Pontos de Entrada REST
 
@@ -288,14 +285,14 @@ OS finalizadas.
 |---|---|
 | `POST /{numero}/diagnostico/iniciar` | `OS_ABERTA → DIAGNOSTICO_EM_ANDAMENTO` |
 | `POST /{numero}/diagnostico/concluir` | `DIAGNOSTICO_EM_ANDAMENTO → DIAGNOSTICO_CONCLUIDO` |
-| `POST /{numero}/diagnostico/enviar-para-orcamento` | `DIAGNOSTICO_CONCLUIDO → AGUARDANDO_APROVACAO` + cria Orçamento (atômico) |
-| `POST /{numero}/execucao/iniciar` | `AGUARDANDO_APROVACAO → SERVICO_EM_ANDAMENTO` |
-| `POST /{numero}/servico/concluir` | `SERVICO_EM_ANDAMENTO → OS_FINALIZADA` |
-| `POST /{numero}/finalizacao` | `ORCAMENTO_GERADO → OS_FINALIZADA` |
+| `POST /{numero}/diagnostico/enviar-para-orcamento` | **202**; a OS vai a `AGUARDANDO_APROVACAO` quando o Billing gera o orçamento (Saga) |
+| `POST /{numero}/execucao/iniciar` | `AGUARDANDO_EXECUCAO → SERVICO_EM_ANDAMENTO` |
+| `POST /{numero}/servico/concluir` | `SERVICO_EM_ANDAMENTO → OS_FINALIZADA` (baixa as peças reservadas) |
+| `POST /{numero}/execucao/abortar` | `SERVICO_EM_ANDAMENTO → CANCELADA` (`FALHA_EXECUCAO`); corpo `{ "motivo": "..." }` obrigatório |
 | `POST /{numero}/entrega` | `OS_FINALIZADA → ENTREGUE` |
 
-Todos os endpoints de transição retornam `200 OK` com `OrdemDeServicoResponse` atualizado,
-ou `400 Bad Request` se a transição for inválida para o status atual.
+Os endpoints de transição respondem `204 No Content` (o envio para orçamento, `202 Accepted`),
+`400 Bad Request` se a transição for inválida para o status atual ou `404 Not Found`.
 
 ## Modelos de Domínio
 
@@ -304,9 +301,9 @@ ou `400 Bad Request` se a transição for inválida para o status atual.
 | Campo | Tipo | Descrição |
 |---|---|---|
 | `numero` | `String` (UUID) | Identificador único da OS |
-| `status` | `StatusOrdemDeServico` | Status técnico atual (8 valores) |
-| `situacao` | `SituacaoOrdemDeServico` | Visão simplificada para o cliente (6 valores) |
-| `motivoEncerramento` | `MotivoEncerramento` | `SERVICO_CONCLUIDO` ou `ORCAMENTO_RECUSADO`; só presente em OS finalizadas |
+| `status` | `StatusOrdemDeServico` | Status técnico atual (11 valores) |
+| `situacao` | `SituacaoOrdemDeServico` | Visão simplificada para o cliente (8 valores) |
+| `motivoEncerramento` | `MotivoEncerramento` | Só presente em OS finalizadas ou canceladas (ver "Regras de Negócio") |
 | `funcionarioId` | `UUID` | Referência ao funcionário |
 | `funcionarioNome` | `String` | Snapshot do nome |
 | `funcionarioRegistro` | `String` | Snapshot do registro profissional |
@@ -325,29 +322,23 @@ ou `400 Bad Request` se a transição for inválida para o status atual.
 | `dataAbertura` | `LocalDateTime` | Timestamp de criação |
 | `dataFinalizacao` | `LocalDateTime` | Timestamp de finalização (quando aplicável) |
 
-### `StatusOrdemDeServico` — Enum (8 valores)
+### `StatusOrdemDeServico` — Enum (11 valores)
 
-`OS_ABERTA` · `DIAGNOSTICO_EM_ANDAMENTO` · `DIAGNOSTICO_CONCLUIDO` ·
-`ORCAMENTO_GERADO` · `AGUARDANDO_APROVACAO` · `SERVICO_EM_ANDAMENTO` ·
-`OS_FINALIZADA` · `ENTREGUE`
+`OS_ABERTA` · `DIAGNOSTICO_EM_ANDAMENTO` · `DIAGNOSTICO_CONCLUIDO` · `ORCAMENTO_GERADO` ·
+`AGUARDANDO_APROVACAO` · `AGUARDANDO_PAGAMENTO` · `AGUARDANDO_EXECUCAO` ·
+`SERVICO_EM_ANDAMENTO` · `OS_FINALIZADA` · `ENTREGUE` · `CANCELADA`
 
 > Os quatro status órfãos (`AGUARDANDO_ORCAMENTO`, `ORCAMENTO_APROVADO`, `AGUARDANDO_PECA`,
 > `SERVICO_CONCLUIDO`) foram removidos na spec `005-ordemservico-achados-residuais` (CRI-003).
 >
-> **Divergência encontrada em teste end-to-end (2026-07-14)**: `ORCAMENTO_GERADO` não é
-> alcançável na prática — nenhum controller expõe `enviarParaOrcamento()` (o único método que
-> produz esse status). O fluxo real de negócio usa exclusivamente `enviarParaAprovacao()`
-> (→ `AGUARDANDO_APROVACAO`, via `POST /diagnostico/enviar-para-orcamento`). Como consequência,
-> o endpoint `POST /{numero}/finalizacao` (`FinalizarOrdemDeServicoUseCase`) também nunca
-> retorna sucesso — a guarda de `finalizar()` exige `ORCAMENTO_GERADO`. A finalização real da OS
-> ocorre via `POST /{numero}/servico/concluir` (`concluirServico()`), que transiciona
-> `SERVICO_EM_ANDAMENTO → OS_FINALIZADA` diretamente. `ORCAMENTO_GERADO`, `enviarParaOrcamento()`
-> e `finalizar()`/`FinalizarOrdemDeServicoUseCase` são candidatos a código morto — decisão de
-> remover ou de expor um caminho que os alcance ainda não foi tomada.
+> `ORCAMENTO_GERADO` não é produzido por nenhum fluxo (era o status exigido pela finalização
+> legada, removida na Fase 4 junto com `enviarParaOrcamento()` e `finalizar()`). Fica no enum
+> porque pode existir em dados antigos — a Saga adota essas OSs como aguardando decisão.
 
-### `SituacaoOrdemDeServico` — Enum (6 valores)
+### `SituacaoOrdemDeServico` — Enum (8 valores)
 
-`RECEBIDA` · `DIAGNOSTICO` · `AGUARDANDO_APROVACAO` · `EXECUCAO` · `FINALIZADA` · `ENTREGUE`
+`RECEBIDA` · `DIAGNOSTICO` · `AGUARDANDO_APROVACAO` · `AGUARDANDO_PAGAMENTO` · `EXECUCAO` ·
+`FINALIZADA` · `ENTREGUE` · `CANCELADA`
 
 ### `StatusOrdemDeServicoAlterado` — Evento de Domínio
 
@@ -364,29 +355,26 @@ ou `400 Bad Request` se a transição for inválida para o status atual.
 | Arquivo | Responsabilidade |
 |---|---|
 | `ordemservico/domain/model/OrdemDeServico.java` | Aggregate root; máquina de estados completa; snapshot |
-| `ordemservico/domain/model/StatusOrdemDeServico.java` | Enum dos 12 status técnicos |
-| `ordemservico/domain/model/SituacaoOrdemDeServico.java` | Enum das 6 situações de negócio |
+| `ordemservico/domain/model/StatusOrdemDeServico.java` | Enum dos 11 status técnicos |
+| `ordemservico/domain/model/SituacaoOrdemDeServico.java` | Enum das 8 situações de negócio |
 | `ordemservico/domain/event/StatusOrdemDeServicoAlterado.java` | Evento de domínio publicado em cada transição |
-| `ordemservico/application/service/CriarNovaOrdemDeServicoService.java` | Coleta snapshots; persiste a OS; publica evento |
-| `ordemservico/application/service/EnviarDiagnosticoParaOrcamentoService.java` | Cria Orçamento; publica evento |
-| `ordemservico/application/service/FinalizarOrdemDeServicoService.java` | Consome peças do estoque; finaliza OS; calcula tempo |
-| `ordemservico/application/service/ConsultarOrdensDeServicoService.java` | Filtragem em memória; sem paginação |
+| `ordemservico/application/service/CriarNovaOrdemDeServicoService.java` | Coleta snapshots; persiste a OS; inicia a Saga |
+| `ordemservico/application/service/EnviarDiagnosticoParaOrcamentoService.java` | Valida dados financeiros e pede o orçamento à Saga |
+| `ordemservico/application/service/ConcluirServicoService.java` | Conclui a OS e baixa as peças reservadas |
+| `ordemservico/application/service/AbortarExecucaoService.java` | Cancela a OS e aciona as compensações da Saga |
+| `ordemservico/application/port/` | Portas para o cadastro de peças e as reservas (adaptadores em `br.com.oficina.ponte`) |
+| `ordemservico/saga/application/OrquestradorSagaOrdemServico.java` | Orquestrador: eventos, comandos, prazos e reenvios |
+| `ordemservico/saga/domain/model/SagaOrdemServico.java` | Máquina de estados da Saga |
 | `ordemservico/infrastructure/web/OrdemDeServicoController.java` | Controller com 15+ endpoints |
 
 ## Observações
 
-- **Fluxo único para `AGUARDANDO_APROVACAO`** — `EnviarDiagnosticoParaOrcamentoService` é o
-  único caminho que leva a OS de `DIAGNOSTICO_CONCLUIDO` a `AGUARDANDO_APROVACAO`: ele chama
-  `enviarParaAprovacao()` na OS **e** `CadastrarNovoOrcamento` (cria o orçamento) na mesma
-  transação (`@Transactional`), garantindo que toda OS em `AGUARDANDO_APROVACAO` tenha um
-  orçamento associado. O caminho legado `POST /{num}/orcamento/enviar-aprovacao`
-  (`EnviarParaAprovacaoService`), que transicionava sem criar orçamento, foi **removido**
-  (spec `012-fix-aprovacao-sem-orcamento`).
-- **Sem logging em `ordemservico`** — a constituição lista como dívida técnica a ausência
-  de logging SLF4J nos services de `ordemservico`. Nenhum service do módulo emite logs de
-  entrada/saída de operação.
-- **Filtragem em memória no `ConsultarOrdensDeServicoService`** — a consulta carrega todas
-  as OS em memória e aplica os filtros via stream, sem JPA Specification nem paginação.
+- **Toda OS em `AGUARDANDO_APROVACAO` tem orçamento** — só o evento `OrcamentoGerado` leva a OS
+  de `DIAGNOSTICO_CONCLUIDO` a `AGUARDANDO_APROVACAO`, e ele só sai do Billing depois de o
+  orçamento ser gravado. O caminho legado `POST /{num}/orcamento/enviar-aprovacao`, que
+  transicionava sem criar orçamento, foi **removido** (spec `012-fix-aprovacao-sem-orcamento`).
+- **Toda OS em `AGUARDANDO_PAGAMENTO` ou adiante tem as peças reservadas** em `reservas_pecas`
+  (a V24 regularizou as OSs aprovadas antes da Saga).
 
 ---
 

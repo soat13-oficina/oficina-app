@@ -24,7 +24,8 @@ public interface SpringDataOrdemDeServicoRepository
                and (:documentoCliente is null or o.clienteDocumento = :documentoCliente)
                and o.status not in (
                     br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.OS_FINALIZADA,
-                    br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.ENTREGUE
+                    br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.ENTREGUE,
+                    br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.CANCELADA
                )
              order by
                case
@@ -32,7 +33,10 @@ public interface SpringDataOrdemDeServicoRepository
                     br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.SERVICO_EM_ANDAMENTO,
                     br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.AGUARDANDO_EXECUCAO
                  ) then 1
-                 when o.status = br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.AGUARDANDO_APROVACAO then 2
+                 when o.status in (
+                    br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.AGUARDANDO_APROVACAO,
+                    br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.AGUARDANDO_PAGAMENTO
+                 ) then 2
                  when o.status in (
                     br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO,
                     br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO

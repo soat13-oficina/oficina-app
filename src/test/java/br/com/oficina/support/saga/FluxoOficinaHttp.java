@@ -6,13 +6,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.math.BigDecimal;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.web.context.WebApplicationContext;
+
+import com.jayway.jsonpath.JsonPath;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
@@ -21,6 +26,8 @@ import br.com.oficina.cliente.infrastructure.persistence.SpringDataClienteReposi
 import br.com.oficina.common.infrastructure.mensageria.PublicadorOutbox;
 import br.com.oficina.common.infrastructure.mensageria.SpringDataMensagemProcessadaRepository;
 import br.com.oficina.common.infrastructure.mensageria.SpringDataOutboxMensagemRepository;
+import br.com.oficina.orcamento.domain.model.Orcamento;
+import br.com.oficina.orcamento.domain.repository.OrcamentoRepository;
 import br.com.oficina.orcamento.infrastructure.persistence.SpringDataOrcamentoRepository;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
@@ -30,7 +37,12 @@ import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataHistoric
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataOrdemDeServicoRepository;
 import br.com.oficina.ordemservico.saga.infrastructure.persistence.SpringDataRegistroPassoSagaRepository;
 import br.com.oficina.ordemservico.saga.infrastructure.persistence.SpringDataSagaOrdemServicoRepository;
+import br.com.oficina.pagamento.infrastructure.persistence.SpringDataPagamentoRepository;
+import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
+import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
+import br.com.oficina.pecainsumo.domain.repository.PecaInsumoRepository;
 import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataPecaInsumoRepository;
+import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataReservaPecaRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
@@ -67,12 +79,25 @@ public class FluxoOficinaHttp {
         bean(SpringDataHistoricoStatusOrdemDeServicoRepository.class).deleteAll();
         bean(SpringDataOutboxMensagemRepository.class).deleteAll();
         bean(SpringDataMensagemProcessadaRepository.class).deleteAll();
+        bean(SpringDataPagamentoRepository.class).deleteAll();
         bean(SpringDataOrcamentoRepository.class).deleteAll();
+        bean(SpringDataReservaPecaRepository.class).deleteAll();
         bean(SpringDataOrdemDeServicoRepository.class).deleteAll();
         bean(SpringDataVeiculoRepository.class).deleteAll();
         bean(SpringDataClienteRepository.class).deleteAll();
         bean(SpringDataFuncionarioRepository.class).deleteAll();
         bean(SpringDataPecaInsumoRepository.class).deleteAll();
+    }
+
+    /** Peca no cadastro com {@code estoque} unidades disponiveis; devolve o id. */
+    public String cadastrarPeca(String descricao, int estoque) {
+        PecaInsumo peca = new PecaInsumo(descricao, "Bosch", new BigDecimal("80.00"), estoque, "REF-" + descricao, CategoriaPeca.FILTROS);
+        bean(PecaInsumoRepository.class).salvar(peca);
+        return peca.getId();
+    }
+
+    public PecaInsumo peca(String pecaInsumoId) {
+        return bean(PecaInsumoRepository.class).buscarPorId(pecaInsumoId).orElseThrow();
     }
 
     /** Cliente, funcionario e veiculo; devolve o numero da OS aberta por POST /ordens-servico. */
@@ -93,25 +118,44 @@ public class FluxoOficinaHttp {
     }
 
     public void diagnosticar(String numero, String descricao) throws Exception {
+        diagnosticarComPeca(numero, descricao, null, 0);
+    }
+
+    /** Diagnostico com uma peca prevista ({@code pecaInsumoId} nulo = sem pecas). */
+    public void diagnosticarComPeca(String numero, String descricao, String pecaInsumoId, int quantidade) throws Exception {
         acao(numero, "/diagnostico/iniciar");
+        String pecas = pecaInsumoId == null ? "[]"
+                : "[ { \"pecaInsumoId\": \"%s\", \"quantidade\": %d } ]".formatted(pecaInsumoId, quantidade);
         mvc.perform(post("/ordens-servico/" + numero + "/diagnostico/concluir").with(ATENDENTE).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"descricaoServico\": \"%s\", \"pecas\": [] }".formatted(descricao)))
+                        .content("{ \"descricaoServico\": \"%s\", \"pecas\": %s }".formatted(descricao, pecas)))
                 .andExpect(status().isNoContent());
     }
 
-    /** Envia o diagnostico para orcamento e devolve o numero do orcamento criado. */
-    public String enviarParaOrcamento(String numero) throws Exception {
+    /** Envia o diagnostico para orcamento (202): so grava o {@code GerarOrcamento} no outbox. */
+    public void solicitarOrcamento(String numero) throws Exception {
+        solicitarOrcamento(numero, new BigDecimal("200.00"), BigDecimal.ZERO);
+    }
+
+    public void solicitarOrcamento(String numero, BigDecimal valorMaoDeObra, BigDecimal desconto) throws Exception {
         mvc.perform(post("/ordens-servico/" + numero + "/diagnostico/enviar-para-orcamento").with(ATENDENTE).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                { "valorMaoDeObra": 200.00, "desconto": 0, "validade": "2030-01-01T00:00:00", "observacoes": null }
-                                """))
-                .andExpect(status().isNoContent());
-        UUID ordemId = ordem(numero).getId();
-        return bean(SpringDataOrcamentoRepository.class).findAll().stream()
-                .filter(o -> ordemId.equals(o.getOrdemDeServicoId()))
-                .findFirst().orElseThrow().getNumeroOrcamento();
+                                { "valorMaoDeObra": %s, "desconto": %s, "validade": "2030-01-01T00:00:00", "observacoes": null }
+                                """.formatted(valorMaoDeObra, desconto)))
+                .andExpect(status().isAccepted());
+    }
+
+    /** Envia para orcamento, entrega as mensagens e devolve o numero do orcamento gerado pelo Billing. */
+    public String enviarParaOrcamento(String numero) throws Exception {
+        solicitarOrcamento(numero);
+        processarMensagens();
+        return orcamento(numero).orElseThrow(() -> new IllegalStateException("Orcamento nao gerado para " + numero))
+                .getNumeroOrcamento();
+    }
+
+    public Optional<Orcamento> orcamento(String numeroOrdem) {
+        return bean(OrcamentoRepository.class).buscarPorOrdemDeServicoId(ordem(numeroOrdem).getId());
     }
 
     public void clienteAprova(String numeroOrcamento) throws Exception {
@@ -124,8 +168,32 @@ public class FluxoOficinaHttp {
                 .andExpect(status().isNoContent());
     }
 
+    /** Cobranca do orcamento ({@code GET /orcamentos/{n}/pagamento}). */
+    public ResultActions pagamento(String numeroOrcamento) throws Exception {
+        return mvc.perform(get("/orcamentos/" + numeroOrcamento + "/pagamento").with(ATENDENTE));
+    }
+
+    public UUID pagamentoId(String numeroOrcamento) throws Exception {
+        String corpo = pagamento(numeroOrcamento).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return UUID.fromString(JsonPath.read(corpo, "$.pagamentoId"));
+    }
+
+    /** O cliente paga (ou o cartao e recusado): faz o papel do checkout + webhook do provedor. */
+    public ResultActions simularPagamento(String numeroOrcamento, String resultado) throws Exception {
+        return mvc.perform(post("/pagamentos/" + pagamentoId(numeroOrcamento) + "/simulacao").with(ATENDENTE).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{ \"resultado\": \"%s\", \"motivo\": \"Cartao recusado pelo emissor\" }".formatted(resultado)));
+    }
+
     public void acao(String numero, String caminho) throws Exception {
         mvc.perform(post("/ordens-servico/" + numero + caminho).with(ATENDENTE).with(csrf()))
+                .andExpect(status().isNoContent());
+    }
+
+    public void abortarExecucao(String numero, String motivo) throws Exception {
+        mvc.perform(post("/ordens-servico/" + numero + "/execucao/abortar").with(ATENDENTE).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"motivo\": \"%s\" }".formatted(motivo)))
                 .andExpect(status().isNoContent());
     }
 
@@ -141,6 +209,20 @@ public class FluxoOficinaHttp {
             total += entregues;
         }
         throw new IllegalStateException("Outbox nao esvaziou em 20 ciclos");
+    }
+
+    /** Um ciclo do publicador: entrega so o que ja estava pendente; as respostas ficam para o proximo. */
+    public int processarUmCiclo() {
+        return bean(PublicadorOutbox.class).publicarPendentes();
+    }
+
+    /**
+     * Simula a perda no transporte: as mensagens pendentes do tipo saem do outbox sem chegar ao
+     * destino (o participante nunca responde). O reenvio da Saga continua achando o original.
+     */
+    public int perderMensagensPendentes(String tipo) {
+        return bean(JdbcTemplate.class).update(
+                "UPDATE outbox_mensagens SET publicada_em = CURRENT_TIMESTAMP WHERE tipo = ? AND publicada_em IS NULL", tipo);
     }
 
     public OrdemDeServico ordem(String numero) {

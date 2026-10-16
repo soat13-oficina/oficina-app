@@ -11,144 +11,127 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationEventPublisher;
 
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
-import br.com.oficina.orcamento.application.usecase.CadastrarNovoOrcamentoUseCase;
-import br.com.oficina.orcamento.application.service.CadastrarNovoOrcamentoService;
 import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase.EnviarDiagnosticoParaOrcamentoRequest;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
-import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServicoAlterado;
-import br.com.oficina.support.persistence.TestClienteRepository;
-import br.com.oficina.support.persistence.TestOrcamentoRepository;
+import br.com.oficina.ordemservico.saga.application.PassosDaSaga;
 import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
-import br.com.oficina.support.persistence.TestPecaInsumoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 
+/**
+ * Fase 4: o envio para orcamento so valida e pede o orcamento a Saga (comando GerarOrcamento). A OS
+ * continua com o diagnostico concluido ate o OrcamentoGerado chegar (coberto no teste do orquestrador).
+ */
 class EnviarDiagnosticoParaOrcamentoServiceTest {
 
     private static final UUID CLIENTE_ID = UUID.fromString("61111111-1111-1111-1111-111111111111");
 
+    private final TestOrdemDeServicoRepository ordemRepository = new TestOrdemDeServicoRepository();
+    private final List<PassosDaSaga.DadosOrcamento> pedidos = new ArrayList<>();
+    private final EnviarDiagnosticoParaOrcamentoService service =
+            new EnviarDiagnosticoParaOrcamentoService(ordemRepository, sagaQueRegistra(pedidos));
+
     @Test
-    void deveCriarOrcamentoTransicionarEPublicarEvento() {
-        TestOrdemDeServicoRepository ordemRepository = new TestOrdemDeServicoRepository();
-        TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
-        List<Object> eventos = new ArrayList<>();
-        prepararOrdemEmDiagnosticoConcluido(ordemRepository, "OS-001");
+    void pedeOOrcamentoASagaSemMudarAOrdem() {
+        prepararOrdemEmDiagnosticoConcluido("OS-001");
 
-        EnviarDiagnosticoParaOrcamentoService service = new EnviarDiagnosticoParaOrcamentoService(
-                ordemRepository,
-                cadastrarOrcamentoReal(orcamentoRepository),
-                eventos::add);
+        service.enviarDiagnosticoParaOrcamento(requisicao("OS-001", new BigDecimal("200.00"), BigDecimal.ZERO, LocalDateTime.of(2030, 1, 1, 0, 0)));
 
-        service.enviarDiagnosticoParaOrcamento(requisicao("OS-001"));
-
-        OrdemDeServico ordem = ordemRepository.buscarPorNumero("OS-001").orElseThrow();
-        assertEquals(StatusOrdemDeServico.AGUARDANDO_APROVACAO, ordem.getStatus());
-        assertEquals(1, orcamentoRepository.buscarTodos().size());
-        assertEquals(1, eventos.size());
-        assertTrue(eventos.get(0) instanceof StatusOrdemDeServicoAlterado);
+        assertEquals(StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO, ordemRepository.buscarPorNumero("OS-001").orElseThrow().getStatus());
+        assertEquals(List.of(new PassosDaSaga.DadosOrcamento(new BigDecimal("200.00"), BigDecimal.ZERO, LocalDateTime.of(2030, 1, 1, 0, 0), "obs")), pedidos);
     }
 
     @Test
-    void deveFazerRollbackENaoPublicarEventoQuandoCriacaoDeOrcamentoFalha() {
-        // Em nível unitário, sem gerenciador de transações, validamos que a falha propaga,
-        // nenhum orçamento é persistido e o evento NÃO é publicado. O rollback efetivo do
-        // status da OS no banco é garantido por @Transactional (verificado em integração).
-        TestOrdemDeServicoRepository ordemRepository = new TestOrdemDeServicoRepository();
-        TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
-        List<Object> eventos = new ArrayList<>();
-        prepararOrdemEmDiagnosticoConcluido(ordemRepository, "OS-002");
+    void validadeEOpcional() {
+        prepararOrdemEmDiagnosticoConcluido("OS-002");
 
-        CadastrarNovoOrcamentoUseCase cadastroQueFalha = command -> {
-            throw new RegraDeNegocioException("Falha simulada na criacao do orcamento.");
-        };
-        EnviarDiagnosticoParaOrcamentoService service = new EnviarDiagnosticoParaOrcamentoService(
-                ordemRepository, cadastroQueFalha, eventos::add);
+        service.enviarDiagnosticoParaOrcamento(requisicao("OS-002", new BigDecimal("200.00"), null, null));
 
-        assertThrows(RegraDeNegocioException.class, () -> service.enviarDiagnosticoParaOrcamento(requisicao("OS-002")));
-
-        assertTrue(orcamentoRepository.buscarTodos().isEmpty());
-        assertTrue(eventos.isEmpty());
+        assertEquals(1, pedidos.size());
     }
 
     @Test
-    void deveLancarRecursoNaoEncontradoQuandoOrdemNaoExiste() {
-        TestOrdemDeServicoRepository ordemRepository = new TestOrdemDeServicoRepository();
-        TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
-        EnviarDiagnosticoParaOrcamentoService service = new EnviarDiagnosticoParaOrcamentoService(
-                ordemRepository, cadastrarOrcamentoReal(orcamentoRepository), event -> {});
-
+    void ordemInexistente() {
         assertThrows(RecursoNaoEncontradoException.class,
-                () -> service.enviarDiagnosticoParaOrcamento(requisicao("OS-404")));
+                () -> service.enviarDiagnosticoParaOrcamento(requisicao("OS-404", BigDecimal.TEN, null, null)));
     }
 
     @Test
-    void deveRecusarSegundaTransicaoConcorrenteSemCriarSegundoOrcamento() {
-        TestOrdemDeServicoRepository ordemRepository = new TestOrdemDeServicoRepository();
-        TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
-        prepararOrdemEmDiagnosticoConcluido(ordemRepository, "OS-003");
-        EnviarDiagnosticoParaOrcamentoService service = new EnviarDiagnosticoParaOrcamentoService(
-                ordemRepository, cadastrarOrcamentoReal(orcamentoRepository), event -> {});
+    void exigeDiagnosticoConcluidoComServicoOuPeca() {
+        OrdemDeServico aberta = novaOrdem("OS-003");
+        ordemRepository.salvar(aberta);
+        OrdemDeServico semDados = novaOrdem("OS-004");
+        semDados.iniciarDiagnostico();
+        semDados.concluirDiagnostico();
+        ordemRepository.salvar(semDados);
 
-        service.enviarDiagnosticoParaOrcamento(requisicao("OS-003"));
-
-        // Segunda chamada para a mesma OS (já em AGUARDANDO_APROVACAO) é recusada pela
-        // precondição de situação, sem criar um segundo orçamento (FR-006 / research D4).
         assertThrows(RegraDeNegocioException.class,
-                () -> service.enviarDiagnosticoParaOrcamento(requisicao("OS-003")));
-        assertEquals(1, orcamentoRepository.buscarTodos().size());
+                () -> service.enviarDiagnosticoParaOrcamento(requisicao("OS-003", BigDecimal.TEN, null, null)));
+        RegraDeNegocioException semDiagnostico = assertThrows(RegraDeNegocioException.class,
+                () -> service.enviarDiagnosticoParaOrcamento(requisicao("OS-004", BigDecimal.TEN, null, null)));
+        assertTrue(semDiagnostico.getMessage().startsWith("Diagnostico nao fechado"));
+        assertTrue(pedidos.isEmpty());
     }
 
     @Test
-    void deveRecusarQuandoDescontoTornaTotalNegativo() {
-        TestOrdemDeServicoRepository ordemRepository = new TestOrdemDeServicoRepository();
-        TestOrcamentoRepository orcamentoRepository = new TestOrcamentoRepository();
-        prepararOrdemEmDiagnosticoConcluido(ordemRepository, "OS-005");
-        EnviarDiagnosticoParaOrcamentoService service = new EnviarDiagnosticoParaOrcamentoService(
-                ordemRepository, cadastrarOrcamentoReal(orcamentoRepository), event -> {});
+    void recusaDadoFinanceiroInvalidoAntesDeChamarOBilling() {
+        prepararOrdemEmDiagnosticoConcluido("OS-005");
 
-        // Sem peças: total = maoDeObra - desconto; desconto > maoDeObra -> total negativo -> recusa (F3).
-        EnviarDiagnosticoParaOrcamentoRequest req = new EnviarDiagnosticoParaOrcamentoRequest(
-                "OS-005",
-                new BigDecimal("100.00"),
-                new BigDecimal("500.00"),
-                LocalDateTime.of(2030, 1, 1, 0, 0),
-                null);
-        assertThrows(RegraDeNegocioException.class, () -> service.enviarDiagnosticoParaOrcamento(req));
-        assertTrue(orcamentoRepository.buscarTodos().isEmpty());
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.enviarDiagnosticoParaOrcamento(requisicao("OS-005", null, null, null)));
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.enviarDiagnosticoParaOrcamento(requisicao("OS-005", new BigDecimal("-1"), null, null)));
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.enviarDiagnosticoParaOrcamento(requisicao("OS-005", BigDecimal.TEN, new BigDecimal("-1"), null)));
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.enviarDiagnosticoParaOrcamento(requisicao("OS-005", BigDecimal.TEN, null, LocalDateTime.now().minusDays(1))));
+        assertTrue(pedidos.isEmpty());
     }
 
-    private CadastrarNovoOrcamentoUseCase cadastrarOrcamentoReal(TestOrcamentoRepository orcamentoRepository) {
-        TestClienteRepository clienteRepository = new TestClienteRepository();
-        clienteRepository.salvar(Cliente.reconstituir(CLIENTE_ID, "Maria", "20110101103", TipoCliente.PF));
-        return new CadastrarNovoOrcamentoService(orcamentoRepository, clienteRepository, new TestPecaInsumoRepository());
+    private static PassosDaSaga sagaQueRegistra(List<PassosDaSaga.DadosOrcamento> pedidos) {
+        return new PassosDaSaga() {
+            @Override
+            public void iniciar(UUID ordemDeServicoId) {
+            }
+
+            @Override
+            public void solicitarOrcamento(UUID ordemDeServicoId, DadosOrcamento dados) {
+                pedidos.add(dados);
+            }
+
+            @Override
+            public void execucaoIniciada(UUID ordemDeServicoId) {
+            }
+
+            @Override
+            public void execucaoConcluida(UUID ordemDeServicoId) {
+            }
+
+            @Override
+            public void execucaoFalhou(UUID ordemDeServicoId, String motivo) {
+            }
+        };
     }
 
-    private void prepararOrdemEmDiagnosticoConcluido(TestOrdemDeServicoRepository repository, String numero) {
+    private void prepararOrdemEmDiagnosticoConcluido(String numero) {
         OrdemDeServico ordem = novaOrdem(numero);
         ordem.iniciarDiagnostico();
-        // Diagnóstico fechado com descrição do serviço (fonte do orçamento); peças vazias neste cenário.
         ordem.concluirDiagnostico("Servico de diagnostico", List.of());
-        repository.salvar(ordem);
+        ordemRepository.salvar(ordem);
     }
 
-    private EnviarDiagnosticoParaOrcamentoRequest requisicao(String numero) {
-        return new EnviarDiagnosticoParaOrcamentoRequest(
-                numero,
-                new BigDecimal("200.00"),
-                BigDecimal.ZERO,
-                LocalDateTime.of(2030, 1, 1, 0, 0),
-                null);
+    private static EnviarDiagnosticoParaOrcamentoRequest requisicao(String numero, BigDecimal maoDeObra, BigDecimal desconto, LocalDateTime validade) {
+        return new EnviarDiagnosticoParaOrcamentoRequest(numero, maoDeObra, desconto, validade, "obs");
     }
 
-    private OrdemDeServico novaOrdem(String numero) {
+    private static OrdemDeServico novaOrdem(String numero) {
         UUID funcionarioId = UUID.fromString("71111111-1111-1111-1111-111111111111");
         return OrdemDeServico.abrir(
                 UUID.nameUUIDFromBytes(("ordem-" + numero).getBytes()),

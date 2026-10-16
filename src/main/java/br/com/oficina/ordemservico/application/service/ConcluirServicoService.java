@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
 import br.com.oficina.ordemservico.application.command.ConcluirServicoCommand;
+import br.com.oficina.ordemservico.application.port.ReservasDaOrdem;
 import br.com.oficina.ordemservico.application.usecase.ConcluirServicoUseCase;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.SituacaoOrdemDeServico;
@@ -25,23 +26,27 @@ public class ConcluirServicoService implements ConcluirServicoUseCase {
     private final OrdemDeServicoRepository ordemDeServicoRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final PassosDaSaga passosDaSaga;
+    private final ReservasDaOrdem reservas;
 
     public ConcluirServicoService(
             OrdemDeServicoRepository ordemDeServicoRepository,
             ApplicationEventPublisher eventPublisher) {
-        this(ordemDeServicoRepository, eventPublisher, PassosDaSaga.NENHUM);
+        this(ordemDeServicoRepository, eventPublisher, PassosDaSaga.NENHUM, ordemDeServicoId -> 0);
     }
 
     @Autowired
     public ConcluirServicoService(
             OrdemDeServicoRepository ordemDeServicoRepository,
             ApplicationEventPublisher eventPublisher,
-            PassosDaSaga passosDaSaga) {
+            PassosDaSaga passosDaSaga,
+            ReservasDaOrdem reservas) {
         this.ordemDeServicoRepository = ordemDeServicoRepository;
         this.eventPublisher = eventPublisher;
         this.passosDaSaga = passosDaSaga;
+        this.reservas = reservas;
     }
 
+    /** Conclui e baixa do estoque as pecas reservadas para a OS, na mesma transacao. */
     @Override
     @Transactional
     public void concluirServico(ConcluirServicoCommand command) {
@@ -52,10 +57,12 @@ public class ConcluirServicoService implements ConcluirServicoUseCase {
         LocalDateTime anteriorDesde = ordemDeServico.getSituacaoAlteradaEm();
         ordemDeServico.concluirServico();
         ordemDeServicoRepository.salvar(ordemDeServico);
+        int pecasConsumidas = reservas.consumir(ordemDeServico.getId());
         passosDaSaga.execucaoConcluida(ordemDeServico.getId());
         eventPublisher.publishEvent(StatusOrdemDeServicoAlterado.de(ordemDeServico, situacaoAnterior, anteriorDesde));
-        log.info("Servico concluido. numeroOrdemServico={}, situacao={}, motivoEncerramento={}",
+        log.info("Servico concluido. numeroOrdemServico={}, pecasConsumidas={}, situacao={}, motivoEncerramento={}",
                 ordemDeServico.getNumeroOrdemServico(),
+                pecasConsumidas,
                 ordemDeServico.getSituacao().getDescricao(),
                 ordemDeServico.getMotivoEncerramento());
     }

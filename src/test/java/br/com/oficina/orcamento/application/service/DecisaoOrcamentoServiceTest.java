@@ -41,8 +41,8 @@ class DecisaoOrcamentoServiceTest {
     void setUp() {
         orcamentoRepository = new TestOrcamentoRepository();
         eventos = new EventosRegistrados();
-        AprovarOrcamentoService aprovarService = new AprovarOrcamentoService(orcamentoRepository, cmd -> {}, cmd -> {}, eventos);
-        RejeitarOrcamentoService rejeitarService = new RejeitarOrcamentoService(orcamentoRepository, cmd -> {}, eventos);
+        AprovarOrcamentoService aprovarService = new AprovarOrcamentoService(orcamentoRepository, eventos);
+        RejeitarOrcamentoService rejeitarService = new RejeitarOrcamentoService(orcamentoRepository, eventos);
         service = new DecidirOrcamentoExternamenteService(orcamentoRepository, aprovarService, rejeitarService);
     }
 
@@ -167,7 +167,19 @@ class DecisaoOrcamentoServiceTest {
         }
 
         @Override
-        public void orcamentoCancelado(Envelope comando, Orcamento orcamento) {
+        public void orcamentoGerado(Envelope comando, Orcamento orcamento) {
+        }
+
+        @Override
+        public void orcamentoFalhou(Envelope comando, String motivo, List<String> pecasInvalidas) {
+        }
+
+        @Override
+        public void aprovacaoRevertida(Envelope comando, Orcamento orcamento) {
+        }
+
+        @Override
+        public void orcamentoCancelado(Envelope comando, Orcamento orcamento, boolean pagamentoCancelado) {
             publicados.add("CANCELADO");
         }
     }
