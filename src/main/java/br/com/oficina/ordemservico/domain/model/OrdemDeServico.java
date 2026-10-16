@@ -23,6 +23,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 @Entity
 @Table(name = "ordens_de_servico")
@@ -113,6 +114,19 @@ public class OrdemDeServico {
             joinColumns = @JoinColumn(name = "ordem_de_servico_id"))
     private List<PecaPrevistaOrdem> pecasPrevistas = new ArrayList<>();
 
+    // Mudancas de status ainda nao gravadas no historico (tabela ordem_servico_historico). O
+    // agregado so acumula; quem grava e o repositorio, no mesmo salvar() da ordem.
+    @Transient
+    private final List<AlteracaoStatusOrdemDeServico> alteracoesDeStatusPendentes = new ArrayList<>();
+
+    // Origem atribuida as proximas mudancas de status. API por padrao; o orquestrador da Saga
+    // troca para SAGA/TIMEOUT antes de mover a ordem (registrarOrigemDasAlteracoes).
+    @Transient
+    private OrigemAlteracaoStatus origemDasAlteracoes = OrigemAlteracaoStatus.API;
+
+    @Transient
+    private UUID sagaIdDasAlteracoes;
+
     protected OrdemDeServico() {
     }
 
@@ -153,6 +167,7 @@ public class OrdemDeServico {
                 null);
         // Abrir a OS ja e a entrada em "Recebida": o relogio da situacao comeca aqui.
         ordemDeServico.situacaoAlteradaEm = LocalDateTime.now();
+        ordemDeServico.registrarNoHistorico(null, StatusOrdemDeServico.OS_ABERTA, ordemDeServico.situacaoAlteradaEm);
         return ordemDeServico;
     }
 
@@ -397,16 +412,47 @@ public class OrdemDeServico {
     }
 
     /**
+     * Define a origem das proximas mudancas de status desta instancia (vale ate o fim da unidade
+     * de trabalho; uma ordem recarregada volta a {@link OrigemAlteracaoStatus#API}).
+     */
+    public void registrarOrigemDasAlteracoes(OrigemAlteracaoStatus origem, UUID sagaId) {
+        if (origem == null) {
+            throw new IllegalArgumentException("Origem da alteracao de status e obrigatoria");
+        }
+        this.origemDasAlteracoes = origem;
+        this.sagaIdDasAlteracoes = sagaId;
+    }
+
+    /**
+     * Entrega as mudancas de status acumuladas desde a ultima chamada e esvazia a lista. Usado
+     * pelo repositorio para gravar o historico junto com a ordem.
+     */
+    public List<AlteracaoStatusOrdemDeServico> descarregarAlteracoesDeStatus() {
+        List<AlteracaoStatusOrdemDeServico> pendentes = List.copyOf(alteracoesDeStatusPendentes);
+        alteracoesDeStatusPendentes.clear();
+        return pendentes;
+    }
+
+    /**
      * Unico ponto de escrita do status. Reinicia o relogio da situacao somente quando a
      * SITUACAO de negocio muda: DIAGNOSTICO_EM_ANDAMENTO -> DIAGNOSTICO_CONCLUIDO sao dois
      * status dentro de "Diagnostico", e zerar o contador ali quebraria o tempo medio da etapa.
+     * O historico, ao contrario, registra toda mudanca de status.
      */
     private void alterarStatus(StatusOrdemDeServico novoStatus) {
-        SituacaoOrdemDeServico situacaoAnterior = SituacaoOrdemDeServico.fromStatus(status);
+        StatusOrdemDeServico statusAnterior = status;
+        SituacaoOrdemDeServico situacaoAnterior = SituacaoOrdemDeServico.fromStatus(statusAnterior);
+        LocalDateTime agora = LocalDateTime.now();
         status = novoStatus;
         if (SituacaoOrdemDeServico.fromStatus(novoStatus) != situacaoAnterior) {
-            situacaoAlteradaEm = LocalDateTime.now();
+            situacaoAlteradaEm = agora;
         }
+        registrarNoHistorico(statusAnterior, novoStatus, agora);
+    }
+
+    private void registrarNoHistorico(StatusOrdemDeServico anterior, StatusOrdemDeServico novo, LocalDateTime ocorridoEm) {
+        alteracoesDeStatusPendentes.add(
+                new AlteracaoStatusOrdemDeServico(anterior, novo, origemDasAlteracoes, sagaIdDasAlteracoes, ocorridoEm));
     }
 
     private void definirDados(Funcionario funcionario, Cliente cliente, Veiculo veiculo) {

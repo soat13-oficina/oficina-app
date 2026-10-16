@@ -25,6 +25,7 @@ veículo no momento de sua criação.
 | `ConsultarOrdensDeServicoUseCase` | `GET /ordens-servico` | Lista OS com filtros por número, status, situação, cliente e veículo |
 | `AcompanharOrdemDeServicoUseCase` | `GET /ordens-servico/{numero}/acompanhamento` | Retorna situação simplificada para acompanhamento pelo cliente |
 | `ConsultarStatusOrdemDeServicoUseCase` | `GET /ordens-servico/{numero}` | Retorna status técnico completo da OS |
+| `ConsultarHistoricoOrdemDeServicoUseCase` | `GET /ordens-servico/{numero}/historico` | Retorna a situação atual e **todas as mudanças de status**, com origem (`API`, `SAGA`, `TIMEOUT`, `MIGRACAO`) e saga — Fase 4 |
 | `IniciarDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/iniciar` | Transiciona OS_ABERTA → DIAGNOSTICO_EM_ANDAMENTO |
 | `ConcluirDiagnosticoUseCase` | `POST /ordens-servico/{numero}/diagnostico/concluir` | Transiciona DIAGNOSTICO_EM_ANDAMENTO → DIAGNOSTICO_CONCLUIDO; corpo opcional grava **descrição do serviço + peças** (fonte do orçamento) |
 | `EnviarDiagnosticoParaOrcamentoUseCase` | `POST /ordens-servico/{numero}/diagnostico/enviar-para-orcamento` | **Fluxo único** DIAGNOSTICO_CONCLUIDO → AGUARDANDO_APROVACAO; corpo só financeiro; deriva cliente/veículo/funcionário e **puxa peças do diagnóstico**; cria o Orçamento na mesma transação |
@@ -123,6 +124,11 @@ já criadas.
    `dataFinalizacao - dataAbertura`, formatado em horas ou dias dependendo da duração.
 5. **Evento de mudança de status** — `StatusOrdemDeServicoAlterado` é publicado sempre que
    uma transição de status ocorre; o módulo `notificacao` escuta esse evento de forma assíncrona.
+6. **Histórico de status** (Fase 4, migration V21) — toda mudança de **status** (inclusive dentro
+   da mesma situação) é acumulada pelo agregado em `alterarStatus` e gravada em
+   `ordem_servico_historico` pelo repositório, no mesmo `salvar()` da ordem. A origem padrão é
+   `API`; o orquestrador da Saga troca para `SAGA`/`TIMEOUT` com
+   `registrarOrigemDasAlteracoes(origem, sagaId)` antes de mover a ordem.
 
 ## Ciclo de Vida
 
@@ -206,6 +212,14 @@ Todos os endpoints exigem autenticação JWT.
 ### `GET /ordens-servico/{numero}` — Consultar OS por número
 
 **Respostas**: `200 OK` com `OrdemDeServicoResponse` completo ou `404 Not Found`.
+
+---
+
+### `GET /ordens-servico/{numero}/historico` — Histórico de status
+
+**Respostas**: `200 OK` com `HistoricoOrdemDeServicoResponse` (`numeroOrdemServico`,
+`situacaoAtual` e `alteracoes[]` com `statusAnterior`, `statusNovo`, `situacao`, `origem`,
+`sagaId` e `ocorridoEm`, da mais antiga para a mais recente) ou `404 Not Found`.
 
 ---
 

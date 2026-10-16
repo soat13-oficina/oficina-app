@@ -33,6 +33,7 @@ import br.com.oficina.orcamento.infrastructure.persistence.SpringDataOrcamentoRe
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
+import br.com.oficina.ordemservico.domain.repository.HistoricoStatusOrdemDeServicoRepository;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 import br.com.oficina.ordemservico.infrastructure.persistence.JpaOrdemDeServicoRepository;
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataFuncionarioRepository;
@@ -194,8 +195,9 @@ class DecidirOrcamentoAtomicidadeIntegrationTest {
     static class FalhaAoSalvarOSConfig {
         @Bean
         @Primary
-        OrdemDeServicoRepository ordemDeServicoRepositoryQueFalhaAoSalvar(SpringDataOrdemDeServicoRepository springData) {
-            return new JpaOrdemDeServicoRepository(springData) {
+        OrdemDeServicoRepository ordemDeServicoRepositoryQueFalhaAoSalvar(
+                SpringDataOrdemDeServicoRepository springData, HistoricoStatusOrdemDeServicoRepository historico) {
+            return new JpaOrdemDeServicoRepository(springData, historico) {
                 @Override
                 public void salvar(OrdemDeServico ordemDeServico) {
                     throw new IllegalStateException("Falha simulada ao salvar a ordem de servico");

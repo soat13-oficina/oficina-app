@@ -218,6 +218,18 @@ conteúdo já renderizado (`assunto`, `corpo`), o `status` e um contador de
 `tentativas`, com índice em `(status, tentativas)` — exatamente o que o
 reprocessador consulta. O `cliente_id` está lá por rastreabilidade, sem FK.
 
+### Fase 4: histórico de status e mensageria da Saga
+
+Três tabelas novas, fora do diagrama acima (que retrata as 20 migrations da Fase 3):
+
+| Tabela | Migration | Papel |
+|---|---|---|
+| `ordem_servico_historico` | V21 | Uma linha por mudança de **status** da OS: `status_anterior`, `status_novo`, `origem` (`API`, `SAGA`, `TIMEOUT`, `MIGRACAO`), `saga_id`, `ocorrido_em`. FK para `ordens_de_servico` com `ON DELETE CASCADE` — composição, como as listas filhas da OS. A migration cria uma linha `MIGRACAO` com o status atual de cada OS existente |
+| `outbox_mensagens` | V22 | Outbox transacional dos comandos e eventos da Saga ([ADR 0005](../adr/0005-sqs-fifo-outbox-e-idempotencia.md)): mesmo padrão de `notificacoes`, com índice parcial nas pendentes (`publicada_em IS NULL`) |
+| `mensagens_processadas` | V22 | Idempotência do consumidor: o `messageId` de cada mensagem já tratada, gravado na mesma transação do efeito |
+
+`saga_instancia` e `saga_passos` ([ADR 0004](../adr/0004-saga-orquestrada.md)) entram junto com o orquestrador.
+
 ---
 
 ## Justificativa da escolha do banco

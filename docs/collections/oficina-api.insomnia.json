@@ -24,7 +24,8 @@
         "numeroordemservico": "",
         "orcamentoid": "",
         "placa": "",
-        "token": ""
+        "token": "",
+        "x_webhook_token": ""
       }
     },
     {
@@ -452,6 +453,21 @@
       "name": "Acompanhar ordem de serviço",
       "method": "GET",
       "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/acompanhamento",
+      "body": {},
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_ordens_servico_numeroordemservico_historico",
+      "_type": "request",
+      "parentId": "fld_ordens_de_servico",
+      "name": "Consultar histórico da ordem de serviço",
+      "method": "GET",
+      "url": "{{ _.base_url }}/ordens-servico/{{ _.numeroordemservico }}/historico",
       "body": {},
       "headers": [
         {
@@ -976,8 +992,8 @@
       },
       "headers": [
         {
-          "name": "Authorization",
-          "value": "Bearer {{ _.token }}"
+          "name": "X-Webhook-Token",
+          "value": "{{ _.x_webhook_token }}"
         },
         {
           "name": "Content-Type",
