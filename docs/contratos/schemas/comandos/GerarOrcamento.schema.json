@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://soat13-oficina.github.io/contratos/schemas/comandos/GerarOrcamento.schema.json",
   "title": "GerarOrcamento",
-  "description": "Diagnostico concluido: gera o orcamento com snapshot do cliente, veiculo e funcionario. Precos das pecas consultados na Execution (REST). Desconto zero; validade definida pelo Billing.",
+  "description": "Diagnostico concluido: gera o orcamento com snapshot do cliente, veiculo e funcionario. Precos das pecas consultados na Execution (REST). Sem os campos opcionais: mao de obra = soma dos servicos, desconto zero e validade definida pelo Billing. Transitorio (Fase 4, Passo 1, diagnostico ainda no OS Service): o atendente informa valorMaoDeObra (total), desconto, validade e observacoes no envio para orcamento, e servicos[].valorMaoDeObra pode faltar.",
   "x-categoria": "comando",
   "x-fila": "oficina-<env>-billing-commands.fifo",
   "x-produtor": "oficina-os-service",
@@ -61,7 +61,21 @@
         "servicos": {
           "type": "array",
           "items": {
-            "$ref": "../comuns.schema.json#/$defs/servico"
+            "type": "object",
+            "description": "Como comuns#/$defs/servico, mas valorMaoDeObra opcional enquanto o diagnostico mora no OS Service (Passo 1).",
+            "required": [
+              "descricao"
+            ],
+            "properties": {
+              "descricao": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "valorMaoDeObra": {
+                "$ref": "../comuns.schema.json#/$defs/dinheiro"
+              }
+            }
           }
         },
         "pecas": {
@@ -69,6 +83,23 @@
           "items": {
             "$ref": "../comuns.schema.json#/$defs/itemPeca"
           }
+        },
+        "valorMaoDeObra": {
+          "$ref": "../comuns.schema.json#/$defs/dinheiro",
+          "description": "Opcional (Passo 1): mao de obra total informada pelo atendente; tem precedencia sobre a soma dos servicos."
+        },
+        "desconto": {
+          "$ref": "../comuns.schema.json#/$defs/dinheiro",
+          "description": "Opcional (Passo 1). Maior que o total gera OrcamentoFalhou."
+        },
+        "validade": {
+          "$ref": "../comuns.schema.json#/$defs/dataHora",
+          "description": "Opcional (Passo 1). Ausente: o Billing aplica a validade padrao (7 dias)."
+        },
+        "observacoes": {
+          "type": "string",
+          "maxLength": 4000,
+          "description": "Opcional (Passo 1)."
         }
       }
     }

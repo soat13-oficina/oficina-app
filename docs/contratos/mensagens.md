@@ -84,11 +84,17 @@ um exemplo válido em `examples`. Campo com `?` é opcional.
 
 | Comando | Tipo | Payload | Respostas |
 |---|---|---|---|
-| [`GerarOrcamento`](schemas/comandos/GerarOrcamento.schema.json) | avanço | `numeroOrdemServico`, `cliente`, `veiculo`, `funcionario`, `descricaoDiagnostico`, `servicos`, `pecas` | `OrcamentoGerado`, `OrcamentoFalhou` |
+| [`GerarOrcamento`](schemas/comandos/GerarOrcamento.schema.json) | avanço | `numeroOrdemServico`, `cliente`, `veiculo`, `funcionario`, `descricaoDiagnostico`, `servicos`, `pecas`, `valorMaoDeObra`?, `desconto`?, `validade`?, `observacoes`? (¹) | `OrcamentoGerado`, `OrcamentoFalhou` |
 | [`SolicitarPagamento`](schemas/comandos/SolicitarPagamento.schema.json) | avanço | `orcamentoId`, `expiraEm` | `PagamentoSolicitado` |
 | [`ReverterAprovacao`](schemas/comandos/ReverterAprovacao.schema.json) | compensação | `orcamentoId`, `motivo`, `pecasFaltantes`? | `AprovacaoRevertida` |
 | [`CancelarOrcamento`](schemas/comandos/CancelarOrcamento.schema.json) | compensação | `orcamentoId`, `motivo` | `OrcamentoCancelado` |
 | [`EstornarPagamento`](schemas/comandos/EstornarPagamento.schema.json) | compensação | `orcamentoId`, `pagamentoId`, `motivo` | `PagamentoEstornado`, `EstornoFalhou` |
+
+(¹) Transitório, enquanto o diagnóstico mora no OS Service (Fase 4, Passo 1): o atendente ainda
+informa no envio para orçamento a mão de obra total, o desconto, a validade e as observações, e
+`servicos[].valorMaoDeObra` pode faltar. Sem esses campos o Billing usa a soma da mão de obra dos
+serviços, desconto zero e a validade padrão (7 dias). Com a Execution (Passo 4) o comando sai só com
+os campos obrigatórios.
 
 ### Eventos (participantes → OS) — fila `os-saga-replies`
 
