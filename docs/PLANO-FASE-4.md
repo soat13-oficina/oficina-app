@@ -1389,7 +1389,7 @@ Branch `feature/estoque` do `oficina-execution-service` (2 commits locais, **ain
 
 - O GSI `fila-por-etapa` ordena por `entrouNaEtapaEm` (a ADR 0006 dizia `criadoEm`): é a data de entrada na etapa que define a fila.
 - Os eventos da Execution levam o mecânico do JWT (`subject` como id, claim `nome` com fallback para o subject).
-- `cliente.tipo` no `GerarOrcamento`: resolvido no OS derivando PF/PJ do tamanho do documento.
+- `cliente.tipo` no `GerarOrcamento`: resolvido no OS: vale o tipo cadastrado e, em cliente antigo sem tipo, PF/PJ sai do tamanho do documento.
 - `ExecutionSimulado` não valida peças, para o `OrcamentoFalhou` poder ser provocado nos testes.
 
 **Pendências e achados abertos:**
