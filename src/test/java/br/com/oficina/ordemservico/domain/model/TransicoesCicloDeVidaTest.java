@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -132,17 +134,61 @@ class TransicoesCicloDeVidaTest {
     void deveReabrirODiagnosticoSemAsPecasEMantendoOsServicos() {
         OrdemDeServico ordem = novaOrdem();
         ordem.iniciarDiagnostico();
-        ordem.concluirDiagnostico("Troca de oleo", List.of(new PecaPrevistaOrdem("peca-1", 1)));
+        ordem.registrarDiagnostico(List.of(new ServicoOrdem("Troca de oleo", new BigDecimal("120.00"))),
+                List.of(new PecaPrevistaOrdem("peca-1", 1)));
 
         ordem.reabrirDiagnostico();
-        ordem.concluirDiagnostico("Troca de oleo", List.of(new PecaPrevistaOrdem("peca-2", 2)));
+
+        assertEquals(StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO, ordem.getStatus());
+        assertEquals(1, ordem.getServicos().size());
+        assertTrue(ordem.getPecasPrevistas().isEmpty());
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, novaOrdem()::reabrirDiagnostico);
+        assertEquals("Diagnostico so pode ser reaberto quando concluido", exception.getMessage());
+    }
+
+    @Test
+    void diagnosticoReabertoEFechadoDeNovoSubstituiACopiaAnterior() {
+        OrdemDeServico ordem = novaOrdem();
+        ordem.iniciarDiagnostico();
+        ordem.registrarDiagnostico(List.of(new ServicoOrdem("Troca de oleo", new BigDecimal("120.00"))),
+                List.of(new PecaPrevistaOrdem("peca-1", 1)));
+        ordem.reabrirDiagnostico();
+
+        ordem.registrarDiagnostico(List.of(new ServicoOrdem("Troca de oleo e filtro", new BigDecimal("180.00"))),
+                List.of(new PecaPrevistaOrdem("peca-2", 2)));
 
         assertEquals(StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO, ordem.getStatus());
         assertEquals(1, ordem.getServicos().size());
-        assertEquals("peca-2", ordem.getPecasPrevistas().get(0).getPecaInsumoId());
+        assertEquals("Troca de oleo e filtro", ordem.getServicos().get(0).getDescricao());
+        assertEquals(new BigDecimal("180.00"), ordem.getServicos().get(0).getValorMaoDeObra());
         assertEquals(1, ordem.getPecasPrevistas().size());
-        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, novaOrdem()::reabrirDiagnostico);
-        assertEquals("Diagnostico so pode ser reaberto quando concluido", exception.getMessage());
+        assertEquals("peca-2", ordem.getPecasPrevistas().get(0).getPecaInsumoId());
+    }
+
+    @Test
+    void registrarDiagnosticoExigeDiagnosticoEmAndamentoEAoMenosUmServico() {
+        RegraDeNegocioException foraDeAndamento = assertThrows(RegraDeNegocioException.class, () -> novaOrdem()
+                .registrarDiagnostico(List.of(new ServicoOrdem("Troca", BigDecimal.TEN)), List.of()));
+        assertEquals("Diagnostico so pode ser concluido em andamento", foraDeAndamento.getMessage());
+
+        OrdemDeServico ordem = novaOrdem();
+        ordem.iniciarDiagnostico();
+        RegraDeNegocioException semServico = assertThrows(RegraDeNegocioException.class,
+                () -> ordem.registrarDiagnostico(List.of(), List.of()));
+        assertEquals("O diagnostico precisa de ao menos um servico", semServico.getMessage());
+        assertThrows(RegraDeNegocioException.class, () -> ordem.registrarDiagnostico(null, null));
+        assertEquals(StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO, ordem.getStatus());
+    }
+
+    @Test
+    void registrarDiagnosticoSemPecasGuardaSoOsServicos() {
+        OrdemDeServico ordem = novaOrdem();
+        ordem.iniciarDiagnostico();
+
+        ordem.registrarDiagnostico(List.of(new ServicoOrdem("Alinhamento", new BigDecimal("90.00"))), null);
+
+        assertTrue(ordem.getPecasPrevistas().isEmpty());
+        assertEquals(StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO, ordem.getStatus());
     }
 
     private OrdemDeServico aguardandoPagamento() {

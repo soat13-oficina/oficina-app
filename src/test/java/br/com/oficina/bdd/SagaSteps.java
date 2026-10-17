@@ -20,9 +20,7 @@ import br.com.oficina.ordemservico.saga.application.OrquestradorSagaOrdemServico
 import br.com.oficina.ordemservico.saga.domain.model.RegistroPassoSaga;
 import br.com.oficina.ordemservico.saga.domain.model.SagaOrdemServico;
 import br.com.oficina.ordemservico.saga.domain.repository.SagaOrdemServicoRepository;
-import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
-import br.com.oficina.pecainsumo.domain.repository.PecaInsumoRepository;
-import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataPecaInsumoRepository;
+import br.com.oficina.support.saga.CatalogoSimulado;
 import br.com.oficina.support.saga.FluxoOficinaHttp;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
@@ -32,15 +30,15 @@ import io.cucumber.java.pt.Entao;
 import io.cucumber.java.pt.Quando;
 
 /**
- * Passos dos cenarios da Saga. O lado do OS passa pelas APIs HTTP reais; o do Billing (orcamento,
- * decisao do cliente, pagamento) e o {@code BillingSimulado}, que responde como o contrato manda. A
- * mensageria assincrona e "esperada" processando o outbox antes de cada verificacao - o que o
- * agendamento faria em ~1 s.
+ * Passos dos cenarios da Saga. A abertura da OS passa pela API HTTP real do OS; o mecanico e a Execution
+ * (fila, diagnostico, execucao, estoque) sao o {@code ExecutionSimulado} e o Billing (orcamento, decisao do
+ * cliente, pagamento) e o {@code BillingSimulado}, que respondem como o contrato manda. A mensageria
+ * assincrona e "esperada" processando o outbox antes de cada verificacao - o que o agendamento faria em ~1 s.
  */
 public class SagaSteps {
 
-    /** Validade do orcamento enviado nos cenarios (FluxoOficinaHttp#solicitarOrcamento). */
-    private static final LocalDateTime DEPOIS_DA_VALIDADE = LocalDateTime.of(2030, 1, 2, 0, 0);
+    /** Depois da validade do orcamento gerado pelo Billing simulado (7 dias). */
+    private static final LocalDateTime DEPOIS_DA_VALIDADE = LocalDateTime.now().plusDays(10);
 
     @Autowired
     private WebApplicationContext contexto;
@@ -50,12 +48,6 @@ public class SagaSteps {
 
     @Autowired
     private SagaOrdemServicoRepository sagas;
-
-    @Autowired
-    private PecaInsumoRepository pecaInsumoRepository;
-
-    @Autowired
-    private SpringDataPecaInsumoRepository springDataPecas;
 
     private FluxoOficinaHttp fluxo;
     private String numeroOrdem;
@@ -83,14 +75,12 @@ public class SagaSteps {
 
     @Dado("que restou só {int} unidade de {string}")
     public void restouSo(int estoque, String descricao) {
-        PecaInsumo peca = fluxo.peca(pecas.get(descricao));
-        pecaInsumoRepository.salvar(new PecaInsumo(peca.getId(), peca.getDescricao(), peca.getMarca(), peca.getPreco(),
-                estoque, 0, peca.getCodigoReferencia(), peca.getCategoria()));
+        fluxo.catalogo().definirEstoque(pecas.get(descricao), estoque);
     }
 
     @Dado("que a peça {string} saiu do catálogo")
     public void pecaSaiuDoCatalogo(String descricao) {
-        springDataPecas.deleteById(pecas.get(descricao));
+        fluxo.catalogo().remover(pecas.get(descricao));
     }
 
     @Dado("uma ordem de serviço aberta para o veículo {string}")
@@ -98,35 +88,45 @@ public class SagaSteps {
         numeroOrdem = fluxo.abrirOrdem(placa);
     }
 
-    @E("o diagnóstico concluído com o serviço {string}")
-    public void diagnosticoConcluido(String servico) throws Exception {
+    @E("o diagnóstico concluído pelo mecânico com o serviço {string}")
+    public void diagnosticoConcluido(String servico) {
         fluxo.diagnosticar(numeroOrdem, servico);
     }
 
-    @E("o diagnóstico concluído com o serviço {string} e {int} unidades de {string}")
-    public void diagnosticoConcluidoComPeca(String servico, int quantidade, String descricao) throws Exception {
+    @E("o diagnóstico concluído pelo mecânico com o serviço {string} e {int} unidades de {string}")
+    public void diagnosticoConcluidoComPeca(String servico, int quantidade, String descricao) {
         fluxo.diagnosticarComPeca(numeroOrdem, servico, pecas.get(descricao), quantidade);
     }
 
-    @E("o orçamento enviado ao cliente")
-    public void orcamentoEnviado() throws Exception {
+    @E("o orçamento gerado pela saga")
+    public void orcamentoGerado() {
         numeroOrcamento = fluxo.enviarParaOrcamento(numeroOrdem);
     }
 
     // ------------------------------------------------------------------ acoes
 
-    @Quando("o diagnóstico é enviado para orçamento")
-    public void diagnosticoEnviado() throws Exception {
-        fluxo.solicitarOrcamento(numeroOrdem);
+    @Quando("o mecânico inicia o diagnóstico")
+    public void mecanicoIniciaDiagnostico() {
+        fluxo.iniciarDiagnostico(numeroOrdem);
+    }
+
+    @Quando("o mecânico conclui o diagnóstico com o serviço {string}")
+    public void mecanicoConcluiDiagnostico(String servico) {
+        fluxo.concluirDiagnostico(numeroOrdem, servico, null, 0);
+    }
+
+    @Quando("o mecânico inicia e conclui o diagnóstico com o serviço {string} e {int} unidades de {string}")
+    public void mecanicoDiagnosticaComPeca(String servico, int quantidade, String descricao) {
+        fluxo.diagnosticarComPeca(numeroOrdem, servico, pecas.get(descricao), quantidade);
     }
 
     @Quando("o cliente aprova o orçamento")
-    public void clienteAprova() throws Exception {
+    public void clienteAprova() {
         fluxo.clienteAprova(numeroOrcamento);
     }
 
     @Quando("o cliente rejeita o orçamento")
-    public void clienteRejeita() throws Exception {
+    public void clienteRejeita() {
         fluxo.clienteRejeita(numeroOrcamento);
     }
 
@@ -149,16 +149,16 @@ public class SagaSteps {
     }
 
     @Quando("o mecânico inicia e conclui a execução")
-    public void mecanicoExecuta() throws Exception {
+    public void mecanicoExecuta() {
         fluxo.processarMensagens();
-        fluxo.acao(numeroOrdem, "/execucao/iniciar");
-        fluxo.acao(numeroOrdem, "/servico/concluir");
+        fluxo.iniciarExecucao(numeroOrdem);
+        fluxo.concluirExecucao(numeroOrdem);
     }
 
     @Quando("o mecânico inicia a execução e aborta com o motivo {string}")
-    public void mecanicoAborta(String motivo) throws Exception {
+    public void mecanicoAborta(String motivo) {
         fluxo.processarMensagens();
-        fluxo.acao(numeroOrdem, "/execucao/iniciar");
+        fluxo.iniciarExecucao(numeroOrdem);
         fluxo.abortarExecucao(numeroOrdem, motivo);
     }
 
@@ -170,15 +170,21 @@ public class SagaSteps {
     // ------------------------------------------------------------------ verificacoes
 
     @Entao("a ordem fica {string}")
-    public void ordemFica(String situacao) throws Exception {
+    public void ordemFica(String situacao) {
         fluxo.processarMensagens();
         assertThat(fluxo.ordem(numeroOrdem).getSituacao().getDescricao()).isEqualTo(situacao);
     }
 
     @Entao("a ordem fica {string} com motivo {string}")
-    public void ordemFicaComMotivo(String situacao, String motivo) throws Exception {
+    public void ordemFicaComMotivo(String situacao, String motivo) {
         ordemFica(situacao);
         assertThat(fluxo.ordem(numeroOrdem).getMotivoEncerramento()).hasToString(motivo);
+    }
+
+    @E("a execução fica {string} na Execution")
+    public void execucaoFica(String etapa) {
+        fluxo.processarMensagens();
+        assertThat(fluxo.execution().etapa(fluxo.ordem(numeroOrdem).getId())).hasToString(etapa);
     }
 
     @E("o diagnóstico volta ao mecânico sem as peças")
@@ -204,7 +210,7 @@ public class SagaSteps {
     }
 
     @E("o cliente recebe o link de pagamento")
-    public void linkDePagamento() throws Exception {
+    public void linkDePagamento() {
         fluxo.processarMensagens();
         String link = saga().getLinkPagamento();
         assertThat(link).isNotBlank();
@@ -237,9 +243,9 @@ public class SagaSteps {
     @E("a peça {string} fica com {int} unidades reservadas e {int} em estoque")
     public void pecaFica(String descricao, int reservadas, int estoque) {
         fluxo.processarMensagens();
-        PecaInsumo peca = fluxo.peca(pecas.get(descricao));
-        assertThat(peca.getQuantidadeReservada()).as("reservadas").isEqualTo(reservadas);
-        assertThat(peca.getQuantidadeEstoque()).as("em estoque").isEqualTo(estoque);
+        CatalogoSimulado.Peca peca = fluxo.peca(pecas.get(descricao));
+        assertThat(peca.getReservada()).as("reservadas").isEqualTo(reservadas);
+        assertThat(peca.getEstoque()).as("em estoque").isEqualTo(estoque);
     }
 
     @E("a história da saga registra o comando {string} e a confirmação {string}")

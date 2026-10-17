@@ -7,7 +7,9 @@ Backend monolítico para gestão de Oficina Mecânica, desenvolvido com **Java 2
 > (Mercado Pago), webhook de decisão e tokens de integração já saíram para o
 > [`oficina-billing-service`](https://github.com/soat13-oficina/oficina-billing-service), que conversa
 > com o OS pelas filas SQS `billing-commands` / `os-saga-replies`
-> ([mensageria local](docs/arquitetura/mensageria-local.md)). Estoque e execução saem no Passo 4.
+> ([mensageria local](docs/arquitetura/mensageria-local.md)). Estoque de peças, diagnóstico e execução
+> também já saíram, para o [`oficina-execution-service`](https://github.com/soat13-oficina/oficina-execution-service)
+> (DynamoDB), que usa a fila `execution-commands`: o mecânico trabalha lá e o OS reage aos eventos.
 > Plano, andamento e como continuar: [`docs/PLANO-FASE-4.md`](docs/PLANO-FASE-4.md) (seção 18).
 
 ## Fase 3 — objetivo desta fase
@@ -375,9 +377,7 @@ src/main/java/br/com/oficina/
 ├── auth/               # JWT stateless — register, login, filtro, SecurityConfig
 ├── cliente/            # CRUD de clientes (PF/PJ, validacao CPF/CNPJ)
 ├── veiculo/            # CRUD de veiculos (placa formato antigo e Mercosul)
-├── ordemservico/       # Bounded context principal — ciclo de vida da OS
-├── ponte/              # Adaptadores transitorios OS <-> estoque (somem no Passo 4)
-├── pecainsumo/         # Estoque de pecas e insumos
+├── ordemservico/       # Bounded context principal — ciclo de vida da OS e orquestrador da Saga
 ├── common/             # Excecoes globais e ApiExceptionHandler
 └── config/             # SwaggerConfig, FlywayConfig
 ```

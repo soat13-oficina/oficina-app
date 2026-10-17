@@ -19,8 +19,8 @@ Descrição e preço atuais das peças, para o Billing montar o orçamento.
 
 | | |
 |---|---|
-| Dono | Execution Service (no Passo 3, ainda o OS Service, módulo `pecainsumo`) |
-| Chamador | Billing Service, ao processar `GerarOrcamento` |
+| Dono | Execution Service (`ConsultaInternaPecasController`) |
+| Chamadores | Billing Service, ao processar `GerarOrcamento` (preço); OS Service, ao abrir a ordem com peças previstas (existência) |
 
 Requisição:
 

@@ -89,19 +89,25 @@ notificacao:
     intervalo: ${NOTIFICACAO_INTERVALO:300000} # intervalo do job em ms (5 min)
     carencia-segundos: ${NOTIFICACAO_CARENCIA:60} # janela de carência antes de reprocessar
 
-# Mensageria da Saga (ADR 0005). Toda mensagem passa pelo outbox (outbox_mensagens). Desde o Passo 3
-# o Billing e outro servico: billing-commands sai pelo SQS e as respostas dele chegam em
-# os-saga-replies (ligar mensageria.sqs.* no ambiente). execution-commands continua no processo
-# (estoque ainda aqui) ate o Passo 4.
+# Cadastro de pecas, que e da Execution (ADR 0003): a abertura da OS confere as pecas previstas por
+# POST /internal/pecas-insumos/consulta, com o X-Service-Token (seguranca.service-token acima). Dentro do
+# cluster, o DNS do Service.
+catalogo-pecas:
+  url: ${CATALOGO_PECAS_URL:http://localhost:8082}
+  timeout: PT3S
+
+# Mensageria da Saga (ADR 0005). Toda mensagem passa pelo outbox (outbox_mensagens). Billing e Execution
+# sao outros servicos: billing-commands e execution-commands saem pelo SQS e as respostas deles chegam em
+# os-saga-replies (ligar mensageria.sqs.* no ambiente).
 mensageria:
   # source do envelope: nome logico do servico (docs/arquitetura/convencoes-de-nomes.md).
   servico: oficina-os-service
-  # SQS FIFO (ADR 0005), fila a fila conforme os servicos sao extraidos. Fila fora de "envio" e
-  # entregue dentro do processo (participante ainda no monolito). Nome fisico:
-  # oficina-<ambiente>-<fila>.fifo. Ver docs/arquitetura/mensageria-local.md para o LocalStack.
+  # SQS FIFO (ADR 0005). Fila fora de "envio" seria entregue dentro do processo (participante ainda no
+  # monolito) - hoje nenhuma. Nome fisico: oficina-<ambiente>-<fila>.fifo. Ver
+  # docs/arquitetura/mensageria-local.md para o LocalStack.
   sqs:
     habilitado: ${MENSAGERIA_SQS_HABILITADO:false}
-    envio: ${MENSAGERIA_SQS_ENVIO:}          # ex.: billing-commands
+    envio: ${MENSAGERIA_SQS_ENVIO:}          # ex.: billing-commands,execution-commands
     consumo: ${MENSAGERIA_SQS_CONSUMO:}      # ex.: os-saga-replies
     ambiente: ${AMBIENTE:local}
     endpoint: ${AWS_ENDPOINT_URL_SQS:}       # LocalStack: http://localhost:4566

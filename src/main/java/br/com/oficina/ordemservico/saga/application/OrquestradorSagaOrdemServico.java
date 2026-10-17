@@ -49,15 +49,15 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p>Tres tipos de entrada:
  * <ul>
- *   <li><b>acoes registradas</b> - passos que ainda sao HTTP do proprio OS Service (envio para
- *       orcamento, inicio, conclusao e aborto da execucao): o servico ja moveu a ordem; aqui a Saga
- *       avanca e decide os comandos;</li>
- *   <li><b>eventos</b> dos participantes, por mensagem (orcamento, reserva de pecas, pagamento e as
- *       confirmacoes das compensacoes): aqui a Saga avanca, a ordem e movida com origem {@code SAGA}
- *       e os proximos comandos vao ao outbox;</li>
+ *   <li>a <b>abertura</b> da ordem ({@link #iniciar}): nasce a Saga e a OS entra na fila de diagnostico
+ *       da Execution;</li>
+ *   <li><b>eventos</b> dos participantes, por mensagem - Execution (fila, diagnostico, reserva de pecas,
+ *       execucao), Billing (orcamento e pagamento) e as confirmacoes das compensacoes: aqui a Saga
+ *       avanca, a ordem e movida com origem {@code SAGA} e os proximos comandos vao ao outbox;</li>
  *   <li><b>prazos</b> vencidos, pelo agendador: resposta a comandos (reenvio), decisao do cliente,
  *       pagamento e confirmacoes de compensacao.</li>
  * </ul>
+ * O mecanico e o cliente nao falam com o orquestrador: o que eles fazem chega aqui como evento.
  * Evento que nao cabe no estado atual e registrado como {@code EVENTO_IGNORADO} e confirmado - nunca
  * reprocessado em laco (ADR 0004, regra 3).
  */
@@ -94,70 +94,16 @@ public class OrquestradorSagaOrdemServico implements PassosDaSaga {
         this.prazos = prazos;
     }
 
-    // ------------------------------------------------------------------ acoes registradas
+    // ------------------------------------------------------------------ abertura da ordem
 
     @Override
     @Transactional
-    public void iniciar(UUID ordemDeServicoId) {
-        SagaOrdemServico saga = SagaOrdemServico.iniciar(ordemDeServicoId, LocalDateTime.now());
+    public void iniciar(OrdemDeServico ordem) {
+        SagaOrdemServico saga = SagaOrdemServico.iniciar(ordem.getId(), pedidoDeFila(ordem), LocalDateTime.now(), prazos.resposta());
         sagas.salvar(saga);
         registrar(saga, Tipo.INICIO, null, "Saga iniciada na abertura da ordem de servico");
-        log.info("Saga iniciada. sagaId={}, ordemServicoId={}", saga.getId(), ordemDeServicoId);
-    }
-
-    @Override
-    @Transactional
-    public void solicitarOrcamento(UUID ordemDeServicoId, DadosOrcamento dados) {
-        SagaOrdemServico saga = obter(ordemDeServicoId);
-        if (saga.getStatus() != StatusSaga.AGUARDANDO_DIAGNOSTICO) {
-            throw new RegraDeNegocioException(
-                    "Orcamento ja solicitado para esta ordem de servico (Saga em " + saga.getStatus() + ").");
-        }
-        OrdemDeServico ordem = ordem(saga);
-        saga.solicitarOrcamento(pedidoDeOrcamento(ordem, dados), LocalDateTime.now(), prazos.resposta());
-        sagas.salvar(saga);
-        registrar(saga, Tipo.ACAO_REGISTRADA, null, "Diagnostico enviado para orcamento");
         enviarComandos(saga);
-    }
-
-    @Override
-    @Transactional
-    public void execucaoIniciada(UUID ordemDeServicoId) {
-        SagaOrdemServico saga = obter(ordemDeServicoId);
-        if (saga.getStatus() != StatusSaga.AGUARDANDO_EXECUCAO) {
-            ignorar(saga, null, "Execucao iniciada com a Saga em " + saga.getStatus());
-            return;
-        }
-        saga.execucaoIniciada(LocalDateTime.now());
-        sagas.salvar(saga);
-        registrar(saga, Tipo.ACAO_REGISTRADA, null, "Execucao iniciada pelo mecanico");
-    }
-
-    @Override
-    @Transactional
-    public void execucaoConcluida(UUID ordemDeServicoId) {
-        SagaOrdemServico saga = obter(ordemDeServicoId);
-        if (saga.getStatus() != StatusSaga.EM_EXECUCAO) {
-            ignorar(saga, null, "Execucao concluida com a Saga em " + saga.getStatus());
-            return;
-        }
-        saga.execucaoConcluida(LocalDateTime.now());
-        sagas.salvar(saga);
-        registrar(saga, Tipo.ACAO_REGISTRADA, null, "Execucao concluida; Saga CONCLUIDA");
-    }
-
-    @Override
-    @Transactional
-    public void execucaoFalhou(UUID ordemDeServicoId, String motivo) {
-        SagaOrdemServico saga = obter(ordemDeServicoId);
-        if (saga.getStatus() != StatusSaga.EM_EXECUCAO) {
-            ignorar(saga, null, "Execucao abortada com a Saga em " + saga.getStatus());
-            return;
-        }
-        saga.execucaoFalhou(LocalDateTime.now(), prazos.resposta());
-        sagas.salvar(saga);
-        registrar(saga, Tipo.ACAO_REGISTRADA, null, "Execucao abortada pelo mecanico: " + motivo);
-        enviarComandos(saga);
+        log.info("Saga iniciada. sagaId={}, ordemServicoId={}", saga.getId(), ordem.getId());
     }
 
     // ------------------------------------------------------------------ eventos dos participantes
@@ -167,6 +113,13 @@ public class OrquestradorSagaOrdemServico implements PassosDaSaga {
     public void tratar(Envelope evento) {
         SagaOrdemServico saga = obter(evento.ordemServicoId());
         switch (evento.type()) {
+            case MensagensSaga.DIAGNOSTICO_ENFILEIRADO -> aoEnfileirarDiagnostico(saga, evento);
+            case MensagensSaga.DIAGNOSTICO_INICIADO -> aoIniciarDiagnostico(saga, evento);
+            case MensagensSaga.DIAGNOSTICO_CONCLUIDO -> aoConcluirDiagnostico(saga, evento);
+            case MensagensSaga.EXECUCAO_ENFILEIRADA -> aoEnfileirarExecucao(saga, evento);
+            case MensagensSaga.EXECUCAO_INICIADA -> aoIniciarExecucao(saga, evento);
+            case MensagensSaga.EXECUCAO_CONCLUIDA -> aoConcluirExecucao(saga, evento);
+            case MensagensSaga.EXECUCAO_FALHOU -> aoAbortarExecucao(saga, evento);
             case MensagensSaga.ORCAMENTO_GERADO -> aoGerarOrcamento(saga, evento);
             case MensagensSaga.ORCAMENTO_FALHOU -> aoFalharOrcamento(saga, evento);
             case MensagensSaga.ORCAMENTO_APROVADO -> aoDecidirOrcamento(saga, evento, true);
@@ -178,10 +131,73 @@ public class OrquestradorSagaOrdemServico implements PassosDaSaga {
             case MensagensSaga.PAGAMENTO_RECUSADO -> aoNaoConcluirPagamento(saga, evento, MotivoEncerramento.PAGAMENTO_RECUSADO);
             case MensagensSaga.PAGAMENTO_EXPIRADO -> aoNaoConcluirPagamento(saga, evento, MotivoEncerramento.PAGAMENTO_EXPIRADO);
             case MensagensSaga.ESTORNO_FALHOU -> aoFalharEstorno(saga, evento);
-            case MensagensSaga.APROVACAO_REVERTIDA, MensagensSaga.ORCAMENTO_CANCELADO,
-                    MensagensSaga.RESERVA_LIBERADA, MensagensSaga.PAGAMENTO_ESTORNADO -> aoConfirmarCompensacao(saga, evento);
+            case MensagensSaga.APROVACAO_REVERTIDA, MensagensSaga.ORCAMENTO_CANCELADO, MensagensSaga.RESERVA_LIBERADA,
+                    MensagensSaga.PAGAMENTO_ESTORNADO, MensagensSaga.DIAGNOSTICO_REABERTO,
+                    MensagensSaga.EXECUCAO_CANCELADA -> aoConfirmarCompensacao(saga, evento);
             default -> ignorar(saga, evento, "Evento sem tratamento no orquestrador");
         }
+    }
+
+    /** A Execution confirmou a fila de diagnostico: a OS espera o mecanico. */
+    private void aoEnfileirarDiagnostico(SagaOrdemServico saga, Envelope evento) {
+        if (saga.getStatus() != StatusSaga.AGUARDANDO_DIAGNOSTICO || !saga.aguardandoConfirmacaoDaFila()) {
+            ignorar(saga, evento, "Fila de diagnostico confirmada com a Saga em " + saga.getStatus());
+            return;
+        }
+        saga.diagnosticoEnfileirado(LocalDateTime.now());
+        sagas.salvar(saga);
+        registrar(saga, Tipo.EVENTO_RECEBIDO, evento.messageId(), evento.type() + " (posicao "
+                + evento.payload().path("posicaoNaFila").asInt() + ")");
+    }
+
+    /** Mecanico iniciou o diagnostico (acao dele na Execution): a OS passa a "Diagnostico". */
+    private void aoIniciarDiagnostico(SagaOrdemServico saga, Envelope evento) {
+        OrdemDeServico ordem = ordem(saga);
+        if (saga.getStatus() != StatusSaga.AGUARDANDO_DIAGNOSTICO
+                || (ordem.getStatus() != StatusOrdemDeServico.OS_ABERTA
+                        && ordem.getStatus() != StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO)) {
+            ignorar(saga, evento, "Diagnostico iniciado com a Saga em " + saga.getStatus() + " e a OS em " + ordem.getStatus());
+            return;
+        }
+        // Diagnostico reaberto: a OS ja esta em andamento, so o mecanico recomecou.
+        if (ordem.getStatus() == StatusOrdemDeServico.OS_ABERTA) {
+            moverOrdem(saga, ordem, OrigemAlteracaoStatus.SAGA, OrdemDeServico::iniciarDiagnostico);
+        }
+        sagas.salvar(saga);
+        registrar(saga, Tipo.EVENTO_RECEBIDO, evento.messageId(), evento.type());
+    }
+
+    /**
+     * Mecanico concluiu o diagnostico: a OS guarda o resultado (servicos com mao de obra e pecas) e a Saga
+     * manda sozinha o {@code GerarOrcamento} - ninguem mais "envia para orcamento" (ADR 0004, passo 2).
+     */
+    private void aoConcluirDiagnostico(SagaOrdemServico saga, Envelope evento) {
+        MensagensSaga.DiagnosticoConcluido diagnostico = ler(evento, MensagensSaga.DiagnosticoConcluido.class);
+        OrdemDeServico ordem = ordem(saga);
+        boolean ordemPronta = ordem.getStatus() == StatusOrdemDeServico.OS_ABERTA
+                || ordem.getStatus() == StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO;
+        if (saga.getStatus() != StatusSaga.AGUARDANDO_DIAGNOSTICO || !ordemPronta) {
+            ignorar(saga, evento, "Diagnostico concluido com a Saga em " + saga.getStatus() + " e a OS em " + ordem.getStatus());
+            return;
+        }
+        List<ServicoOrdem> servicos = diagnostico.servicos().stream()
+                .map(servico -> new ServicoOrdem(servico.descricao(), servico.valorMaoDeObra()))
+                .toList();
+        List<PecaPrevistaOrdem> pecas = diagnostico.pecas().stream()
+                .map(peca -> new PecaPrevistaOrdem(peca.pecaInsumoId(), peca.quantidade()))
+                .toList();
+        moverOrdem(saga, ordem, OrigemAlteracaoStatus.SAGA, os -> {
+            if (os.getStatus() == StatusOrdemDeServico.OS_ABERTA) {
+                // DiagnosticoIniciado perdido ou ainda por chegar: nao trava o orcamento.
+                os.iniciarDiagnostico();
+            }
+            os.registrarDiagnostico(servicos, pecas);
+        });
+        saga.diagnosticoConcluido(pedidoDeOrcamento(ordem, diagnostico), LocalDateTime.now(), prazos.resposta());
+        sagas.salvar(saga);
+        registrar(saga, Tipo.EVENTO_RECEBIDO, evento.messageId(), evento.type() + " por " + diagnostico.mecanico().nome()
+                + " (" + servicos.size() + " servicos, " + pecas.size() + " pecas); orcamento sera gerado");
+        enviarComandos(saga);
     }
 
     private void aoGerarOrcamento(SagaOrdemServico saga, Envelope evento) {
@@ -201,26 +217,28 @@ public class OrquestradorSagaOrdemServico implements PassosDaSaga {
     }
 
     /**
-     * Orcamento nao gerado. Com peca invalida o diagnostico volta ao mecanico (compensacao
-     * {@code ReabrirDiagnostico}, local enquanto o diagnostico mora no OS); sem peca invalida (dado
-     * financeiro recusado) a OS fica com o diagnostico concluido e o atendente pode reenviar.
+     * Orcamento nao gerado (peca invalida, dado recusado): o diagnostico volta ao mecanico
+     * ({@code ReabrirDiagnostico}, sem as pecas invalidas) e a OS volta a "Diagnostico". A Saga espera a
+     * confirmacao {@code DiagnosticoReaberto} para voltar a aguardar o diagnostico.
      */
     private void aoFalharOrcamento(SagaOrdemServico saga, Envelope evento) {
         MensagensSaga.OrcamentoFalhou falha = ler(evento, MensagensSaga.OrcamentoFalhou.class);
-        OrdemDeServico ordem = ordem(saga);
         if (saga.getStatus() != StatusSaga.GERANDO_ORCAMENTO) {
             ignorar(saga, evento, "Falha de orcamento com a Saga em " + saga.getStatus());
             return;
         }
-        saga.orcamentoFalhou(falha.motivo(), LocalDateTime.now());
-        boolean reabrir = falha.pecasInvalidas() != null && !falha.pecasInvalidas().isEmpty()
-                && ordem.getStatus() == StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO;
-        if (reabrir) {
-            moverOrdem(saga, ordem, OrigemAlteracaoStatus.SAGA, OrdemDeServico::reabrirDiagnostico);
+        reabrirDiagnostico(saga, falha.motivo(), falha.pecasInvalidas(), OrigemAlteracaoStatus.SAGA);
+        registrar(saga, Tipo.EVENTO_RECEBIDO, evento.messageId(), evento.type() + ": " + falha.motivo() + "; diagnostico sera reaberto");
+        enviarComandos(saga);
+    }
+
+    private void reabrirDiagnostico(SagaOrdemServico saga, String motivo, List<String> pecasInvalidas, OrigemAlteracaoStatus origem) {
+        OrdemDeServico ordem = ordem(saga);
+        saga.orcamentoFalhou(motivo, pecasInvalidas, LocalDateTime.now(), prazos.resposta());
+        if (ordem.getStatus() == StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {
+            moverOrdem(saga, ordem, origem, OrdemDeServico::reabrirDiagnostico);
         }
         sagas.salvar(saga);
-        registrar(saga, Tipo.EVENTO_RECEBIDO, evento.messageId(), evento.type() + ": " + falha.motivo()
-                + (reabrir ? "; diagnostico reaberto" : "; diagnostico mantido, envio para orcamento pode ser refeito"));
     }
 
     private void aoDecidirOrcamento(SagaOrdemServico saga, Envelope evento, boolean aprovado) {
@@ -235,7 +253,7 @@ public class OrquestradorSagaOrdemServico implements PassosDaSaga {
             // A OS so muda quando as pecas estiverem reservadas (PecasReservadas).
             saga.orcamentoAprovado(decisao.orcamentoId(), itensDaOrdem(ordem), agora, prazos.resposta());
         } else {
-            saga.orcamentoRejeitado(decisao.orcamentoId(), agora);
+            saga.orcamentoRejeitado(decisao.orcamentoId(), agora, prazos.resposta());
             moverOrdem(saga, ordem, OrigemAlteracaoStatus.SAGA, OrdemDeServico::recusarOrcamento);
         }
         sagas.salvar(saga);
@@ -293,10 +311,65 @@ public class OrquestradorSagaOrdemServico implements PassosDaSaga {
             ignorar(saga, evento, "Pagamento confirmado com a Saga em " + saga.getStatus() + " e a OS em " + ordem.getStatus());
             return;
         }
-        saga.pagamentoConfirmado(confirmado.pagamentoId(), LocalDateTime.now());
+        saga.pagamentoConfirmado(confirmado.pagamentoId(), LocalDateTime.now(), prazos.resposta());
         moverOrdem(saga, ordem, OrigemAlteracaoStatus.SAGA, OrdemDeServico::confirmarPagamento);
         sagas.salvar(saga);
-        registrar(saga, Tipo.EVENTO_RECEBIDO, evento.messageId(), evento.type() + " " + confirmado.valor());
+        registrar(saga, Tipo.EVENTO_RECEBIDO, evento.messageId(), evento.type() + " " + confirmado.valor() + "; OS vai para a fila de execucao");
+        enviarComandos(saga);
+    }
+
+    /** A Execution confirmou a fila de execucao: a OS espera o mecanico. */
+    private void aoEnfileirarExecucao(SagaOrdemServico saga, Envelope evento) {
+        if (saga.getStatus() != StatusSaga.AGUARDANDO_EXECUCAO || !saga.aguardandoConfirmacaoDaFila()) {
+            ignorar(saga, evento, "Fila de execucao confirmada com a Saga em " + saga.getStatus());
+            return;
+        }
+        saga.execucaoEnfileirada(LocalDateTime.now());
+        sagas.salvar(saga);
+        registrar(saga, Tipo.EVENTO_RECEBIDO, evento.messageId(), evento.type() + " (posicao "
+                + evento.payload().path("posicaoNaFila").asInt() + ")");
+    }
+
+    /** Mecanico iniciou a execucao: a OS passa a "Execucao" em andamento. */
+    private void aoIniciarExecucao(SagaOrdemServico saga, Envelope evento) {
+        OrdemDeServico ordem = ordem(saga);
+        if (saga.getStatus() != StatusSaga.AGUARDANDO_EXECUCAO || ordem.getStatus() != StatusOrdemDeServico.AGUARDANDO_EXECUCAO) {
+            ignorar(saga, evento, "Execucao iniciada com a Saga em " + saga.getStatus() + " e a OS em " + ordem.getStatus());
+            return;
+        }
+        saga.execucaoIniciada(LocalDateTime.now());
+        moverOrdem(saga, ordem, OrigemAlteracaoStatus.SAGA, OrdemDeServico::iniciarExecucao);
+        sagas.salvar(saga);
+        registrar(saga, Tipo.EVENTO_RECEBIDO, evento.messageId(), evento.type());
+    }
+
+    /** Mecanico concluiu o servico (e a Execution baixou o estoque): a OS e finalizada e a Saga conclui. */
+    private void aoConcluirExecucao(SagaOrdemServico saga, Envelope evento) {
+        OrdemDeServico ordem = ordem(saga);
+        if (saga.getStatus() != StatusSaga.EM_EXECUCAO || ordem.getStatus() != StatusOrdemDeServico.SERVICO_EM_ANDAMENTO) {
+            ignorar(saga, evento, "Execucao concluida com a Saga em " + saga.getStatus() + " e a OS em " + ordem.getStatus());
+            return;
+        }
+        saga.execucaoConcluida(LocalDateTime.now());
+        moverOrdem(saga, ordem, OrigemAlteracaoStatus.SAGA, OrdemDeServico::concluirServico);
+        sagas.salvar(saga);
+        registrar(saga, Tipo.EVENTO_RECEBIDO, evento.messageId(), evento.type() + "; Saga CONCLUIDA");
+    }
+
+    /** Mecanico abortou a execucao: a OS e cancelada; a Saga estorna o pagamento e libera as pecas. */
+    private void aoAbortarExecucao(SagaOrdemServico saga, Envelope evento) {
+        MensagensSaga.ExecucaoFalhou falha = ler(evento, MensagensSaga.ExecucaoFalhou.class);
+        OrdemDeServico ordem = ordem(saga);
+        if (saga.getStatus() != StatusSaga.EM_EXECUCAO || ordem.getStatus() != StatusOrdemDeServico.SERVICO_EM_ANDAMENTO) {
+            ignorar(saga, evento, "Execucao abortada com a Saga em " + saga.getStatus() + " e a OS em " + ordem.getStatus());
+            return;
+        }
+        saga.execucaoFalhou(LocalDateTime.now(), prazos.resposta());
+        moverOrdem(saga, ordem, OrigemAlteracaoStatus.SAGA, OrdemDeServico::abortarExecucao);
+        sagas.salvar(saga);
+        registrar(saga, Tipo.EVENTO_RECEBIDO, evento.messageId(), evento.type() + " por " + falha.mecanico().nome()
+                + ": " + falha.motivo() + "; pagamento sera estornado e as pecas liberadas");
+        enviarComandos(saga);
     }
 
     private void aoNaoConcluirPagamento(SagaOrdemServico saga, Envelope evento, MotivoEncerramento motivo) {
@@ -368,9 +441,15 @@ public class OrquestradorSagaOrdemServico implements PassosDaSaga {
         }
         switch (saga.getStatus()) {
             case AGUARDANDO_DECISAO -> vencerDecisao(saga, agora);
+            case AGUARDANDO_DIAGNOSTICO, AGUARDANDO_EXECUCAO -> reenviarOuDesistir(saga, agora, () -> {
+                saga.filaSemConfirmacao("Execution nao confirmou a fila", agora);
+                registrar(saga, Tipo.TIMEOUT, null, "Fila sem confirmacao da Execution apos os reenvios: FALHA_COMPENSACAO");
+                log.error("Saga sem fila na Execution: exige acao manual. sagaId={}, ordemServicoId={}",
+                        saga.getId(), saga.getOrdemDeServicoId());
+            });
             case GERANDO_ORCAMENTO -> reenviarOuDesistir(saga, agora, () -> {
-                saga.orcamentoFalhou("Billing nao respondeu ao GerarOrcamento", agora);
-                registrar(saga, Tipo.TIMEOUT, null, "GerarOrcamento sem resposta apos os reenvios; envio para orcamento pode ser refeito");
+                reabrirDiagnostico(saga, "Billing nao respondeu ao GerarOrcamento", null, OrigemAlteracaoStatus.TIMEOUT);
+                registrar(saga, Tipo.TIMEOUT, null, "GerarOrcamento sem resposta apos os reenvios; diagnostico sera reaberto");
             });
             case RESERVANDO_PECAS -> reenviarOuDesistir(saga, agora, () -> {
                 saga.reservaSemResposta(agora, prazos.resposta());
@@ -448,16 +527,35 @@ public class OrquestradorSagaOrdemServico implements PassosDaSaga {
                 && (saga.getPagamentoId() == null || saga.getPagamentoId().equals(pagamentoId));
     }
 
-    /** Snapshot do diagnostico e dos dados da OS: o Billing nao consulta cliente nem OS (ADR 0003). */
-    private MensagensSaga.GerarOrcamento pedidoDeOrcamento(OrdemDeServico ordem, DadosOrcamento dados) {
-        List<String> descricoes = ordem.getServicos().stream().map(ServicoOrdem::getDescricao).toList();
+    /** Pedido de entrada na fila de diagnostico: a previsao do atendente e o ponto de partida do mecanico. */
+    private MensagensSaga.EnfileirarDiagnostico pedidoDeFila(OrdemDeServico ordem) {
+        return new MensagensSaga.EnfileirarDiagnostico(
+                ordem.getNumeroOrdemServico(),
+                new MensagensSaga.Veiculo(
+                        ordem.getVeiculo().getPlaca(),
+                        ordem.getVeiculo().getMarca(),
+                        ordem.getVeiculo().getModelo(),
+                        ordem.getVeiculo().getAno() > 0 ? ordem.getVeiculo().getAno() : null),
+                ordem.getServicos().stream()
+                        .map(servico -> new MensagensSaga.Servico(servico.getDescricao(),
+                                dinheiro(servico.getValorMaoDeObra() == null ? BigDecimal.ZERO : servico.getValorMaoDeObra())))
+                        .toList(),
+                itensDaOrdem(ordem),
+                Instant.now());
+    }
+
+    /**
+     * Snapshot do diagnostico e dos dados da OS: o Billing nao consulta cliente nem OS (ADR 0003). Os
+     * servicos (com a mao de obra) e as pecas vem do {@code DiagnosticoConcluido}.
+     */
+    private MensagensSaga.GerarOrcamento pedidoDeOrcamento(OrdemDeServico ordem, MensagensSaga.DiagnosticoConcluido diagnostico) {
         return new MensagensSaga.GerarOrcamento(
                 ordem.getNumeroOrdemServico(),
                 new MensagensSaga.Cliente(
                         ordem.getCliente().getId(),
                         ordem.getCliente().getNome(),
                         ordem.getCliente().getCpfOuCnpj(),
-                        ordem.getCliente().getTipoCliente() == null ? null : ordem.getCliente().getTipoCliente().name(),
+                        tipoDoCliente(ordem),
                         ordem.getCliente().getEmail()),
                 new MensagensSaga.Veiculo(
                         ordem.getVeiculo().getPlaca(),
@@ -465,15 +563,24 @@ public class OrquestradorSagaOrdemServico implements PassosDaSaga {
                         ordem.getVeiculo().getModelo(),
                         ordem.getVeiculo().getAno() > 0 ? ordem.getVeiculo().getAno() : null),
                 new MensagensSaga.Funcionario(ordem.getFuncionario().getId(), ordem.getFuncionario().getNome()),
-                descricoes.isEmpty() ? "Pecas previstas no diagnostico" : String.join("; ", descricoes),
-                ordem.getServicos().stream()
-                        .map(servico -> new MensagensSaga.Servico(servico.getDescricao(), dinheiro(servico.getValorMaoDeObra())))
+                diagnostico.descricaoDiagnostico(),
+                diagnostico.servicos().stream()
+                        .map(servico -> new MensagensSaga.Servico(servico.descricao(), dinheiro(servico.valorMaoDeObra())))
                         .toList(),
-                itensDaOrdem(ordem),
-                dinheiro(dados.valorMaoDeObra()),
-                dinheiro(dados.desconto()),
-                dados.validade() == null ? null : dados.validade().atZone(FUSO).toInstant(),
-                dados.observacoes());
+                diagnostico.pecas(),
+                null,
+                null,
+                null,
+                null);
+    }
+
+    /** O contrato exige PF ou PJ; cliente antigo sem tipo cadastrado e classificado pelo tamanho do documento. */
+    private static String tipoDoCliente(OrdemDeServico ordem) {
+        if (ordem.getCliente().getTipoCliente() != null) {
+            return ordem.getCliente().getTipoCliente().name();
+        }
+        String documento = ordem.getCliente().getCpfOuCnpj();
+        return documento != null && documento.replaceAll("\\D", "").length() > 11 ? "PJ" : "PF";
     }
 
     /** Contrato: dinheiro como texto com duas casas ("200.00", nunca "200" ou "0"). */
@@ -481,7 +588,7 @@ public class OrquestradorSagaOrdemServico implements PassosDaSaga {
         return valor == null ? null : valor.setScale(2, RoundingMode.HALF_UP);
     }
 
-    /** Pecas previstas da OS, somando repeticoes da mesma peca. */
+    /** Pecas da OS (previstas na abertura), somando repeticoes da mesma peca. */
     private static List<MensagensSaga.ItemPeca> itensDaOrdem(OrdemDeServico ordem) {
         Map<String, Integer> quantidades = new LinkedHashMap<>();
         for (PecaPrevistaOrdem peca : ordem.getPecasPrevistas()) {

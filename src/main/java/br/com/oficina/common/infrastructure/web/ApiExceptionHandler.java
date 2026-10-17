@@ -1,10 +1,8 @@
 package br.com.oficina.common.infrastructure.web;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 
-import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -15,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import br.com.oficina.common.domain.exception.ConflitoDeRecursoException;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
@@ -65,32 +64,21 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleInvalidRequestBody(HttpMessageNotReadableException exception) {
-        String mensagem = MENSAGEM_CORPO_INVALIDO;
-
-        Throwable cause = exception.getCause();
-        if (cause != null && cause.getMessage() != null && cause.getMessage().contains("CategoriaPeca")) {
-            String categoriasAceitas = String.join(", ",
-                    Arrays.stream(CategoriaPeca.values()).map(Enum::name).toList());
-            mensagem = "Categoria inválida. Os valores aceitos são: " + categoriasAceitas + ".";
-        }
-
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(Instant.now(), HttpStatus.BAD_REQUEST.value(), mensagem));
+                .body(new ErrorResponse(Instant.now(), HttpStatus.BAD_REQUEST.value(), MENSAGEM_CORPO_INVALIDO));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
-        if (exception.getRequiredType() != null && exception.getRequiredType().equals(CategoriaPeca.class)) {
-            String categoriasAceitas = String.join(", ",
-                    Arrays.stream(CategoriaPeca.values()).map(Enum::name).toList());
-            String mensagem = "Categoria inválida: '" + exception.getValue()
-                    + "'. Os valores aceitos são: " + categoriasAceitas + ".";
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ErrorResponse(Instant.now(), HttpStatus.BAD_REQUEST.value(), mensagem));
-        }
-
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(Instant.now(), HttpStatus.BAD_REQUEST.value(), MENSAGEM_REQUISICAO_INVALIDA));
+    }
+
+    /** Rota que nao existe (inclusive as que se mudaram para outros servicos): sem isto o generico a faria 500. */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(Instant.now(), HttpStatus.NOT_FOUND.value(), "Recurso nao encontrado."));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

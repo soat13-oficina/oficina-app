@@ -90,11 +90,10 @@ um exemplo válido em `examples`. Campo com `?` é opcional.
 | [`CancelarOrcamento`](schemas/comandos/CancelarOrcamento.schema.json) | compensação | `orcamentoId`, `motivo` | `OrcamentoCancelado` |
 | [`EstornarPagamento`](schemas/comandos/EstornarPagamento.schema.json) | compensação | `orcamentoId`, `pagamentoId`, `motivo` | `PagamentoEstornado`, `EstornoFalhou` |
 
-(¹) Transitório, enquanto o diagnóstico mora no OS Service (Fase 4, Passo 1): o atendente ainda
-informa no envio para orçamento a mão de obra total, o desconto, a validade e as observações, e
-`servicos[].valorMaoDeObra` pode faltar. Sem esses campos o Billing usa a soma da mão de obra dos
-serviços, desconto zero e a validade padrão (7 dias). Com a Execution (Passo 4) o comando sai só com
-os campos obrigatórios.
+(¹) Opcionais e **não enviados mais pelo OS** desde o Passo 4: o mecânico informa a mão de obra de
+cada serviço no `DiagnosticoConcluido` e o comando `GerarOrcamento` sai só com os campos obrigatórios.
+Sem eles o Billing usa a soma da mão de obra dos serviços, desconto zero e a validade padrão (7 dias).
+Seguem no contrato por compatibilidade com quem os informar.
 
 ### Eventos (participantes → OS) — fila `os-saga-replies`
 

@@ -27,7 +27,6 @@ import br.com.oficina.common.infrastructure.mensageria.OutboxMensagemEntity;
 import br.com.oficina.common.infrastructure.mensageria.SpringDataOutboxMensagemRepository;
 import br.com.oficina.ordemservico.saga.application.OrquestradorSagaOrdemServico;
 import br.com.oficina.ordemservico.saga.domain.model.MensagensSaga;
-import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataPecaInsumoRepository;
 import br.com.oficina.support.contratos.ContratosDeMensagens;
 import br.com.oficina.support.saga.FluxoOficinaHttp;
 
@@ -35,21 +34,28 @@ import br.com.oficina.support.saga.FluxoOficinaHttp;
  * Teste de contrato do produtor (ADR 0005): roda os caminhos da Saga e valida cada mensagem que
  * passou pelo outbox contra o JSON Schema do seu {@code type} em {@code docs/contratos/schemas}:
  * <ul>
- *   <li>comandos do orquestrador e eventos do estoque (participante que ainda mora aqui);</li>
- *   <li>eventos do {@code BillingSimulado}: o duble do Billing tambem tem de seguir o contrato, senao
- *       os testes do OS provariam a Saga contra respostas que o Billing de verdade nao manda. O
- *       Billing valida as proprias mensagens no repositorio dele.</li>
+ *   <li>comandos do orquestrador;</li>
+ *   <li>eventos do {@code BillingSimulado} e do {@code ExecutionSimulado}: os dubles tambem tem de seguir
+ *       o contrato, senao os testes do OS provariam a Saga contra respostas que os servicos de verdade
+ *       nao mandam. Billing e Execution validam as proprias mensagens nos repositorios deles.</li>
  * </ul>
  */
 @SpringBootTest
 class ContratoDasMensagensDaSagaTest {
 
-    /** Tudo o que o OS produz hoje. Diagnostico e execucao ainda nao sao mensagens (Passo 4). */
+    /** Tudo o que o OS produz: os comandos do orquestrador. */
     private static final Set<String> PRODUZIDAS = Set.of(
-            MensagensSaga.GERAR_ORCAMENTO, MensagensSaga.RESERVAR_PECAS, MensagensSaga.SOLICITAR_PAGAMENTO,
+            MensagensSaga.ENFILEIRAR_DIAGNOSTICO, MensagensSaga.REABRIR_DIAGNOSTICO, MensagensSaga.GERAR_ORCAMENTO,
+            MensagensSaga.RESERVAR_PECAS, MensagensSaga.SOLICITAR_PAGAMENTO, MensagensSaga.ENFILEIRAR_EXECUCAO,
             MensagensSaga.REVERTER_APROVACAO, MensagensSaga.CANCELAR_ORCAMENTO, MensagensSaga.LIBERAR_RESERVA,
-            MensagensSaga.ESTORNAR_PAGAMENTO,
-            MensagensSaga.PECAS_RESERVADAS, MensagensSaga.RESERVA_FALHOU, MensagensSaga.RESERVA_LIBERADA);
+            MensagensSaga.CANCELAR_EXECUCAO, MensagensSaga.ESTORNAR_PAGAMENTO);
+
+    /** Respostas e acoes do mecanico na Execution, aqui produzidas pelo ExecutionSimulado. */
+    private static final Set<String> DO_EXECUTION_SIMULADO = Set.of(
+            MensagensSaga.DIAGNOSTICO_ENFILEIRADO, MensagensSaga.DIAGNOSTICO_INICIADO, MensagensSaga.DIAGNOSTICO_CONCLUIDO,
+            MensagensSaga.DIAGNOSTICO_REABERTO, MensagensSaga.PECAS_RESERVADAS, MensagensSaga.RESERVA_FALHOU,
+            MensagensSaga.EXECUCAO_ENFILEIRADA, MensagensSaga.EXECUCAO_INICIADA, MensagensSaga.EXECUCAO_CONCLUIDA,
+            MensagensSaga.EXECUCAO_FALHOU, MensagensSaga.RESERVA_LIBERADA, MensagensSaga.EXECUCAO_CANCELADA);
 
     /** Respostas do Billing, aqui produzidas pelo BillingSimulado. */
     private static final Set<String> DO_BILLING_SIMULADO = Set.of(
@@ -68,9 +74,6 @@ class ContratoDasMensagensDaSagaTest {
 
     @Autowired
     private OrquestradorSagaOrdemServico orquestrador;
-
-    @Autowired
-    private SpringDataPecaInsumoRepository pecas;
 
     @Autowired
     private PublicadorMensagens publicador;
@@ -95,7 +98,7 @@ class ContratoDasMensagensDaSagaTest {
     }
 
     @Test
-    void todaMensagemQueOOsEOBillingSimuladoProduzemRespeitaOContrato() throws Exception {
+    void todaMensagemQueOOsEOsServicosSimuladosProduzemRespeitaOContrato() throws Exception {
         caminhoFelizAteAConclusao();
         rejeicao();
         estoqueInsuficiente();
@@ -114,8 +117,10 @@ class ContratoDasMensagensDaSagaTest {
         }
 
         assertThat(erros).as("mensagens fora do contrato").isEmpty();
-        assertThat(tipos).as("todo tipo produzido foi exercitado").containsAll(PRODUZIDAS).containsAll(DO_BILLING_SIMULADO);
-        assertThat(CONTRATOS.tipos()).as("todo tipo produzido tem schema").containsAll(PRODUZIDAS).containsAll(DO_BILLING_SIMULADO);
+        assertThat(tipos).as("todo tipo produzido foi exercitado")
+                .containsAll(PRODUZIDAS).containsAll(DO_BILLING_SIMULADO).containsAll(DO_EXECUTION_SIMULADO);
+        assertThat(CONTRATOS.tipos()).as("todo tipo produzido tem schema")
+                .containsAll(PRODUZIDAS).containsAll(DO_BILLING_SIMULADO).containsAll(DO_EXECUTION_SIMULADO);
     }
 
     private String aguardandoPagamento(String placa, int estoque) throws Exception {
@@ -132,8 +137,8 @@ class ContratoDasMensagensDaSagaTest {
         String numero = aguardandoPagamento("CTR1A11", 5);
         fluxo.simularPagamento(fluxo.orcamento(numero).orElseThrow().getNumeroOrcamento(), "APROVADO");
         fluxo.processarMensagens();
-        fluxo.acao(numero, "/execucao/iniciar");
-        fluxo.acao(numero, "/servico/concluir");
+        fluxo.iniciarExecucao(numero);
+        fluxo.concluirExecucao(numero);
     }
 
     private void rejeicao() throws Exception {
@@ -163,18 +168,16 @@ class ContratoDasMensagensDaSagaTest {
         String numero = aguardandoPagamento("CTR6A66", 5);
         fluxo.simularPagamento(fluxo.orcamento(numero).orElseThrow().getNumeroOrcamento(), "APROVADO");
         fluxo.processarMensagens();
-        fluxo.acao(numero, "/execucao/iniciar");
+        fluxo.iniciarExecucao(numero);
         fluxo.abortarExecucao(numero, "Peca incompativel");
-        fluxo.processarMensagens();
     }
 
     private void pecaForaDoCatalogo() throws Exception {
         String pecaId = fluxo.cadastrarPeca("Some", 5);
         String numero = fluxo.abrirOrdem("CTR7A77");
-        fluxo.diagnosticarComPeca(numero, "Troca", pecaId, 1);
-        pecas.deleteById(pecaId);
-        fluxo.solicitarOrcamento(numero);
-        fluxo.processarMensagens();
+        fluxo.iniciarDiagnostico(numero);
+        fluxo.catalogo().remover(pecaId); // sai do catalogo entre o diagnostico e o orcamento
+        fluxo.concluirDiagnostico(numero, "Troca", pecaId, 1);
         orquestrador.processarPrazosVencidos(LocalDateTime.now());
     }
 

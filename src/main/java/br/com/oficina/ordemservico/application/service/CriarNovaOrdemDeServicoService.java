@@ -107,7 +107,7 @@ public class CriarNovaOrdemDeServicoService implements CriarNovaOrdemDeServicoUs
                 pecasPrevistas);
 
         ordemDeServicoRepository.salvar(ordemDeServico);
-        passosDaSaga.iniciar(ordemDeServico.getId());
+        passosDaSaga.iniciar(ordemDeServico);
         eventPublisher.publishEvent(OrdemDeServicoCriada.de(ordemDeServico));
         log.info(
                 "Ordem de servico criada com sucesso. numeroOrdemServico={}, clienteId={}, funcionarioId={}, placaVeiculo={}, servicos={}, pecas={}",

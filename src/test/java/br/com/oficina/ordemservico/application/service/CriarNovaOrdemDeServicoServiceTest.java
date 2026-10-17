@@ -23,13 +23,10 @@ import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoComman
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServicoCriada;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
-import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
-import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
 import br.com.oficina.support.persistence.TestClienteRepository;
+import br.com.oficina.support.saga.CatalogoSimulado;
 import br.com.oficina.support.persistence.TestFuncionarioRepository;
 import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
-import br.com.oficina.ponte.CatalogoDePecasDoEstoque;
-import br.com.oficina.support.persistence.TestPecaInsumoRepository;
 import br.com.oficina.support.persistence.TestVeiculoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
@@ -65,7 +62,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 veiculoRepository,
                 funcionarioRepository,
                 ordemDeServicoRepository,
-                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
+                new CatalogoSimulado(),
                 eventos::add);
 
         String numeroOrdemServico = service.criarNovaOrdemDeServico(
@@ -107,7 +104,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 veiculoRepository,
                 funcionarioRepository,
                 new TestOrdemDeServicoRepository(),
-                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
+                new CatalogoSimulado(),
                 eventos::add);
 
         assertThrows(
@@ -143,7 +140,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 veiculoRepository,
                 funcionarioRepository,
                 ordemDeServicoRepository,
-                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
+                new CatalogoSimulado(),
                 evento -> { });
 
         String numeroOrdemServico = service.criarNovaOrdemDeServico(
@@ -162,7 +159,8 @@ class CriarNovaOrdemDeServicoServiceTest {
         TestFuncionarioRepository funcionarioRepository = new TestFuncionarioRepository();
         TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
         TestOrdemDeServicoRepository ordemDeServicoRepository = new TestOrdemDeServicoRepository();
-        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
+        CatalogoSimulado catalogo = new CatalogoSimulado();
+        String pecaId = catalogo.cadastrar("Pastilha", 10);
         UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
         UUID funcionarioId = UUID.fromString("41111111-1111-1111-1111-111111111111");
         clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF));
@@ -170,10 +168,8 @@ class CriarNovaOrdemDeServicoServiceTest {
         veiculoRepository.salvar(new Veiculo(
                 clienteId, "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO",
                 TipoCombustivel.FLEX));
-        pecaInsumoRepository.salvar(new PecaInsumo(
-                "PECA-1", "Pastilha", "Bosch", new BigDecimal("250.00"), 10, 0, "REF-001", CategoriaPeca.FREIOS));
         CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
-                clienteRepository, veiculoRepository, funcionarioRepository, ordemDeServicoRepository, new CatalogoDePecasDoEstoque(pecaInsumoRepository),
+                clienteRepository, veiculoRepository, funcionarioRepository, ordemDeServicoRepository, catalogo,
                 evento -> { });
 
         String numeroOrdemServico = service.criarNovaOrdemDeServico(new CriarOrdemDeServicoCommand(
@@ -181,7 +177,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 funcionarioId.toString(),
                 "ABC1D23",
                 List.of(new ServicoItem("Troca de pastilhas", new BigDecimal("150.00"))),
-                List.of(new PecaItem("PECA-1", 2))));
+                List.of(new PecaItem(pecaId, 2))));
 
         assertNotNull(numeroOrdemServico);
         assertEquals(1, ordemDeServicoRepository.buscarTodas().size());
@@ -201,7 +197,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 TipoCombustivel.FLEX));
         CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
                 clienteRepository, veiculoRepository, funcionarioRepository, new TestOrdemDeServicoRepository(),
-                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
+                new CatalogoSimulado(),
                 evento -> { });
 
         RecursoNaoEncontradoException exception = assertThrows(
@@ -223,7 +219,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 new TestVeiculoRepository(),
                 new TestFuncionarioRepository(),
                 new TestOrdemDeServicoRepository(),
-                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
+                new CatalogoSimulado(),
                 evento -> { });
 
         RecursoNaoEncontradoException exception = assertThrows(
@@ -257,7 +253,7 @@ class CriarNovaOrdemDeServicoServiceTest {
                 veiculoRepository,
                 new TestFuncionarioRepository(),
                 new TestOrdemDeServicoRepository(),
-                new CatalogoDePecasDoEstoque(new TestPecaInsumoRepository()),
+                new CatalogoSimulado(),
                 evento -> { });
 
         RegraDeNegocioException exception = assertThrows(
@@ -268,5 +264,31 @@ class CriarNovaOrdemDeServicoServiceTest {
                         "ABC1D23")));
 
         assertEquals("Identificador do funcionario invalido.", exception.getMessage());
+    }
+
+    @Test
+    void deveIniciarASagaComAOrdemAbertaNaMesmaTransacao() {
+        TestClienteRepository clienteRepository = new TestClienteRepository();
+        TestFuncionarioRepository funcionarioRepository = new TestFuncionarioRepository();
+        TestVeiculoRepository veiculoRepository = new TestVeiculoRepository();
+        TestOrdemDeServicoRepository ordemDeServicoRepository = new TestOrdemDeServicoRepository();
+        UUID clienteId = UUID.fromString("31111111-1111-1111-1111-111111111111");
+        UUID funcionarioId = UUID.fromString("41111111-1111-1111-1111-111111111111");
+        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF));
+        funcionarioRepository.salvar(Funcionario.reconstituir(funcionarioId, "Joao", "12345678909"));
+        veiculoRepository.salvar(new Veiculo(
+                clienteId, "ABC1D23", "Toyota", "Corolla", "Toyota Motor Corporation", 2024, 177, "AUTOMATICO",
+                TipoCombustivel.FLEX));
+        List<br.com.oficina.ordemservico.domain.model.OrdemDeServico> iniciadas = new ArrayList<>();
+        CriarNovaOrdemDeServicoService service = new CriarNovaOrdemDeServicoService(
+                clienteRepository, veiculoRepository, funcionarioRepository, ordemDeServicoRepository, new CatalogoSimulado(),
+                evento -> { }, iniciadas::add);
+
+        String numero = service.criarNovaOrdemDeServico(
+                new CriarOrdemDeServicoCommand(clienteId.toString(), funcionarioId.toString(), "ABC1D23"));
+
+        assertEquals(1, iniciadas.size());
+        assertEquals(numero, iniciadas.get(0).getNumeroOrdemServico());
+        assertEquals(StatusOrdemDeServico.OS_ABERTA, iniciadas.get(0).getStatus());
     }
 }
