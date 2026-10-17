@@ -3,7 +3,7 @@
 > **Projeto:** Tech Challenge SOAT 13 — Oficina Mecânica
 > **Data da análise:** 14/10/2026
 > **Base:** os 4 repositórios locais (`oficina-app`, `oficina-infra-k8s`, `oficina-infra-database`, `oficina-lambda-auth`) e os enunciados da Fase 3 e da Fase 4.
-> **Status:** decisões da seção 15 confirmadas em 15/10/2026 (todas conforme a recomendação). Passos 0, 1 e 3 integrados em `desenvolvimento`; Passo 4 é o próximo — ver [seção 18](#18-andamento).
+> **Status:** decisões da seção 15 confirmadas em 15/10/2026 (todas conforme a recomendação). Passos 0, 1 e 3 integrados em `desenvolvimento`; Passo 4 em andamento (E1 pronta, aguardando PR) — ver [seção 18](#18-andamento).
 >
 > **Vai continuar o desenvolvimento? Comece pela [seção 18.5](#185-como-continuar)** (estado atual, regras do grupo, ambiente local, roteiro do Passo 4 e do dia do deploy).
 >
@@ -1192,7 +1192,7 @@ Achados ainda abertos: `cliente.tipo` obrigatório no schema do `GerarOrcamento`
 | 1 — Desacoplar no monólito, Saga em memória, BDD | Integrado (#44, #45, #46) |
 | 2 — Plataforma e repositórios | **Parcial.** Feito: repositórios novos com esqueleto, CI (`testes`, `qualidade`, `validacao`), Sonar e `pr-source-guard`; `infra/` do OS e do Billing escritos e validados, **nunca aplicados**. Falta: AWS Load Balancer Controller, generalizar o Datadog e remover a role `<cluster>-ses-send-email` no `oficina-infra-k8s` (8.4); quotas (9.4) |
 | 3 — Extrair Billing e Mercado Pago | Integrado (18.4). Validado ponta a ponta local; falta rodar em hml com o sandbox real do Mercado Pago |
-| 4 — Extrair Execution e DynamoDB | **Próximo** — roteiro abaixo |
+| 4 — Extrair Execution e DynamoDB | **Em andamento.** E1 (estoque no DynamoDB) pronta na branch `feature/estoque`, sem PR ainda ([18.6](#186-passo-4-e1--estoque-de-peças-no-dynamodb)); próxima: E2 — roteiro abaixo |
 | 5 — Lambda e gateway | A fazer (8.6, 9.3) |
 | 6 — Observabilidade, docs, vídeo, PDF | A fazer (12, 14) |
 
@@ -1293,7 +1293,7 @@ dono).
 
 | # | Repositório / branch | Conteúdo |
 |---|---|---|
-| E1 | `oficina-execution-service` `feature/estoque` | Peças e estoque no DynamoDB (Enhanced Client, tabelas `pecas` e `reservas`); CRUD `/pecas-insumos` com os mesmos caminhos e respostas do OS; `POST /internal/pecas-insumos/consulta` com `X-Service-Token`; mensageria copiada do Billing com persistência em `execution-controle`; participante `ReservarPecas`/`LiberarReserva` com `TransactWriteItems`; seed `scripts/seed-pecas.json`; testes com LocalStack (DynamoDB + SQS) em Testcontainers e de contrato; excluir `UserDetailsServiceAutoConfiguration` |
+| E1 ✅ | `oficina-execution-service` `feature/estoque` | **Entregue em 17/10/2026, sem PR (ver 18.6).** Peças e estoque no DynamoDB (Enhanced Client, tabelas `pecas` e `reservas`); CRUD `/pecas-insumos` com os mesmos caminhos e respostas do OS; `POST /internal/pecas-insumos/consulta` com `X-Service-Token`; mensageria copiada do Billing com persistência em `execution-controle`; participante `ReservarPecas`/`LiberarReserva` com `TransactWriteItems`; seed `scripts/seed-pecas.json`; testes com LocalStack (DynamoDB + SQS) em Testcontainers e de contrato; excluir `UserDetailsServiceAutoConfiguration` |
 | E2 | `oficina-execution-service` `feature/diagnostico-execucao` (sobre E1) | Tabela `execucoes` + GSI `fila-por-etapa`; endpoints do mecânico (fila, iniciar/concluir diagnóstico, iniciar/concluir/abortar execução); comandos `EnfileirarDiagnostico`, `ReabrirDiagnostico`, `EnfileirarExecucao`, `CancelarExecucao` e eventos `Diagnostico*`/`Execucao*`; conclusão consome as reservas (baixa do estoque) |
 | 10 | `oficina-app` `feature/fase4-execution-extraida` | Orquestrador com os passos de diagnóstico e execução; `GerarOrcamento` sai sozinho no `DiagnosticoConcluido` (somem os campos transitórios marcados com ¹ em `mensagens.md`); remove `pecainsumo`, `ponte`, diagnóstico e execução; `CatalogoPecas` por REST; `execution-commands` pelo SQS; `ExecutionSimulado` nos testes (como o `BillingSimulado`, validado contra o contrato); ArchUnit, BDD, docker-compose e `mensageria-local.md` atualizados |
 | 11 | `oficina-execution-service` `feature/infra` (+ ajuste no Billing) | `infra/` (tabelas DynamoDB on-demand, `execution-commands` + DLQ, ECR, Role IRSA com DynamoDB + SQS) copiado do Billing; `infra.yml`; `ci-cd.yml` com build, deploy e seed em hml. No Billing, `CATALOGO_PECAS_URL` passa a `http://oficina-execution-service:8080` (`k8s/overlays/*/app.env`) |
@@ -1347,3 +1347,30 @@ No dia, nesta ordem (9.2):
 Abrir o Claude Code na pasta que contém os seis repositórios e pedir para continuar pela seção 18.5
 do `oficina-app/docs/PLANO-FASE-4.md`. As regras acima valem para ele também: sem AWS, sem segredos
 no chat, uma branch `feature/*` por entrega com PR para `desenvolvimento`.
+
+### 18.6 Passo 4, E1 — estoque de peças no DynamoDB
+
+Branch `feature/estoque` do `oficina-execution-service` (2 commits locais, **ainda sem push nem PR**), 17/10/2026. A AWS segue desligada. `./mvnw verify` verde **sem Docker**: 153 testes (12 ignorados), cobertura 95,2% de linhas e 84,4% de branches.
+
+**O que entrou:**
+
+- **API:** `/pecas-insumos` (CRUD, `adicionar-estoque`, `remover-estoque`) com os caminhos do OS, só para `ROLE_FUNCIONARIO` (cliente: 403); `POST /internal/pecas-insumos/consulta` com `X-Service-Token` ([contrato](contratos/rest-interno.md)).
+- **Saga:** participante de `ReservarPecas` (→ `PecasReservadas` / `ReservaFalhou`) e `LiberarReserva` (→ `ReservaLiberada`), validado contra os JSON Schemas. A reserva é tudo ou nada: um `TransactWriteItems` com, por peça, `Update` condicionado a `quantidadeDisponivel >= :q` e `Put` da reserva, mais o item de idempotência e a resposta no outbox. Perdeu a corrida pelo último item: transação recusada, a mensagem volta para a fila e a nova leitura responde `ReservaFalhou`.
+- **Mensageria** copiada do Billing, com persistência no DynamoDB: `UnidadeDeTrabalho` (o "`@Transactional`" sobre `TransactWriteItems`), idempotência `MSG#`, outbox `OUTBOX#` com GSI esparso `outbox-pendente` e concessão com prazo (`LOCK#outbox`) no lugar do advisory lock. Tudo na tabela `oficina-<env>-execution-controle` (TTL de 7 dias em `expiraEm`).
+- **Local:** `scripts/criar-tabelas-local.sh`, `scripts/carregar-seed-pecas.sh` e `scripts/seed-pecas.json` (10 peças com ids fixos; o radiador tem estoque 0, para o cenário de falha de reserva da 6.8). `UserDetailsServiceAutoConfiguration` excluído.
+
+**Decisões tomadas (divergem do OS; registrar no PR):**
+
+- Sem `reservar`, `liberar-reserva` e `consumir` por HTTP: toda reserva nasce de um comando da Saga e tem uma OS dona. O consumo na conclusão do serviço entra na E2.
+- `PUT /pecas-insumos/{id}` ignora `quantidadeReservada` do corpo (ela pertence às reservas) e recusa estoque abaixo do reservado; peça inexistente responde 404.
+- Entrada e saída de estoque em peça inexistente respondem 404 (no OS, 400); a saída só tira do **disponível**.
+- `DELETE` só é recusado com reserva ativa (400). Reserva antiga já liberada ou consumida não bloqueia: o DynamoDB não tem FK (no OS isso dava 409).
+- Rota inexistente responde 404 (o `ApiExceptionHandler` copiado do Billing a transformava em 500).
+
+**Não validado:** o `EstoqueDynamoLocalStackTest` (12 testes, Testcontainers + LocalStack 4.14.0) exige Docker e foi ignorado localmente; o CI o executa. É ele quem confere de verdade as expressões do DynamoDB, a transação, a corrida pelo último item e o caminho outbox → SQS. Os adapters foram conferidos só contra um duplo do `DynamoDbClient`. **Antes de abrir o PR, rodar `./mvnw verify` com o Docker ligado.**
+
+**Achados ainda abertos:**
+
+- O LocalStack do `docker-compose` deste repositório só liga o SQS (`SERVICES: sqs`); a Execution precisa de `sqs,dynamodb`. A mudança entra na entrega 10 (o README do Execution explica como subir um LocalStack com DynamoDB por fora).
+- O `ApiExceptionHandler` do Billing tem o mesmo defeito de rota inexistente → 500.
+- k8s (variáveis do SQS e do DynamoDB, `SERVICE_TOKEN`, readiness com `dynamoDb` via `MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE`) e o `infra/` ficam para a entrega 11.
