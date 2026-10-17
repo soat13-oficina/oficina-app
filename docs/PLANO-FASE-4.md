@@ -1385,6 +1385,18 @@ Branch `feature/estoque` do `oficina-execution-service` (2 commits locais, **ain
 
 **Entrega 11 — infra da Execution.** `infra/` (4 tabelas DynamoDB sob demanda com os dois GSIs e TTL, `execution-commands` + DLQ, ECR, Role IRSA com SQS + DynamoDB), `infra.yml`, `ci-cd.yml` (build, deploy, rollout e seed do catálogo se a tabela estiver vazia), overlays com `SERVICE_TOKEN`, SQS e readiness incluindo o `dynamoDb` (teste de prontidão no LocalStack). Validado só com `terraform fmt`/`validate` (imagem oficial do Terraform) e `kubectl kustomize`: **nunca aplicado**. No Billing, `CATALOGO_PECAS_URL` aponta para `http://oficina-execution-service:8080`.
 
+**Validação ponta a ponta local (17/10/2026).** Os três serviços como processos reais (OS 8080, Billing 8081 com gateway simulado, Execution 8082) sobre o LocalStack do `docker-compose` (SQS + DynamoDB) e dois Postgres, sem nenhum simulado em memória. Percorrido por HTTP, com a Saga acompanhada em `GET /sagas/{id}`:
+
+| Cenário (6.8) | Resultado |
+|---|---|
+| Feliz: abre OS (com previsão) → fila de diagnóstico → diagnóstico → orçamento (preço consultado na Execution: 2 × 80 + 150 = 310) → cliente aprova (JWT de cliente) → reserva (disponível 20 → 18) → pagamento simulado → fila de execução → iniciar/concluir | Saga `CONCLUIDA`, OS `Finalizada`, estoque baixado de verdade (20 → 18, reservada 0) |
+| Peça sem estoque (radiador) | `ReservaFalhou` → `ReverterAprovacao`: OS volta a aguardar decisão, nada reservado |
+| Cliente rejeita o orçamento | `CancelarExecucao` → Execution `CANCELADA`, OS `Finalizada` por `ORCAMENTO_RECUSADO` |
+| Pagamento recusado | `CancelarExecucao`, `CancelarOrcamento`, `LiberarReserva`: Saga `COMPENSADA`, OS `Cancelada`, reserva devolvida |
+| Mecânico aborta a execução | `EstornarPagamento` + `LiberarReserva`: Saga `COMPENSADA` por `FALHA_EXECUCAO`, OS `Cancelada`, estoque inteiro |
+
+Não exercitados nesta rodada (cobertos só por testes automatizados): prazo de decisão/pagamento expirado, DLQ, queda de um participante com reenvio. Também validado: `scripts/carregar-seed-pecas.sh` (rodado num contêiner com `aws` e `jq`, como o `ci-cd.yml` fará) e a tabela `fila-por-etapa` lendo a fila real.
+
 **Decisões que divergem do plano original:**
 
 - O GSI `fila-por-etapa` ordena por `entrouNaEtapaEm` (a ADR 0006 dizia `criadoEm`): é a data de entrada na etapa que define a fila.
@@ -1397,4 +1409,6 @@ Branch `feature/estoque` do `oficina-execution-service` (2 commits locais, **ain
 - Migration que apaga do RDS do OS as tabelas que mudaram de dono (orçamentos, tokens, pagamentos, peças, reservas) — só depois de Billing e Execution no ar.
 - A coleção Insomnia (`docs/collections/oficina-api.insomnia.json`, gerada por `scripts/gerar-collection-insomnia.py`) ainda lista endpoints removidos; é refeita no Passo 6.
 - O `ApiExceptionHandler` do Billing ainda responde 500 a rota inexistente (a Execution e o OS já respondem 404).
+- O segredo JWT de desenvolvimento difere entre o `docker-compose.yml` do OS (`ASjhd8213u...`) e o default do `application.yml` do OS e do Billing (`SUA_CHAVE_SECRETA...`): com o OS no compose e o Billing/Execution na máquina, o token não vale entre eles — exportar `JWT_SECRET` igual nos três.
+- Scripts `.sh` do Execution agora são sempre LF (`.gitattributes`): o checkout CRLF do Windows quebrava o `set -o pipefail`.
 - Abrir os PRs na ordem: Billing (`catalogo-na-execution`), Execution (`estoque` → `diagnostico-execucao` → `infra`), OS (`execution-extraida`), cada um para `desenvolvimento`.
