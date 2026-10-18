@@ -3,7 +3,7 @@
 > **Projeto:** Tech Challenge SOAT 13 — Oficina Mecânica
 > **Data da análise:** 14/10/2026
 > **Base:** os 4 repositórios locais (`oficina-app`, `oficina-infra-k8s`, `oficina-infra-database`, `oficina-lambda-auth`) e os enunciados da Fase 3 e da Fase 4.
-> **Status:** decisões da seção 15 confirmadas em 15/10/2026 (todas conforme a recomendação). Passos 0, 1 e 3 integrados em `desenvolvimento`; Passo 4 com E1, E2 e as entregas 10 e 11 prontas em branches locais, aguardando PR — ver [seção 18](#18-andamento).
+> **Status:** decisões da seção 15 confirmadas em 15/10/2026 (todas conforme a recomendação). Passos 0, 1 e 3 integrados em `desenvolvimento`; Passos 2, 4, 5 e parte do 6 prontos no código, em branches locais aguardando PR — ver [seção 18](#18-andamento).
 >
 > **Vai continuar o desenvolvimento? Comece pela [seção 18.5](#185-como-continuar)** (estado atual, regras do grupo, ambiente local, roteiro do Passo 4 e do dia do deploy).
 >
@@ -1190,11 +1190,11 @@ Achados ainda abertos: `cliente.tipo` obrigatório no schema do `GerarOrcamento`
 |---|---|
 | 0 — ADRs e contratos | Integrado ([#43](https://github.com/soat13-oficina/oficina-app/pull/43)) |
 | 1 — Desacoplar no monólito, Saga em memória, BDD | Integrado (#44, #45, #46) |
-| 2 — Plataforma e repositórios | **Parcial.** Feito: repositórios novos com esqueleto, CI (`testes`, `qualidade`, `validacao`), Sonar e `pr-source-guard`; `infra/` do OS e do Billing escritos e validados, **nunca aplicados**. Falta: AWS Load Balancer Controller, generalizar o Datadog e remover a role `<cluster>-ses-send-email` no `oficina-infra-k8s` (8.4); quotas (9.4) |
+| 2 — Plataforma e repositórios | **Pronto no código, sem PR** ([18.8](#188-passos-2-5-e-6-plataforma-lambda-e-observabilidade)). Repositórios novos com esqueleto, CI (`testes`, `qualidade`, `validacao`), Sonar e `pr-source-guard`; `infra/` dos três serviços escrito e validado, AWS Load Balancer Controller, Datadog por serviço, saída do ECR/SES e quotas feitos — tudo **nunca aplicado** |
 | 3 — Extrair Billing e Mercado Pago | Integrado (18.4). Validado ponta a ponta local; falta rodar em hml com o sandbox real do Mercado Pago |
 | 4 — Extrair Execution e DynamoDB | **Pronto no código, sem PR.** E1, E2, entrega 10 (OS) e entrega 11 (infra) em branches locais encadeadas ([18.6](#186-passo-4-e1--estoque-de-peças-no-dynamodb) e [18.7](#187-passo-4-e2-entrega-10-e-entrega-11)); falta abrir os PRs, a migration que apaga as tabelas antigas do OS e rodar tudo na AWS |
-| 5 — Lambda e gateway | A fazer (8.6, 9.3) |
-| 6 — Observabilidade, docs, vídeo, PDF | A fazer (12, 14) |
+| 5 — Lambda e gateway | **Pronto no código, sem PR** (18.8): consulta interna de cliente no OS, Lambda por HTTP, rota do webhook sem authorizer, URL do ALB no SSM |
+| 6 — Observabilidade, docs, vídeo, PDF | **Parcial.** Métricas dos três serviços, monitores e dashboard da Saga feitos (18.8). Falta: READMEs e `docs/arquitetura/` dos três serviços, Swagger e collection do fluxo completo, evidências de cobertura, vídeo e PDF |
 
 Todo o código da Fase 4 está em `desenvolvimento` (`oficina-app`, `oficina-billing-service`,
 `oficina-execution-service`). `homologacao` e `master` ainda não receberam nada dela e **não devem
@@ -1411,4 +1411,24 @@ Não exercitados nesta rodada (cobertos só por testes automatizados): prazo de 
 - O `ApiExceptionHandler` do Billing ainda responde 500 a rota inexistente (a Execution e o OS já respondem 404).
 - O segredo JWT de desenvolvimento difere entre o `docker-compose.yml` do OS (`ASjhd8213u...`) e o default do `application.yml` do OS e do Billing (`SUA_CHAVE_SECRETA...`): com o OS no compose e o Billing/Execution na máquina, o token não vale entre eles — exportar `JWT_SECRET` igual nos três.
 - Scripts `.sh` do Execution agora são sempre LF (`.gitattributes`): o checkout CRLF do Windows quebrava o `set -o pipefail`.
-- Abrir os PRs na ordem: Billing (`catalogo-na-execution`), Execution (`estoque` → `diagnostico-execucao` → `infra`), OS (`execution-extraida`), cada um para `desenvolvimento`.
+- Abrir os PRs na ordem: Billing (`catalogo-na-execution`), Execution (`estoque` → `diagnostico-execucao` → `infra`), OS (`execution-extraida`), cada um para `desenvolvimento`. A E1 já está integrada na Execution (PR #2); o restante da ordem completa, com as branches do Passo 5 e da observabilidade, está em [18.8](#188-passos-2-5-e-6-plataforma-lambda-e-observabilidade).
+
+### 18.8 Passos 2, 5 e 6: plataforma, Lambda e observabilidade
+
+17/10/2026, depois da 18.7. Tudo em branches locais **sem push nem PR**; AWS desligada. Nada daqui foi aplicado: Terraform só com `fmt`/`validate`, k8s só com `kubectl kustomize`.
+
+| Repositório / branch | Conteúdo |
+|---|---|
+| `oficina-infra-k8s` `feature/alb-controller-e-multi-servico` | AWS Load Balancer Controller (chart 3.5.0, role IRSA própria; junta os Ingress dos três serviços num ALB por ambiente, ADR 0008); `destroy` apaga os Ingress antes do `terraform destroy`; Datadog por serviço (`var.servicos`, `for_each` nos monitores de 5xx, latência, CPU, memória e réplicas); ECR e role do SES saem (passaram para o `infra/` de cada serviço); `datadog-saga.tf` com os monitores da Saga, da mensageria e do pagamento e o grupo "Saga, mensageria e pagamentos" no dashboard |
+| `oficina-app` `feature/fase4-cliente-interno` (sobre a 10) | `GET /internal/clientes/por-cpf/{cpf}` com `X-Service-Token` (id, nome, `ativo`); OS no ALB compartilhado (Service `ClusterIP`, Ingress público e Ingress à parte para `/internal/clientes`); o deploy grava `/oficina/<env>/alb-url` no SSM e faz o healthcheck pelo ALB; quotas dos namespaces (9.4) |
+| `oficina-lambda-auth` `feature/cliente-via-api` | A função `token` consulta o cliente no OS por HTTP (timeout de 3 s) em vez de ler o banco; sai da VPC (somem security group, regra no RDS, remote state e a dependência `pg`); gateway aponta para o ALB lido do SSM; rota `POST /webhooks/mercadopago` **sem authorizer**; ADR 0002 explica por que não houve a flag `FONTE_CLIENTE`. 34 testes |
+| `oficina-app` `feature/fase4-observabilidade` · `oficina-billing-service` e `oficina-execution-service` `feature/observabilidade` | Métricas `oficina.*`: Saga (iniciadas, finalizadas, compensações, duração, ativas, presas), pagamento (Billing), estoque (Execution), outbox e DLQ nos três; anotação OpenMetrics no Deployment mapeia o `/actuator/prometheus` para `oficina.<nome>`; `sqs:GetQueueAttributes` na DLQ da role. Billing e Execution também publicam a URL do ALB no SSM (`ci-cd.yml`) |
+
+**Branches empilhadas** (cada uma contra `desenvolvimento`, na ordem):
+
+- `oficina-billing-service`: `catalogo-na-execution` → `observabilidade`.
+- `oficina-execution-service`: `diagnostico-execucao` → `infra` → `observabilidade` (a `estoque` já está integrada).
+- `oficina-app`: `fase4-execution-extraida` → `fase4-cliente-interno` → `fase4-observabilidade`; `fase4-docs` reúne todas e este registro.
+- `oficina-infra-k8s` `alb-controller-e-multi-servico` e `oficina-lambda-auth` `cliente-via-api`: um PR cada. O ALB do OS depende do controller: só funciona com o `oficina-infra-k8s` aplicado primeiro (ordem do dia do deploy).
+
+**Ainda falta (Passo 6):** READMEs e `docs/arquitetura/` dos três serviços, Swagger e collection do fluxo completo (a Insomnia ainda lista endpoints removidos), evidências de cobertura, vídeo e PDF. E, no dia do deploy, confirmar os nomes das métricas no Datadog real (foram conferidos só contra o `/actuator/prometheus` local).
