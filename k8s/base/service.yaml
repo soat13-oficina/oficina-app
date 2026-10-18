@@ -1,25 +1,19 @@
-# type LoadBalancer: a AWS provisiona um NLB público automaticamente. É o alvo
-# da rota proxy do API Gateway (repositório oficina-lambda-auth) e o endereço
-# usado na demonstração.
+# ClusterIP: o acesso externo e pelo Ingress (ALB compartilhado do ambiente, ADR 0008); Billing e
+# Execution chegam aqui pelo DNS do cluster: http://oficina-api:8080.
 #
-# IMPORTANTE: este NLB é criado pelo Kubernetes, FORA do Terraform. Antes de
-# rodar "terraform destroy" no repositório oficina-infra-k8s, remova os
-# recursos do cluster (kubectl delete -k k8s/overlays/<env>) ou o destroy da
-# VPC trava com dependências órfãs. O job de destroy daquele repositório já
-# faz essa limpeza.
+# O nome do Service ainda e oficina-api; vira oficina-os-service no rename do servico
+# (docs/arquitetura/convencoes-de-nomes.md).
 apiVersion: v1
 kind: Service
 metadata:
   name: oficina-api
   labels:
     app: oficina-api
-  annotations:
-    service.beta.kubernetes.io/aws-load-balancer-type: nlb
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: oficina-api
   ports:
     - name: http
-      port: 80
+      port: 8080
       targetPort: 8080

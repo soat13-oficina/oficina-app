@@ -4,14 +4,18 @@
 # compartilhada defensável.
 #
 # Cota de homologação deliberadamente menor que a de produção.
+#
+# Dimensionada para os TRÊS serviços do ambiente (OS, Billing e Execution) com o HPA no teto de 2
+# réplicas: 6 pods de 150m / 256Mi de requests (900m / 1,5Gi) e 500m / 512Mi de limits (3 / 3Gi),
+# mais folga para um rolling update (maxSurge 1 por serviço). PLANO-FASE-4.md, seção 9.4.
 apiVersion: v1
 kind: ResourceQuota
 metadata:
   name: oficina-quota
 spec:
   hard:
-    requests.cpu: "600m"
-    requests.memory: 1Gi
-    limits.cpu: "1500m"
-    limits.memory: 2Gi
-    pods: "6"
+    requests.cpu: "1200m"
+    requests.memory: 2Gi
+    limits.cpu: "3"
+    limits.memory: 4Gi
+    pods: "10"

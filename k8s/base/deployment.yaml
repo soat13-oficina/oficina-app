@@ -26,7 +26,7 @@ spec:
       annotations:
         # Autodiscovery do Datadog Agent: raspa /actuator/prometheus DO POD, na porta 8081.
         # %%host%% é resolvido pelo agent para o IP do pod — não passa pelo Service, e por isso
-        # a porta 8081 pode ficar fora dele (o Service é LoadBalancer/NLB público).
+        # a porta 8081 pode ficar fora dele (o acesso externo é pelo Ingress/ALB, que só encaminha a 8080).
         #
         # TRÊS RENOMEAÇÕES ACONTECEM ENTRE O CÓDIGO E O DATADOG — todas verificadas contra a
         # saída real de /actuator/prometheus, não deduzidas:
@@ -109,9 +109,8 @@ spec:
           ports:
             - name: http
               containerPort: 8080
-            # Actuator (health + prometheus). Deliberadamente AUSENTE do service.yaml: aquele
-            # Service é type: LoadBalancer e publica um NLB na internet, então tudo que responde
-            # na 8080 é público. Probes (kubelet) e o Datadog Agent falam com o IP do pod
+            # Actuator (health + prometheus). Deliberadamente AUSENTE do service.yaml e dos Ingress: o
+            # ALB é público (internet-facing), então tudo que responde na 8080 e tem rota é público. Probes (kubelet) e o Datadog Agent falam com o IP do pod
             # diretamente e não dependem do Service para alcançar esta porta.
             - name: management
               containerPort: 8081

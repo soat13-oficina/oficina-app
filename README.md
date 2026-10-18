@@ -472,7 +472,7 @@ daquele ambiente não existir.
 (tag `<ambiente>-<sha>`) → o job de deploy aponta o `kubectl` para o EKS,
 descobre o endpoint do RDS daquele ambiente, materializa os Secrets a partir do
 **Secrets Manager**, preenche o overlay e aplica com `kubectl apply -k`,
-aguardando o rollout e confirmando com um healthcheck real pelo NLB.
+aguardando o rollout e publicando a URL do ALB no SSM e confirmando com um healthcheck real pelo ALB.
 
 ### Containerização (Docker)
 
@@ -491,7 +491,9 @@ k8s/
 ├── base/                    comum aos dois ambientes
 │   ├── serviceaccount.yaml  ServiceAccount oficina-api (IRSA para SES)
 │   ├── deployment.yaml      Deployment, probes Actuator, envFrom/secretKeyRef
-│   ├── service.yaml         Service LoadBalancer (NLB público)
+│   ├── service.yaml         Service ClusterIP
+│   ├── ingress.yaml         Rotas públicas do OS no ALB do ambiente (IngressGroup)
+│   ├── ingress-interno.yaml /internal/clientes, só com o header X-Service-Token (Lambda de autenticação)
 │   └── hpa.yaml             HPA por CPU 70% / memória 80%
 └── overlays/
     ├── hml/                 namespace oficina-hml
@@ -566,7 +568,7 @@ Jobs, no padrão de nomes comum aos quatro repositórios do projeto:
 | `testes-integracao` | `./mvnw test -Dspring.profiles.active=integration` contra um PostgreSQL real (service container) |
 | `validacao` | `kubectl kustomize` dos dois overlays; um erro de Kustomize só apareceria no deploy sem este job |
 | `build` | Build e push para o **ECR** com as tags `<ambiente>-<sha>` e `<ambiente>-latest`; só em push nas branches de ambiente, nunca em PR |
-| `deploy` | Descobre RDS e IAM Role, cria os Secrets, preenche e aplica o overlay, aguarda o rollout e faz um **healthcheck real pelo NLB** — um pod pode ficar `Ready` antes de o NLB registrar os alvos |
+| `deploy` | Descobre RDS e IAM Role, cria os Secrets, preenche e aplica o overlay, aguarda o rollout e grava a URL do ALB no SSM (`/oficina/<env>/alb-url`) e faz um **healthcheck real pelo ALB** — um pod pode ficar `Ready` antes de o ALB registrar os alvos |
 
 Os jobs de deploy usam GitHub **Environments** (`homologacao` / `producao`), o
 que permite exigir aprovação manual antes de produção sem alterar o YAML.

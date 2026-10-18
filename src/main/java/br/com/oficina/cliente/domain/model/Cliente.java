@@ -7,6 +7,8 @@ import br.com.caelum.stella.validation.CPFValidator;
 import br.com.caelum.stella.validation.InvalidStateException;
 import br.com.caelum.stella.validation.Validator;
 import br.com.oficina.common.domain.exception.RegraDeNegocioException;
+import org.hibernate.annotations.ColumnDefault;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -41,6 +43,14 @@ public class Cliente {
 
     @Column
     private String email;
+
+    /**
+     * Cliente ativo (V20). So leitura: o cadastro nasce ativo pelo DEFAULT da coluna e hoje so se
+     * desativa direto no banco; a Lambda de autenticacao recusa o token do inativo.
+     */
+    @Column(nullable = false, insertable = false, updatable = false)
+    @ColumnDefault("true")
+    private boolean ativo = true;
 
     protected Cliente() {
     }
@@ -91,6 +101,10 @@ public class Cliente {
 
     public String getEmail() {
         return email;
+    }
+
+    public boolean isAtivo() {
+        return ativo;
     }
 
     public void alterar(String nome, String cpfOuCnpj, TipoCliente tipoCliente) {

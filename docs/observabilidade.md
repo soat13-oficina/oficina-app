@@ -120,10 +120,10 @@ service:oficina-api numero_ordem_servico:OS-1A2B3C4D
 
 | Porta | O que serve | Exposta no `Service`? |
 |---|---|---|
-| 8080 | API | **Sim** — `type: LoadBalancer`, NLB público |
+| 8080 | API | **Sim** — `ClusterIP`; os `Ingress` publicam só as rotas do OS no ALB do ambiente |
 | 8081 | Actuator (`health`, `prometheus`) em hml/prd | **Não**, de propósito |
 
-`service.yaml` provisiona um NLB público: tudo que responde na 8080 está na
+O ALB é público: toda rota da 8080 que tem regra num `Ingress` está na
 internet. Por isso `MANAGEMENT_SERVER_PORT=8081` no `deployment.yaml` base. Probes
 (kubelet) e o Datadog Agent falam com o IP do pod diretamente e não dependem do
 `Service` para alcançar a 8081.
