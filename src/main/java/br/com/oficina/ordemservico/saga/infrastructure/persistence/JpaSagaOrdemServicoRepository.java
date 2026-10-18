@@ -13,6 +13,7 @@ import br.com.oficina.ordemservico.saga.domain.model.RegistroPassoSaga;
 import br.com.oficina.ordemservico.saga.domain.model.SagaOrdemServico;
 import br.com.oficina.ordemservico.saga.domain.model.StatusSaga;
 import br.com.oficina.ordemservico.saga.domain.repository.SagaOrdemServicoRepository;
+import br.com.oficina.ordemservico.saga.infrastructure.observabilidade.MetricasSaga;
 
 @Repository
 @Transactional(readOnly = true)
@@ -22,16 +23,24 @@ public class JpaSagaOrdemServicoRepository implements SagaOrdemServicoRepository
 
     private final SpringDataSagaOrdemServicoRepository sagas;
     private final SpringDataRegistroPassoSagaRepository passos;
+    private final MetricasSaga metricas;
 
-    public JpaSagaOrdemServicoRepository(SpringDataSagaOrdemServicoRepository sagas, SpringDataRegistroPassoSagaRepository passos) {
+    public JpaSagaOrdemServicoRepository(
+            SpringDataSagaOrdemServicoRepository sagas,
+            SpringDataRegistroPassoSagaRepository passos,
+            MetricasSaga metricas) {
         this.sagas = sagas;
         this.passos = passos;
+        this.metricas = metricas;
     }
 
     @Override
     @Transactional
     public void salvar(SagaOrdemServico saga) {
+        StatusSaga antes = saga.getStatusPersistido();
         sagas.save(saga);
+        metricas.aposSalvar(antes, saga);
+        saga.marcarComoPersistida();
     }
 
     @Override

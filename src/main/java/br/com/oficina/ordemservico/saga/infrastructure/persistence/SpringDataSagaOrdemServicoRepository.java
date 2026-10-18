@@ -24,4 +24,13 @@ public interface SpringDataSagaOrdemServicoRepository extends JpaRepository<Saga
              order by s.prazoExpiraEm
             """)
     List<UUID> buscarIdsComPrazoVencido(LocalDateTime agora, Collection<StatusSaga> finais);
+
+    /** Funil da Saga: [passo, quantidade] das nao finalizadas (metrica oficina.saga.ativas). */
+    @Query("""
+            select s.passoAtual, count(s)
+              from SagaOrdemServico s
+             where s.status not in :finais
+             group by s.passoAtual
+            """)
+    List<Object[]> contarAtivasPorPasso(Collection<StatusSaga> finais);
 }

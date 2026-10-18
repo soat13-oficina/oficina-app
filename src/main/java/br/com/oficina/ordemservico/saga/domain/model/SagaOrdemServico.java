@@ -18,6 +18,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
@@ -94,6 +95,11 @@ public class SagaOrdemServico {
     @Column(name = "atualizada_em", nullable = false)
     private LocalDateTime atualizadaEm;
 
+    // Status que a Saga tinha quando foi carregada do banco (null = ainda nao gravada): base das metricas de
+    // transicao (MetricasSaga), que contam a mudanca uma vez so, onde quer que ela aconteca.
+    @Transient
+    private StatusSaga statusPersistido;
+
     @Transient
     private final List<ComandoSaga> comandosAEnviar = new ArrayList<>();
 
@@ -103,6 +109,21 @@ public class SagaOrdemServico {
     private List<String> pecasInvalidasAReabrir;
 
     protected SagaOrdemServico() {
+    }
+
+    @PostLoad
+    void lembrarStatusPersistido() {
+        this.statusPersistido = status;
+    }
+
+    /** Status na ultima carga ou gravacao; {@code null} para uma Saga que ainda nao foi gravada. */
+    public StatusSaga getStatusPersistido() {
+        return statusPersistido;
+    }
+
+    /** Chamado pelo repositorio depois de gravar: a proxima comparacao parte do estado atual. */
+    public void marcarComoPersistida() {
+        this.statusPersistido = status;
     }
 
     private SagaOrdemServico(UUID ordemDeServicoId, StatusSaga status, PassoSaga passo, LocalDateTime agora) {
