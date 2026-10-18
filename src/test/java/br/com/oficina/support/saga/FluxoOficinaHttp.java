@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,20 +35,16 @@ import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataHistoric
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataOrdemDeServicoRepository;
 import br.com.oficina.ordemservico.saga.infrastructure.persistence.SpringDataRegistroPassoSagaRepository;
 import br.com.oficina.ordemservico.saga.infrastructure.persistence.SpringDataSagaOrdemServicoRepository;
-import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
-import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
-import br.com.oficina.pecainsumo.domain.repository.PecaInsumoRepository;
-import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataPecaInsumoRepository;
-import br.com.oficina.pecainsumo.infrastructure.persistence.SpringDataReservaPecaRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
 import br.com.oficina.veiculo.infrastructure.persistence.SpringDataVeiculoRepository;
 
 /**
- * Conduz o ciclo de vida da OS pelas APIs HTTP reais (MockMvc), como o atendente e o mecanico
- * fariam - usado pelo teste do orquestrador, pelos passos do BDD e pelo teste de contrato. O lado do
- * Billing (orcamento, decisao do cliente, pagamento) e o {@link BillingSimulado}.
+ * Conduz o ciclo de vida da OS: a abertura pela API HTTP real (MockMvc), como o atendente faria, e o
+ * resto pelos servicos simulados - o mecanico e a Execution ({@link ExecutionSimulado}: diagnostico,
+ * execucao, estoque) e o Billing ({@link BillingSimulado}: orcamento, decisao do cliente, pagamento).
+ * Usado pelo teste do orquestrador, pelos passos do BDD e pelo teste de contrato.
  *
  * <p>A mensageria roda em memoria e o agendamento do outbox esta desligado nos testes: o que um
  * pod faria a cada segundo, aqui e {@link #processarMensagens()}.
@@ -76,27 +74,52 @@ public class FluxoOficinaHttp {
         bean(SpringDataOutboxMensagemRepository.class).deleteAll();
         bean(SpringDataMensagemProcessadaRepository.class).deleteAll();
         billing().limpar();
-        bean(SpringDataReservaPecaRepository.class).deleteAll();
+        execution().limpar();
+        catalogo().limpar();
         bean(SpringDataOrdemDeServicoRepository.class).deleteAll();
         bean(SpringDataVeiculoRepository.class).deleteAll();
         bean(SpringDataClienteRepository.class).deleteAll();
         bean(SpringDataFuncionarioRepository.class).deleteAll();
-        bean(SpringDataPecaInsumoRepository.class).deleteAll();
     }
 
-    /** Peca no cadastro com {@code estoque} unidades disponiveis; devolve o id. */
+    /** Peca no cadastro (da Execution) com {@code estoque} unidades disponiveis; devolve o id. */
     public String cadastrarPeca(String descricao, int estoque) {
-        PecaInsumo peca = new PecaInsumo(descricao, "Bosch", new BigDecimal("80.00"), estoque, "REF-" + descricao, CategoriaPeca.FILTROS);
-        bean(PecaInsumoRepository.class).salvar(peca);
-        return peca.getId();
+        return catalogo().cadastrar(descricao, estoque);
     }
 
-    public PecaInsumo peca(String pecaInsumoId) {
-        return bean(PecaInsumoRepository.class).buscarPorId(pecaInsumoId).orElseThrow();
+    public CatalogoSimulado.Peca peca(String pecaInsumoId) {
+        return catalogo().peca(pecaInsumoId);
     }
 
-    /** Cliente, funcionario e veiculo; devolve o numero da OS aberta por POST /ordens-servico. */
+    public CatalogoSimulado catalogo() {
+        return bean(CatalogoSimulado.class);
+    }
+
+    /** Cliente, funcionario e veiculo; abre a OS por POST /ordens-servico e entrega as mensagens (a OS entra na fila de diagnostico). */
     public String abrirOrdem(String placa) throws Exception {
+        String numero = abrirOrdemSemEntregarMensagens(placa);
+        processarMensagens(); // a OS entra na fila de diagnostico da Execution
+        return numero;
+    }
+
+    /** Abre a OS e deixa o {@code EnfileirarDiagnostico} no outbox, sem entrega. */
+    public String abrirOrdemSemEntregarMensagens(String placa) throws Exception {
+        return abrir(placa, "");
+    }
+
+    /** Abre a OS com a previsao do atendente (um servico e uma peca) e entrega as mensagens. */
+    public String abrirOrdemComPrevisao(String placa, String servico, String maoDeObra, String pecaInsumoId, int quantidade)
+            throws Exception {
+        String previsao = """
+                , "servicos": [ { "descricao": "%s", "valorMaoDeObra": %s } ],
+                  "pecasPrevistas": [ { "pecaInsumoId": "%s", "quantidade": %d } ]
+                """.formatted(servico, maoDeObra, pecaInsumoId, quantidade);
+        String numero = abrir(placa, previsao);
+        processarMensagens();
+        return numero;
+    }
+
+    private String abrir(String placa, String camposExtras) throws Exception {
         // Mesmo cliente e funcionario para todas as OSs do cenario (documento e CPF sao unicos).
         Cliente cliente = bean(ClienteRepository.class).buscarPorDocumento("52998224725")
                 .orElseGet(() -> bean(ClienteRepository.class).salvar(new Cliente("Maria", "52998224725", TipoCliente.PF)));
@@ -107,49 +130,68 @@ public class FluxoOficinaHttp {
         mvc.perform(post("/ordens-servico").with(ATENDENTE).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                { "clienteId": "%s", "funcionarioId": "%s", "placaVeiculo": "%s" }
-                                """.formatted(cliente.getId(), funcionario.getId(), placa)))
+                                { "clienteId": "%s", "funcionarioId": "%s", "placaVeiculo": "%s" %s }
+                                """.formatted(cliente.getId(), funcionario.getId(), placa, camposExtras)))
                 .andExpect(status().isCreated());
         return bean(OrdemDeServicoRepository.class).buscarTodas().stream()
                 .filter(os -> placa.equals(os.getVeiculo().getPlaca()))
                 .findFirst().orElseThrow().getNumeroOrdemServico();
     }
 
-    public void diagnosticar(String numero, String descricao) throws Exception {
+    /**
+     * O mecanico inicia e conclui o diagnostico com um servico de R$ 200,00 de mao de obra e sem pecas; a
+     * Saga gera o orcamento sozinha (entrega as mensagens). Use {@link #orcamento} para ver o resultado.
+     */
+    public void diagnosticar(String numero, String descricao) {
         diagnosticarComPeca(numero, descricao, null, 0);
     }
 
-    /** Diagnostico com uma peca prevista ({@code pecaInsumoId} nulo = sem pecas). */
-    public void diagnosticarComPeca(String numero, String descricao, String pecaInsumoId, int quantidade) throws Exception {
-        acao(numero, "/diagnostico/iniciar");
-        String pecas = pecaInsumoId == null ? "[]"
-                : "[ { \"pecaInsumoId\": \"%s\", \"quantidade\": %d } ]".formatted(pecaInsumoId, quantidade);
-        mvc.perform(post("/ordens-servico/" + numero + "/diagnostico/concluir").with(ATENDENTE).with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"descricaoServico\": \"%s\", \"pecas\": %s }".formatted(descricao, pecas)))
-                .andExpect(status().isNoContent());
+    /** Diagnostico com uma peca ({@code pecaInsumoId} nulo = sem pecas). */
+    public void diagnosticarComPeca(String numero, String descricao, String pecaInsumoId, int quantidade) {
+        iniciarDiagnostico(numero);
+        concluirDiagnostico(numero, descricao, pecaInsumoId, quantidade);
     }
 
-    /** Envia o diagnostico para orcamento (202): so grava o {@code GerarOrcamento} no outbox. */
-    public void solicitarOrcamento(String numero) throws Exception {
-        solicitarOrcamento(numero, new BigDecimal("200.00"), BigDecimal.ZERO);
-    }
-
-    public void solicitarOrcamento(String numero, BigDecimal valorMaoDeObra, BigDecimal desconto) throws Exception {
-        mvc.perform(post("/ordens-servico/" + numero + "/diagnostico/enviar-para-orcamento").with(ATENDENTE).with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "valorMaoDeObra": %s, "desconto": %s, "validade": "2030-01-01T00:00:00", "observacoes": null }
-                                """.formatted(valorMaoDeObra, desconto)))
-                .andExpect(status().isAccepted());
-    }
-
-    /** Envia para orcamento, entrega as mensagens e devolve o numero do orcamento gerado pelo Billing. */
-    public String enviarParaOrcamento(String numero) throws Exception {
-        solicitarOrcamento(numero);
+    /** O mecanico pega a OS da fila de diagnostico (evento espontaneo da Execution); entrega as mensagens. */
+    public void iniciarDiagnostico(String numero) {
+        execution().iniciarDiagnostico(ordem(numero).getId());
         processarMensagens();
+    }
+
+    public void concluirDiagnostico(String numero, String descricao, String pecaInsumoId, int quantidade) {
+        Map<String, Integer> pecas = new LinkedHashMap<>();
+        if (pecaInsumoId != null) {
+            pecas.put(pecaInsumoId, quantidade);
+        }
+        execution().concluirDiagnostico(ordem(numero).getId(), descricao, Map.of(descricao, "200.00"), pecas);
+        processarMensagens();
+    }
+
+    /** Diagnostico concluido, entrega as mensagens e devolve o numero do orcamento que o Billing gerou sozinho. */
+    public String enviarParaOrcamento(String numero) {
         return orcamento(numero).orElseThrow(() -> new IllegalStateException("Orcamento nao gerado para " + numero))
                 .getNumeroOrcamento();
+    }
+
+    public ExecutionSimulado execution() {
+        return bean(ExecutionSimulado.class);
+    }
+
+    /** O mecanico pega a OS da fila de execucao, ja paga. */
+    public void iniciarExecucao(String numero) {
+        execution().iniciarExecucao(ordem(numero).getId());
+        processarMensagens();
+    }
+
+    /** O mecanico conclui o servico; a Execution baixa o estoque reservado. */
+    public void concluirExecucao(String numero) {
+        execution().concluirExecucao(ordem(numero).getId());
+        processarMensagens();
+    }
+
+    public void abortarExecucao(String numero, String motivo) {
+        execution().abortarExecucao(ordem(numero).getId(), motivo);
+        processarMensagens();
     }
 
     public BillingSimulado billing() {
@@ -190,18 +232,6 @@ public class FluxoOficinaHttp {
     /** O Billing expira a cobranca vencida. */
     public void expirarPagamento(String numeroOrcamento) {
         billing().expirarPagamento(numeroOrcamento);
-    }
-
-    public void acao(String numero, String caminho) throws Exception {
-        mvc.perform(post("/ordens-servico/" + numero + caminho).with(ATENDENTE).with(csrf()))
-                .andExpect(status().isNoContent());
-    }
-
-    public void abortarExecucao(String numero, String motivo) throws Exception {
-        mvc.perform(post("/ordens-servico/" + numero + "/execucao/abortar").with(ATENDENTE).with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"motivo\": \"%s\" }".formatted(motivo)))
-                .andExpect(status().isNoContent());
     }
 
     /** Publica o outbox ate esvaziar - inclusive as respostas geradas pelo proprio processamento. */

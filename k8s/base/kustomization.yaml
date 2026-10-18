@@ -8,4 +8,6 @@ resources:
   - serviceaccount.yaml
   - deployment.yaml
   - service.yaml
+  - ingress.yaml
+  - ingress-interno.yaml
   - hpa.yaml

@@ -17,39 +17,25 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import br.com.oficina.ordemservico.application.command.AbortarExecucaoCommand;
 import br.com.oficina.ordemservico.application.command.AlterarOrdemDeServicoCommand;
-import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
-import br.com.oficina.ordemservico.application.command.ConcluirServicoCommand;
 import br.com.oficina.ordemservico.application.command.CriarOrdemDeServicoCommand;
 import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
-import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
-import br.com.oficina.ordemservico.application.command.IniciarExecucaoCommand;
 import br.com.oficina.ordemservico.application.query.AcompanharOrdemDeServicoQuery;
 import br.com.oficina.ordemservico.application.query.ConsultarHistoricoOrdemDeServicoQuery;
 import br.com.oficina.ordemservico.application.query.ConsultarOrdensDeServicoQuery;
 import br.com.oficina.ordemservico.application.query.ConsultarStatusOrdemDeServicoQuery;
-import br.com.oficina.ordemservico.application.usecase.AbortarExecucaoUseCase;
 import br.com.oficina.ordemservico.application.usecase.AcompanharOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.AlterarOrdemDeServicoUseCase;
-import br.com.oficina.ordemservico.application.usecase.ConcluirDiagnosticoUseCase;
-import br.com.oficina.ordemservico.application.usecase.ConcluirServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarHistoricoOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarOrdensDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarStatusOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ConsultarTempoMedioExecucaoUseCase;
 import br.com.oficina.ordemservico.application.usecase.CriarNovaOrdemDeServicoUseCase;
 import br.com.oficina.ordemservico.application.usecase.EntregarAoClienteUseCase;
-import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase;
 import br.com.oficina.ordemservico.application.usecase.ExcluirOrdemDeServicoUseCase;
-import br.com.oficina.ordemservico.application.usecase.IniciarDiagnosticoUseCase;
-import br.com.oficina.ordemservico.application.usecase.IniciarExecucaoUseCase;
-import br.com.oficina.ordemservico.infrastructure.web.request.AbortarExecucaoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.AlterarOrdemDeServicoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.request.CriarOrdemDeServicoRequest;
-import br.com.oficina.ordemservico.infrastructure.web.request.ConcluirDiagnosticoRequest;
-import br.com.oficina.ordemservico.infrastructure.web.request.EnviarDiagnosticoParaOrcamentoRequest;
 import br.com.oficina.ordemservico.infrastructure.web.response.AberturaOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.AcompanhamentoOrdemDeServicoResponse;
 import br.com.oficina.ordemservico.infrastructure.web.response.HistoricoOrdemDeServicoResponse;
@@ -64,49 +50,31 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
 
     private final AlterarOrdemDeServicoUseCase alterarOrdemDeServicoUseCase;
     private final CriarNovaOrdemDeServicoUseCase criarNovaOrdemDeServicoUseCase;
-    private final IniciarDiagnosticoUseCase iniciarDiagnosticoUseCase;
-    private final ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase;
     private final EntregarAoClienteUseCase entregarAoClienteUseCase;
-    private final EnviarDiagnosticoParaOrcamentoUseCase enviarDiagnosticoParaOrcamentoUseCase;
     private final ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase;
     private final ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase;
     private final ConsultarTempoMedioExecucaoUseCase consultarTempoMedioExecucaoUseCase;
     private final AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase;
-    private final IniciarExecucaoUseCase iniciarExecucaoUseCase;
-    private final ConcluirServicoUseCase concluirServicoUseCase;
-    private final AbortarExecucaoUseCase abortarExecucaoUseCase;
     private final ConsultarStatusOrdemDeServicoUseCase consultarStatusOrdemDeServicoUseCase;
     private final ConsultarHistoricoOrdemDeServicoUseCase consultarHistoricoOrdemDeServicoUseCase;
 
     public OrdemDeServicoController(
             AlterarOrdemDeServicoUseCase alterarOrdemDeServicoUseCase,
             CriarNovaOrdemDeServicoUseCase criarNovaOrdemDeServicoUseCase,
-            IniciarDiagnosticoUseCase iniciarDiagnosticoUseCase,
-            ConcluirDiagnosticoUseCase concluirDiagnosticoUseCase,
             EntregarAoClienteUseCase entregarAoClienteUseCase,
-            EnviarDiagnosticoParaOrcamentoUseCase enviarDiagnosticoParaOrcamentoUseCase,
             ExcluirOrdemDeServicoUseCase excluirOrdemDeServicoUseCase,
             ConsultarOrdensDeServicoUseCase consultarOrdensDeServicoUseCase,
             ConsultarTempoMedioExecucaoUseCase consultarTempoMedioExecucaoUseCase,
             AcompanharOrdemDeServicoUseCase acompanharOrdemDeServicoUseCase,
-            IniciarExecucaoUseCase iniciarExecucaoUseCase,
-            ConcluirServicoUseCase concluirServicoUseCase,
-            AbortarExecucaoUseCase abortarExecucaoUseCase,
             ConsultarStatusOrdemDeServicoUseCase consultarStatusOrdemDeServicoUseCase,
             ConsultarHistoricoOrdemDeServicoUseCase consultarHistoricoOrdemDeServicoUseCase) {
         this.alterarOrdemDeServicoUseCase = alterarOrdemDeServicoUseCase;
         this.criarNovaOrdemDeServicoUseCase = criarNovaOrdemDeServicoUseCase;
-        this.iniciarDiagnosticoUseCase = iniciarDiagnosticoUseCase;
-        this.concluirDiagnosticoUseCase = concluirDiagnosticoUseCase;
         this.entregarAoClienteUseCase = entregarAoClienteUseCase;
-        this.enviarDiagnosticoParaOrcamentoUseCase = enviarDiagnosticoParaOrcamentoUseCase;
         this.excluirOrdemDeServicoUseCase = excluirOrdemDeServicoUseCase;
         this.consultarOrdensDeServicoUseCase = consultarOrdensDeServicoUseCase;
         this.consultarTempoMedioExecucaoUseCase = consultarTempoMedioExecucaoUseCase;
         this.acompanharOrdemDeServicoUseCase = acompanharOrdemDeServicoUseCase;
-        this.iniciarExecucaoUseCase = iniciarExecucaoUseCase;
-        this.concluirServicoUseCase = concluirServicoUseCase;
-        this.abortarExecucaoUseCase = abortarExecucaoUseCase;
         this.consultarStatusOrdemDeServicoUseCase = consultarStatusOrdemDeServicoUseCase;
         this.consultarHistoricoOrdemDeServicoUseCase = consultarHistoricoOrdemDeServicoUseCase;
     }
@@ -219,27 +187,6 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{numeroOrdemServico}/diagnostico/iniciar")
-    public ResponseEntity<Void> iniciarDiagnostico(@PathVariable String numeroOrdemServico) {
-        log.info("Recebida requisicao para iniciar diagnostico. numeroOrdemServico={}", numeroOrdemServico);
-        iniciarDiagnosticoUseCase.iniciarDiagnostico(new IniciarDiagnosticoCommand(numeroOrdemServico));
-        log.info("Requisicao para iniciar diagnostico concluida. numeroOrdemServico={}", numeroOrdemServico);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{numeroOrdemServico}/diagnostico/concluir")
-    public ResponseEntity<Void> concluirDiagnostico(
-            @PathVariable String numeroOrdemServico,
-            @RequestBody(required = false) ConcluirDiagnosticoRequest request) {
-        log.info("Recebida requisicao para concluir diagnostico. numeroOrdemServico={}", numeroOrdemServico);
-        ConcluirDiagnosticoCommand command = request == null
-                ? new ConcluirDiagnosticoCommand(numeroOrdemServico)
-                : new ConcluirDiagnosticoCommand(numeroOrdemServico, request.descricaoServico(), request.toPecas());
-        concluirDiagnosticoUseCase.concluirDiagnostico(command);
-        log.info("Requisicao para concluir diagnostico concluida. numeroOrdemServico={}", numeroOrdemServico);
-        return ResponseEntity.noContent().build();
-    }
-
     @GetMapping("/{numeroOrdemServico}")
     public ResponseEntity<StatusOrdemDeServicoResponse> consultarStatus(@PathVariable String numeroOrdemServico) {
         log.info("Recebida requisicao de consulta de status. numeroOrdemServico={}", numeroOrdemServico);
@@ -260,48 +207,6 @@ public class OrdemDeServicoController implements OrdemDeServicoControllerSwagger
         log.info("Requisicao de consulta de historico concluida. numeroOrdemServico={}, alteracoes={}",
                 numeroOrdemServico, response.alteracoes().size());
         return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/{numeroOrdemServico}/execucao/iniciar")
-    public ResponseEntity<Void> iniciarExecucao(@PathVariable String numeroOrdemServico) {
-        log.info("Recebida requisicao para iniciar execucao. numeroOrdemServico={}", numeroOrdemServico);
-        iniciarExecucaoUseCase.iniciarExecucao(new IniciarExecucaoCommand(numeroOrdemServico));
-        log.info("Requisicao para iniciar execucao concluida. numeroOrdemServico={}", numeroOrdemServico);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{numeroOrdemServico}/servico/concluir")
-    public ResponseEntity<Void> concluirServico(@PathVariable String numeroOrdemServico) {
-        log.info("Recebida requisicao para concluir servico. numeroOrdemServico={}", numeroOrdemServico);
-        concluirServicoUseCase.concluirServico(new ConcluirServicoCommand(numeroOrdemServico));
-        log.info("Requisicao para concluir servico concluida. numeroOrdemServico={}", numeroOrdemServico);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{numeroOrdemServico}/execucao/abortar")
-    public ResponseEntity<Void> abortarExecucao(
-            @PathVariable String numeroOrdemServico,
-            @RequestBody AbortarExecucaoRequest request) {
-        log.info("Recebida requisicao para abortar execucao. numeroOrdemServico={}", numeroOrdemServico);
-        abortarExecucaoUseCase.abortarExecucao(new AbortarExecucaoCommand(numeroOrdemServico, request == null ? null : request.motivo()));
-        log.info("Requisicao para abortar execucao concluida. numeroOrdemServico={}", numeroOrdemServico);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{numeroOrdemServico}/diagnostico/enviar-para-orcamento")
-    public ResponseEntity<Void> enviarDiagnosticoParaOrcamento(
-            @PathVariable String numeroOrdemServico,
-            @RequestBody EnviarDiagnosticoParaOrcamentoRequest request) {
-        log.info("Recebida requisicao para enviar diagnostico para orcamento. numeroOrdemServico={}", numeroOrdemServico);
-        enviarDiagnosticoParaOrcamentoUseCase.enviarDiagnosticoParaOrcamento(
-                new EnviarDiagnosticoParaOrcamentoUseCase.EnviarDiagnosticoParaOrcamentoRequest(
-                        numeroOrdemServico,
-                        request.valorMaoDeObra(),
-                        request.desconto(),
-                        request.validade(),
-                        request.observacoes()));
-        log.info("Requisicao para enviar diagnostico para orcamento aceita. numeroOrdemServico={}", numeroOrdemServico);
-        return ResponseEntity.accepted().build();
     }
 
     @PostMapping("/{numeroOrdemServico}/entrega")

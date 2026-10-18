@@ -5,8 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,66 +13,40 @@ import org.junit.jupiter.api.Test;
 import br.com.oficina.cliente.domain.model.Cliente;
 import br.com.oficina.cliente.domain.model.TipoCliente;
 import br.com.oficina.common.domain.exception.RecursoNaoEncontradoException;
-import br.com.oficina.ordemservico.application.command.ConcluirDiagnosticoCommand;
-import br.com.oficina.ordemservico.application.command.ConcluirServicoCommand;
 import br.com.oficina.ordemservico.application.command.EntregarAoClienteCommand;
 import br.com.oficina.ordemservico.application.command.ExcluirOrdemDeServicoCommand;
-import br.com.oficina.ordemservico.application.command.IniciarDiagnosticoCommand;
-import br.com.oficina.ordemservico.application.command.IniciarExecucaoCommand;
-import br.com.oficina.ordemservico.application.usecase.EnviarDiagnosticoParaOrcamentoUseCase.EnviarDiagnosticoParaOrcamentoRequest;
 import br.com.oficina.ordemservico.domain.model.Funcionario;
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.model.PecaPrevistaOrdem;
+import br.com.oficina.ordemservico.domain.model.ServicoOrdem;
 import br.com.oficina.ordemservico.domain.model.StatusOrdemDeServico;
-import br.com.oficina.pecainsumo.domain.model.CategoriaPeca;
-import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
-import br.com.oficina.ponte.CatalogoDePecasDoEstoque;
-import br.com.oficina.ordemservico.saga.application.PassosDaSaga;
-import br.com.oficina.support.persistence.TestClienteRepository;
 import br.com.oficina.support.persistence.TestOrdemDeServicoRepository;
-import br.com.oficina.support.persistence.TestPecaInsumoRepository;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 
+/**
+ * O que ainda e acao direta do OS Service no fim do ciclo da ordem: entrega ao cliente e exclusao.
+ * Diagnostico, orcamento, pagamento e execucao chegam a ordem pela Saga, por eventos da Execution e do
+ * Billing (coberto no {@code OrquestradorSagaOrdemServicoTest} e no BDD); aqui essas reacoes sao
+ * simuladas chamando o agregado.
+ */
 class FluxoOrdemDeServicoServicesTest {
 
-    private static final String PECA_ID = "peca-oleo-001";
-
     @Test
-    void deveIniciarConcluirFinalizarEntregarEExcluirOrdemDeServico() {
-        UUID clienteId = UUID.fromString("61111111-1111-1111-1111-111111111111");
+    void deveEntregarAoClienteEExcluirUmaOrdemFinalizada() {
         TestOrdemDeServicoRepository repository = new TestOrdemDeServicoRepository();
-        TestClienteRepository clienteRepository = new TestClienteRepository();
-        TestPecaInsumoRepository pecaInsumoRepository = new TestPecaInsumoRepository();
-        clienteRepository.salvar(Cliente.reconstituir(clienteId, "Maria", "20110101103", TipoCliente.PF));
-        pecaInsumoRepository.salvar(new PecaInsumo(PECA_ID, "Oleo 5W30", "Castrol", new BigDecimal("150.00"), 10, 0, "REF-OLEO", CategoriaPeca.LUBRIFICANTES));
-        repository.salvar(novaOrdem("OS-001"));
+        OrdemDeServico ordem = novaOrdem("OS-001");
+        ordem.iniciarDiagnostico();
+        ordem.registrarDiagnostico(List.of(new ServicoOrdem("Troca de oleo", new java.math.BigDecimal("120.00"))),
+                List.of(new PecaPrevistaOrdem("peca-oleo-001", 1)));
+        ordem.enviarParaAprovacao();
+        ordem.aguardarPagamento();
+        ordem.confirmarPagamento();
+        ordem.iniciarExecucao();
+        ordem.concluirServico();
+        repository.salvar(ordem);
 
-        new IniciarDiagnosticoService(repository).iniciarDiagnostico(new IniciarDiagnosticoCommand("OS-001"));
-        new ConcluirDiagnosticoService(repository, event -> {}, new CatalogoDePecasDoEstoque(pecaInsumoRepository))
-                .concluirDiagnostico(new ConcluirDiagnosticoCommand(
-                        "OS-001",
-                        "Troca de oleo",
-                        List.of(new ConcluirDiagnosticoCommand.PecaDiagnosticoInput(PECA_ID, 1))));
-        new EnviarDiagnosticoParaOrcamentoService(repository, PassosDaSaga.NENHUM)
-                .enviarDiagnosticoParaOrcamento(new EnviarDiagnosticoParaOrcamentoRequest(
-                        "OS-001",
-                        new BigDecimal("200.00"),
-                        BigDecimal.ZERO,
-                        LocalDateTime.of(2030, 1, 1, 0, 0),
-                        null));
-        // Fase 4: orcamento gerado, aprovado, pecas reservadas e pagamento confirmado chegam a OS pela
-        // Saga (coberto no OrquestradorSagaOrdemServicoTest e no BDD); aqui essas reacoes sao simuladas.
-        OrdemDeServico paga = repository.buscarPorNumero("OS-001").orElseThrow();
-        paga.enviarParaAprovacao();
-        paga.aguardarPagamento();
-        paga.confirmarPagamento();
-        repository.salvar(paga);
-        new IniciarExecucaoService(repository, event -> {})
-                .iniciarExecucao(new IniciarExecucaoCommand("OS-001"));
-        new ConcluirServicoService(repository, event -> {})
-                .concluirServico(new ConcluirServicoCommand("OS-001"));
-        new EntregarAoClienteService(repository)
-                .entregarAoCliente(new EntregarAoClienteCommand("OS-001"));
+        new EntregarAoClienteService(repository).entregarAoCliente(new EntregarAoClienteCommand("OS-001"));
 
         OrdemDeServico ordemAtualizada = repository.buscarPorNumero("OS-001").orElseThrow();
         assertEquals(StatusOrdemDeServico.ENTREGUE, ordemAtualizada.getStatus());

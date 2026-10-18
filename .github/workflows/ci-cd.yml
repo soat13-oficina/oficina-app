@@ -361,40 +361,66 @@ jobs:
       - name: Aguarda rollout da aplicacao
         run: kubectl -n "$NAMESPACE" rollout status deployment/oficina-api --timeout=300s
 
-      - name: Evidencias do deploy (pods, service, HPA, URL publica)
+      # O ALB e criado pelo AWS Load Balancer Controller (oficina-infra-k8s) a partir dos Ingress do
+      # ambiente e leva alguns minutos; o hostname aparece no status do Ingress quando ele fica pronto.
+      - name: Descobre o hostname do ALB
+        id: alb
         run: |
-          kubectl -n "$NAMESPACE" get pods,svc,hpa,resourcequota
+          for TENTATIVA in $(seq 1 40); do
+            ALB=$(kubectl -n "$NAMESPACE" get ingress oficina-api               -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+            if [ -n "$ALB" ]; then
+              echo "hostname=$ALB" >> "$GITHUB_OUTPUT"
+              echo "ALB (${AMBIENTE}): http://${ALB}"
+              exit 0
+            fi
+            echo "Tentativa $TENTATIVA: o Ingress ainda nao tem hostname (o controller leva ~3 min)."
+            sleep 10
+          done
+          echo "::error::O Ingress oficina-api nao ganhou hostname em ~7 min. O AWS Load Balancer Controller esta instalado (oficina-infra-k8s)?"
+          kubectl -n "$NAMESPACE" describe ingress oficina-api
+          exit 1
+
+      # Liga o deploy ao API Gateway sem edicao manual (ADR 0008): o Terraform do oficina-lambda-auth
+      # le este parametro. O ALB e um so por ambiente (IngressGroup), entao Billing e Execution gravam o mesmo valor.
+      - name: Publica a URL do ALB no SSM
+        env:
+          ALB: ${{ steps.alb.outputs.hostname }}
+        run: |
+          aws ssm put-parameter --name "/oficina/${AMBIENTE}/alb-url"             --type String --overwrite --value "http://${ALB}"
+
+      - name: Evidencias do deploy (pods, service, ingress, HPA, URL publica)
+        env:
+          ALB: ${{ steps.alb.outputs.hostname }}
+        run: |
+          kubectl -n "$NAMESPACE" get pods,svc,ingress,hpa,resourcequota
           kubectl -n "$NAMESPACE" top pods || echo "metrics-server ainda sem amostras coletadas"
-          NLB=$(kubectl -n "$NAMESPACE" get svc oficina-api \
-            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          echo "URL do NLB (${AMBIENTE}): http://${NLB}"
           {
             echo "## Deploy em \`${AMBIENTE}\`"
             echo ""
             echo "- Namespace: \`${NAMESPACE}\`"
             echo "- Imagem: \`${{ needs.build.outputs.tag }}\`"
-            echo "- NLB: http://${NLB}"
+            echo "- ALB: http://${ALB} (gravado em \`/oficina/${AMBIENTE}/alb-url\` no SSM)"
             echo ""
-            echo "Preencha \`app_base_url\` do ambiente \`${AMBIENTE}\` em oficina-lambda-auth com essa URL para publicar a rota proxy do API Gateway."
+            echo "O \`oficina-lambda-auth\` le essa URL do SSM: basta aplica-lo depois dos deploys, sem preencher \`app_base_url\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Confirma que a aplicacao responde de fato, e nao apenas que o rollout
-      # terminou: um pod pode ficar Ready e o NLB ainda nao ter alvos saudaveis.
-      - name: Healthcheck pelo NLB
+      # Confirma que a aplicacao responde de fato pelo ALB, e nao apenas que o rollout terminou: um pod
+      # pode ficar Ready e o ALB ainda nao ter alvos saudaveis. Rota protegida sem token: 401/403 prova
+      # que a requisicao chegou ao OS (o 404 do ALB, sem regra, nao conta).
+      - name: Healthcheck pelo ALB
+        env:
+          ALB: ${{ steps.alb.outputs.hostname }}
         run: |
-          NLB=$(kubectl -n "$NAMESPACE" get svc oficina-api \
-            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           for TENTATIVA in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
-              "http://${NLB}/actuator/health" || true)
-            if [ "$STATUS" = "200" ]; then
-              echo "Aplicacao respondendo (HTTP 200) na tentativa $TENTATIVA."
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10               "http://${ALB}/sagas/00000000-0000-0000-0000-000000000000" || true)
+            if [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ] || [ "$STATUS" = "200" ]; then
+              echo "Aplicacao respondendo pelo ALB (HTTP ${STATUS}) na tentativa $TENTATIVA."
               exit 0
             fi
-            echo "Tentativa $TENTATIVA: HTTP ${STATUS:-sem resposta} - o NLB leva ~2 min para registrar os alvos."
+            echo "Tentativa $TENTATIVA: HTTP ${STATUS:-sem resposta} - o ALB leva ~2 min para registrar os alvos."
             sleep 15
           done
-          echo "::error::Aplicacao nao respondeu 200 em /actuator/health apos ~7 min."
+          echo "::error::Aplicacao nao respondeu pelo ALB apos ~7 min."
           kubectl -n "$NAMESPACE" describe deployment/oficina-api
           kubectl -n "$NAMESPACE" logs -l app=oficina-api --tail=100
           exit 1

@@ -27,6 +27,9 @@ class SagaOrdemServicoTest {
     private static final List<MensagensSaga.ItemPeca> ITENS = List.of(new MensagensSaga.ItemPeca("filtro-oleo", 2));
     private static final MensagensSaga.GerarOrcamento PEDIDO = new MensagensSaga.GerarOrcamento(
             "OS-1", null, null, null, "Troca de oleo", List.of(), ITENS, new BigDecimal("200.00"), null, null, null);
+    private static final MensagensSaga.EnfileirarDiagnostico FILA = new MensagensSaga.EnfileirarDiagnostico(
+            "OS-1", new MensagensSaga.Veiculo("ABC1D23", "Toyota", "Corolla", 2020), List.of(), List.of(),
+            Instant.parse("2026-10-15T13:00:00Z"));
     private static final Instant EXPIRA_PAGAMENTO = Instant.parse("2026-10-16T16:00:00Z");
     private static final String LINK = "https://pagamento-simulado.oficina.local/checkout/1";
 
@@ -34,9 +37,22 @@ class SagaOrdemServicoTest {
     private final UUID orcamento = UUID.randomUUID();
     private final UUID pagamento = UUID.randomUUID();
 
+    /** Aberta, com o EnfileirarDiagnostico ainda por enviar. */
+    private SagaOrdemServico aberta() {
+        return SagaOrdemServico.iniciar(ordem, FILA, T0, CINCO_MINUTOS);
+    }
+
+    /** Fila de diagnostico confirmada: a Saga espera o mecanico, sem prazo. */
+    private SagaOrdemServico aguardandoMecanico() {
+        SagaOrdemServico saga = aberta();
+        saga.descarregarComandos();
+        saga.diagnosticoEnfileirado(T0);
+        return saga;
+    }
+
     private SagaOrdemServico gerandoOrcamento() {
-        SagaOrdemServico saga = SagaOrdemServico.iniciar(ordem, T0);
-        saga.solicitarOrcamento(PEDIDO, T0, CINCO_MINUTOS);
+        SagaOrdemServico saga = aguardandoMecanico();
+        saga.diagnosticoConcluido(PEDIDO, T0, CINCO_MINUTOS);
         return saga;
     }
 
@@ -69,25 +85,71 @@ class SagaOrdemServicoTest {
 
     private SagaOrdemServico emExecucao() {
         SagaOrdemServico saga = aguardandoPagamento();
-        saga.pagamentoConfirmado(pagamento, T0.plusHours(2));
+        saga.pagamentoConfirmado(pagamento, T0.plusHours(2), CINCO_MINUTOS);
+        saga.execucaoEnfileirada(T0.plusHours(2));
+        saga.descarregarComandos();
         saga.execucaoIniciada(T0.plusHours(3));
         return saga;
     }
 
+    /** Pago, com o EnfileirarExecucao ainda sem resposta. */
+    private SagaOrdemServico enfileirandoExecucao() {
+        SagaOrdemServico saga = aguardandoPagamento();
+        saga.pagamentoConfirmado(pagamento, T0.plusHours(2), CINCO_MINUTOS);
+        saga.descarregarComandos();
+        return saga;
+    }
+
     @Test
-    void sagaNovaAguardaODiagnostico() {
-        SagaOrdemServico saga = SagaOrdemServico.iniciar(ordem, T0);
+    void sagaNovaMandaAOsParaAFilaDeDiagnosticoEVigiaAResposta() {
+        SagaOrdemServico saga = aberta();
 
         assertThat(saga.getId()).isNotNull();
         assertThat(saga.getOrdemDeServicoId()).isEqualTo(ordem);
         assertThat(saga.getStatus()).isEqualTo(StatusSaga.AGUARDANDO_DIAGNOSTICO);
         assertThat(saga.getPassoAtual()).isEqualTo(PassoSaga.DIAGNOSTICO);
         assertThat(saga.getCriadaEm()).isEqualTo(T0);
+        assertThat(saga.getPrazoExpiraEm()).as("prazo de resposta da fila").isEqualTo(T0.plus(CINCO_MINUTOS));
+        assertThat(saga.aguardandoConfirmacaoDaFila()).isTrue();
+        assertThat(saga.descarregarComandos()).containsExactly(
+                new ComandoSaga(MensagensSaga.ENFILEIRAR_DIAGNOSTICO, Filas.EXECUTION_COMMANDS, FILA));
+    }
+
+    @Test
+    void filaConfirmadaDeixaAOsEsperandoOMecanicoSemPrazo() {
+        SagaOrdemServico saga = aguardandoMecanico();
+
+        assertThat(saga.getStatus()).isEqualTo(StatusSaga.AGUARDANDO_DIAGNOSTICO);
+        assertThat(saga.getPrazoExpiraEm()).as("o diagnostico depende do mecanico").isNull();
+        assertThat(saga.aguardandoConfirmacaoDaFila()).isFalse();
+        assertThat(saga.prazoVencido(T0.plusYears(1))).isFalse();
+        assertThat(saga.descarregarComandos()).isEmpty();
+    }
+
+    @Test
+    void filaDeDiagnosticoSemRespostaEhReenviadaAteOLimiteEDepoisExigeAcaoManual() {
+        SagaOrdemServico saga = aberta();
+        saga.descarregarComandos();
+        LocalDateTime agora = T0;
+
+        for (int tentativa = 1; tentativa <= 3; tentativa++) {
+            agora = agora.plusMinutes(6);
+            assertThat(saga.reenviarComandoDeAvanco(agora, CINCO_MINUTOS, 3)).isTrue();
+            assertThat(saga.descarregarComandos())
+                    .containsExactly(ComandoSaga.reenvio(MensagensSaga.ENFILEIRAR_DIAGNOSTICO, Filas.EXECUTION_COMMANDS));
+        }
+        assertThat(saga.reenviarComandoDeAvanco(agora.plusMinutes(6), CINCO_MINUTOS, 3)).isFalse();
+
+        saga.filaSemConfirmacao("Execution nao confirmou a fila", agora.plusMinutes(6));
+
+        assertThat(saga.getStatus()).isEqualTo(StatusSaga.FALHA_COMPENSACAO);
+        assertThat(saga.getPassoAtual()).isEqualTo(PassoSaga.FIM);
+        assertThat(saga.getMotivo()).isEqualTo("Execution nao confirmou a fila");
         assertThat(saga.getPrazoExpiraEm()).isNull();
     }
 
     @Test
-    void envioParaOrcamentoMandaGerarOrcamentoEEsperaAResposta() {
+    void diagnosticoConcluidoMandaGerarOrcamentoEEsperaAResposta() {
         SagaOrdemServico saga = gerandoOrcamento();
 
         assertThat(saga.getStatus()).isEqualTo(StatusSaga.GERANDO_ORCAMENTO);
@@ -110,26 +172,51 @@ class SagaOrdemServicoTest {
     }
 
     @Test
-    void orcamentoQueFalhaVoltaAEsperarODiagnosticoEPodeSerPedidoDeNovo() {
+    void orcamentoQueFalhaReabreODiagnosticoEVoltaAEsperarOMecanicoQuandoAExecutionConfirma() {
         SagaOrdemServico saga = gerandoOrcamento();
+        saga.descarregarComandos();
 
-        saga.orcamentoFalhou("Peca inexistente: X", T0.plusMinutes(1));
+        saga.orcamentoFalhou("Peca inexistente: X", List.of("X"), T0.plusMinutes(1), CINCO_MINUTOS);
+
+        assertThat(saga.getStatus()).isEqualTo(StatusSaga.COMPENSANDO);
+        assertThat(saga.getDesfecho()).isEqualTo(StatusSaga.AGUARDANDO_DIAGNOSTICO);
+        assertThat(saga.getMotivo()).isEqualTo("Peca inexistente: X");
+        assertThat(saga.getCompensacoesPendentes()).containsExactly(MensagensSaga.DIAGNOSTICO_REABERTO);
+        assertThat(saga.getPrazoExpiraEm()).isEqualTo(T0.plusMinutes(1).plus(CINCO_MINUTOS));
+        assertThat(saga.descarregarComandos()).containsExactly(new ComandoSaga(
+                MensagensSaga.REABRIR_DIAGNOSTICO, Filas.EXECUTION_COMMANDS,
+                new MensagensSaga.ReabrirDiagnostico("Peca inexistente: X", List.of("X"))));
+
+        saga.compensacaoConfirmada(MensagensSaga.DIAGNOSTICO_REABERTO, T0.plusMinutes(2), null);
 
         assertThat(saga.getStatus()).isEqualTo(StatusSaga.AGUARDANDO_DIAGNOSTICO);
         assertThat(saga.getPassoAtual()).isEqualTo(PassoSaga.DIAGNOSTICO);
+        assertThat(saga.getDesfecho()).isNull();
+        assertThat(saga.getPrazoExpiraEm()).as("o mecanico nao tem prazo").isNull();
         assertThat(saga.getMotivo()).isEqualTo("Peca inexistente: X");
-        assertThat(saga.getPrazoExpiraEm()).isNull();
 
-        saga.solicitarOrcamento(PEDIDO, T0.plusHours(1), CINCO_MINUTOS);
-        assertThat(saga.getStatus()).isEqualTo(StatusSaga.GERANDO_ORCAMENTO);
-        assertThat(saga.getMotivo()).as("novo envio limpa o motivo da falha").isNull();
+        saga.diagnosticoConcluido(PEDIDO, T0.plusHours(1), CINCO_MINUTOS);
+        assertThat(saga.getStatus()).as("novo diagnostico, novo orcamento").isEqualTo(StatusSaga.GERANDO_ORCAMENTO);
+        assertThat(saga.getMotivo()).as("novo orcamento limpa o motivo da falha").isNull();
+    }
+
+    @Test
+    void reaberturaSemConfirmacaoEPedidaDeNovoComOMesmoPayload() {
+        SagaOrdemServico saga = gerandoOrcamento();
+        saga.orcamentoFalhou("Billing nao respondeu", null, T0.plusMinutes(1), CINCO_MINUTOS);
+        saga.descarregarComandos();
+
+        assertThat(saga.respostaDaCompensacaoNaoChegou(T0.plusMinutes(8), CINCO_MINUTOS, 3)).isTrue();
+
+        assertThat(saga.descarregarComandos())
+                .containsExactly(ComandoSaga.reenvio(MensagensSaga.REABRIR_DIAGNOSTICO, Filas.EXECUTION_COMMANDS));
     }
 
     @Test
     void motivoLongoEhTruncado() {
         SagaOrdemServico saga = gerandoOrcamento();
 
-        saga.orcamentoFalhou("x".repeat(300), T0);
+        saga.orcamentoFalhou("x".repeat(300), null, T0, CINCO_MINUTOS);
 
         assertThat(saga.getMotivo()).hasSize(255).endsWith("...");
     }
@@ -159,9 +246,17 @@ class SagaOrdemServicoTest {
         assertThat(saga.getLinkPagamento()).isEqualTo(LINK);
         assertThat(saga.getPrazoExpiraEm()).as("prazo do pagamento + margem").isEqualTo(T0.plusDays(1));
 
-        saga.pagamentoConfirmado(pagamento, T0.plusHours(2));
+        saga.pagamentoConfirmado(pagamento, T0.plusHours(2), CINCO_MINUTOS);
         assertThat(saga.getStatus()).isEqualTo(StatusSaga.AGUARDANDO_EXECUCAO);
-        assertThat(saga.getPrazoExpiraEm()).as("pago, nada mais vence").isNull();
+        assertThat(saga.getPassoAtual()).isEqualTo(PassoSaga.EXECUCAO);
+        assertThat(saga.getPrazoExpiraEm()).as("vigia a resposta da fila de execucao").isEqualTo(T0.plusHours(2).plus(CINCO_MINUTOS));
+        assertThat(saga.aguardandoConfirmacaoDaFila()).isTrue();
+        assertThat(saga.descarregarComandos()).containsExactly(new ComandoSaga(
+                MensagensSaga.ENFILEIRAR_EXECUCAO, Filas.EXECUTION_COMMANDS, new MensagensSaga.EnfileirarExecucao(orcamento)));
+
+        saga.execucaoEnfileirada(T0.plusHours(2));
+        assertThat(saga.getStatus()).isEqualTo(StatusSaga.AGUARDANDO_EXECUCAO);
+        assertThat(saga.getPrazoExpiraEm()).as("na fila, a execucao e do mecanico").isNull();
 
         saga.execucaoIniciada(T0.plusHours(3));
         assertThat(saga.getStatus()).isEqualTo(StatusSaga.EM_EXECUCAO);
@@ -175,20 +270,28 @@ class SagaOrdemServicoTest {
     }
 
     @Test
-    void rejeicaoEncerraSemExecucaoENaoCompensaNada() {
+    void rejeicaoEncerraSemExecucaoDepoisDeCancelarAExecucao() {
         SagaOrdemServico saga = aguardandoDecisao();
 
-        saga.orcamentoRejeitado(orcamento, T0.plusHours(1));
+        saga.orcamentoRejeitado(orcamento, T0.plusHours(1), CINCO_MINUTOS);
+
+        assertThat(saga.getStatus()).isEqualTo(StatusSaga.COMPENSANDO);
+        assertThat(saga.getDesfecho()).isEqualTo(StatusSaga.ENCERRADA_SEM_EXECUCAO);
+        assertThat(saga.getMotivo()).isEqualTo("ORCAMENTO_RECUSADO");
+        assertThat(saga.getCompensacoesPendentes()).containsExactly(MensagensSaga.EXECUCAO_CANCELADA);
+        assertThat(saga.descarregarComandos()).containsExactly(new ComandoSaga(
+                MensagensSaga.CANCELAR_EXECUCAO, Filas.EXECUTION_COMMANDS, new MensagensSaga.CancelarExecucao("ORCAMENTO_RECUSADO")));
+
+        saga.compensacaoConfirmada(MensagensSaga.EXECUCAO_CANCELADA, T0.plusHours(2), null);
 
         assertThat(saga.getStatus()).isEqualTo(StatusSaga.ENCERRADA_SEM_EXECUCAO);
-        assertThat(saga.getMotivo()).isEqualTo("ORCAMENTO_RECUSADO");
         assertThat(saga.getPrazoExpiraEm()).isNull();
         assertThat(saga.prazoVencido(T0.plusYears(1))).isFalse();
         assertThat(saga.descarregarComandos()).isEmpty();
     }
 
     @Test
-    void prazoDeDecisaoVencidoPedeOCancelamentoDoOrcamentoEEsperaAConfirmacao() {
+    void prazoDeDecisaoVencidoPedeOCancelamentoDoOrcamentoEDaExecucaoEEsperaAsConfirmacoes() {
         SagaOrdemServico saga = aguardandoDecisao();
         LocalDateTime vencimento = T0.plusDays(8);
 
@@ -198,14 +301,19 @@ class SagaOrdemServicoTest {
         assertThat(saga.getPassoAtual()).isEqualTo(PassoSaga.COMPENSACAO);
         assertThat(saga.getDesfecho()).isEqualTo(StatusSaga.ENCERRADA_SEM_EXECUCAO);
         assertThat(saga.getMotivo()).isEqualTo("ORCAMENTO_EXPIRADO");
-        assertThat(saga.getCompensacoesPendentes()).containsExactly(MensagensSaga.ORCAMENTO_CANCELADO);
+        assertThat(saga.getCompensacoesPendentes())
+                .containsExactlyInAnyOrder(MensagensSaga.ORCAMENTO_CANCELADO, MensagensSaga.EXECUCAO_CANCELADA);
         assertThat(saga.getPrazoExpiraEm()).isEqualTo(vencimento.plus(CINCO_MINUTOS));
-        assertThat(saga.descarregarComandos()).containsExactly(new ComandoSaga(
-                MensagensSaga.CANCELAR_ORCAMENTO, Filas.BILLING_COMMANDS,
-                new MensagensSaga.CancelarOrcamento(orcamento, "ORCAMENTO_EXPIRADO")));
+        assertThat(saga.descarregarComandos()).containsExactly(
+                new ComandoSaga(MensagensSaga.CANCELAR_EXECUCAO, Filas.EXECUTION_COMMANDS,
+                        new MensagensSaga.CancelarExecucao("ORCAMENTO_EXPIRADO")),
+                new ComandoSaga(MensagensSaga.CANCELAR_ORCAMENTO, Filas.BILLING_COMMANDS,
+                        new MensagensSaga.CancelarOrcamento(orcamento, "ORCAMENTO_EXPIRADO")));
         assertThat(saga.descarregarComandos()).as("descarregar esvazia").isEmpty();
 
         saga.compensacaoConfirmada(MensagensSaga.ORCAMENTO_CANCELADO, vencimento.plusMinutes(1), null);
+        assertThat(saga.getStatus()).as("falta a execucao").isEqualTo(StatusSaga.COMPENSANDO);
+        saga.compensacaoConfirmada(MensagensSaga.EXECUCAO_CANCELADA, vencimento.plusMinutes(2), null);
 
         assertThat(saga.getStatus()).isEqualTo(StatusSaga.ENCERRADA_SEM_EXECUCAO);
         assertThat(saga.getPassoAtual()).isEqualTo(PassoSaga.FIM);
@@ -269,7 +377,7 @@ class SagaOrdemServicoTest {
 
     @ParameterizedTest
     @EnumSource(value = MotivoEncerramento.class, names = {"PAGAMENTO_RECUSADO", "PAGAMENTO_EXPIRADO"})
-    void pagamentoNaoConcluidoLiberaAsPecasECancelaOOrcamento(MotivoEncerramento motivo) {
+    void pagamentoNaoConcluidoLiberaAsPecasECancelaOOrcamentoEAExecucao(MotivoEncerramento motivo) {
         SagaOrdemServico saga = aguardandoPagamento();
         LocalDateTime agora = T0.plusHours(5);
 
@@ -280,6 +388,8 @@ class SagaOrdemServicoTest {
         assertThat(saga.getDesfecho()).isEqualTo(StatusSaga.COMPENSADA);
         assertThat(saga.getMotivo()).isEqualTo(motivo.name());
         assertThat(saga.descarregarComandos()).containsExactly(
+                new ComandoSaga(MensagensSaga.CANCELAR_EXECUCAO, Filas.EXECUTION_COMMANDS,
+                        new MensagensSaga.CancelarExecucao(motivo.name())),
                 new ComandoSaga(MensagensSaga.CANCELAR_ORCAMENTO, Filas.BILLING_COMMANDS,
                         new MensagensSaga.CancelarOrcamento(orcamento, motivo.name())),
                 new ComandoSaga(MensagensSaga.LIBERAR_RESERVA, Filas.EXECUTION_COMMANDS,
@@ -287,6 +397,8 @@ class SagaOrdemServicoTest {
 
         saga.compensacaoConfirmada(MensagensSaga.ORCAMENTO_CANCELADO, agora.plusMinutes(1), null);
         saga.compensacaoConfirmada(MensagensSaga.RESERVA_LIBERADA, agora.plusMinutes(2), null);
+        assertThat(saga.getStatus()).as("falta a execucao").isEqualTo(StatusSaga.COMPENSANDO);
+        saga.compensacaoConfirmada(MensagensSaga.EXECUCAO_CANCELADA, agora.plusMinutes(3), null);
 
         assertThat(saga.getStatus()).isEqualTo(StatusSaga.COMPENSADA);
         assertThat(saga.getPassoAtual()).isEqualTo(PassoSaga.FIM);
@@ -363,7 +475,8 @@ class SagaOrdemServicoTest {
             agora = agora.plusMinutes(6);
             assertThat(saga.respostaDaCompensacaoNaoChegou(agora, CINCO_MINUTOS, 3)).isTrue();
             assertThat(saga.getTentativasPasso()).isEqualTo(tentativa);
-            assertThat(saga.descarregarComandos()).extracting(ComandoSaga::tipo).containsExactly(MensagensSaga.CANCELAR_ORCAMENTO);
+            assertThat(saga.descarregarComandos()).extracting(ComandoSaga::tipo)
+                    .containsExactly(MensagensSaga.CANCELAR_EXECUCAO, MensagensSaga.CANCELAR_ORCAMENTO);
         }
 
         assertThat(saga.respostaDaCompensacaoNaoChegou(agora.plusMinutes(6), CINCO_MINUTOS, 3)).isFalse();
@@ -409,6 +522,24 @@ class SagaOrdemServicoTest {
     }
 
     @Test
+    void filaDeExecucaoSemRespostaEhReenviadaEDepoisExigeAcaoManual() {
+        SagaOrdemServico saga = enfileirandoExecucao();
+        LocalDateTime agora = T0.plusHours(3);
+
+        for (int tentativa = 1; tentativa <= 3; tentativa++) {
+            agora = agora.plusMinutes(6);
+            assertThat(saga.reenviarComandoDeAvanco(agora, CINCO_MINUTOS, 3)).isTrue();
+            assertThat(saga.descarregarComandos())
+                    .containsExactly(ComandoSaga.reenvio(MensagensSaga.ENFILEIRAR_EXECUCAO, Filas.EXECUTION_COMMANDS));
+        }
+        assertThat(saga.reenviarComandoDeAvanco(agora.plusMinutes(6), CINCO_MINUTOS, 3)).isFalse();
+
+        saga.filaSemConfirmacao("Execution nao confirmou a fila", agora.plusMinutes(6));
+
+        assertThat(saga.getStatus()).isEqualTo(StatusSaga.FALHA_COMPENSACAO);
+    }
+
+    @Test
     void semComandoAguardandoRespostaNaoHaReenvio() {
         SagaOrdemServico decisao = aguardandoDecisao();
         SagaOrdemServico comCobranca = aguardandoPagamento();
@@ -421,13 +552,14 @@ class SagaOrdemServicoTest {
 
     @Test
     void eventosForaDeOrdemSaoRecusadosSemMudarNada() {
-        SagaOrdemServico saga = SagaOrdemServico.iniciar(ordem, T0);
+        SagaOrdemServico saga = aberta();
+        saga.descarregarComandos();
 
         assertThatThrownBy(() -> saga.orcamentoGerado(orcamento, T0, T0)).isInstanceOf(TransicaoSagaInvalidaException.class);
-        assertThatThrownBy(() -> saga.orcamentoFalhou("x", T0)).isInstanceOf(TransicaoSagaInvalidaException.class);
+        assertThatThrownBy(() -> saga.orcamentoFalhou("x", null, T0, CINCO_MINUTOS)).isInstanceOf(TransicaoSagaInvalidaException.class);
         assertThatThrownBy(() -> saga.orcamentoAprovado(orcamento, ITENS, T0, CINCO_MINUTOS))
                 .isInstanceOf(TransicaoSagaInvalidaException.class);
-        assertThatThrownBy(() -> saga.orcamentoRejeitado(orcamento, T0)).isInstanceOf(TransicaoSagaInvalidaException.class);
+        assertThatThrownBy(() -> saga.orcamentoRejeitado(orcamento, T0, CINCO_MINUTOS)).isInstanceOf(TransicaoSagaInvalidaException.class);
         assertThatThrownBy(() -> saga.prazoDecisaoVencido(T0, CINCO_MINUTOS)).isInstanceOf(TransicaoSagaInvalidaException.class);
         assertThatThrownBy(() -> saga.pecasReservadas(EXPIRA_PAGAMENTO, T0, CINCO_MINUTOS))
                 .isInstanceOf(TransicaoSagaInvalidaException.class);
@@ -435,9 +567,10 @@ class SagaOrdemServicoTest {
                 .isInstanceOf(TransicaoSagaInvalidaException.class);
         assertThatThrownBy(() -> saga.reservaSemResposta(T0, CINCO_MINUTOS)).isInstanceOf(TransicaoSagaInvalidaException.class);
         assertThatThrownBy(() -> saga.pagamentoSolicitado(pagamento, LINK, T0, T0)).isInstanceOf(TransicaoSagaInvalidaException.class);
-        assertThatThrownBy(() -> saga.pagamentoConfirmado(pagamento, T0)).isInstanceOf(TransicaoSagaInvalidaException.class);
+        assertThatThrownBy(() -> saga.pagamentoConfirmado(pagamento, T0, CINCO_MINUTOS)).isInstanceOf(TransicaoSagaInvalidaException.class);
         assertThatThrownBy(() -> saga.pagamentoNaoConcluido(MotivoEncerramento.PAGAMENTO_RECUSADO, T0, CINCO_MINUTOS))
                 .isInstanceOf(TransicaoSagaInvalidaException.class);
+        assertThatThrownBy(() -> saga.execucaoEnfileirada(T0)).isInstanceOf(TransicaoSagaInvalidaException.class);
         assertThatThrownBy(() -> saga.execucaoIniciada(T0)).isInstanceOf(TransicaoSagaInvalidaException.class);
         assertThatThrownBy(() -> saga.execucaoConcluida(T0)).isInstanceOf(TransicaoSagaInvalidaException.class);
         assertThatThrownBy(() -> saga.execucaoFalhou(T0, CINCO_MINUTOS)).isInstanceOf(TransicaoSagaInvalidaException.class);
@@ -454,10 +587,10 @@ class SagaOrdemServicoTest {
     }
 
     @Test
-    void orcamentoSoPodeSerPedidoUmaVezEnquantoAguardaAResposta() {
+    void diagnosticoSoPodeGerarOrcamentoUmaVezEnquantoAguardaAResposta() {
         SagaOrdemServico saga = gerandoOrcamento();
 
-        assertThatThrownBy(() -> saga.solicitarOrcamento(PEDIDO, T0, CINCO_MINUTOS)).isInstanceOf(TransicaoSagaInvalidaException.class);
+        assertThatThrownBy(() -> saga.diagnosticoConcluido(PEDIDO, T0, CINCO_MINUTOS)).isInstanceOf(TransicaoSagaInvalidaException.class);
     }
 
     @Test

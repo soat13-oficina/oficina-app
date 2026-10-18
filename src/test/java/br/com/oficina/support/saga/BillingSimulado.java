@@ -21,8 +21,6 @@ import br.com.oficina.common.application.mensageria.Filas;
 import br.com.oficina.common.application.mensageria.ManipuladorMensagem;
 import br.com.oficina.common.application.mensageria.PublicadorMensagens;
 import br.com.oficina.ordemservico.saga.domain.model.MensagensSaga;
-import br.com.oficina.pecainsumo.domain.model.PecaInsumo;
-import br.com.oficina.pecainsumo.domain.repository.PecaInsumoRepository;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -136,12 +134,12 @@ public class BillingSimulado implements ManipuladorMensagem {
     private final PublicadorMensagens publicador;
     private final FabricaEnvelopes fabrica;
     private final TransactionTemplate transacao;
-    private final PecaInsumoRepository pecas;
+    private final CatalogoSimulado pecas;
     private final Map<UUID, OrcamentoSimulado> orcamentosPorOrdem = new ConcurrentHashMap<>();
     private final Map<UUID, PagamentoSimulado> pagamentos = new ConcurrentHashMap<>();
 
     public BillingSimulado(PublicadorMensagens publicador, FabricaEnvelopes fabrica, TransactionTemplate transacao,
-                           PecaInsumoRepository pecas) {
+                           CatalogoSimulado pecas) {
         this.publicador = publicador;
         this.fabrica = fabrica.paraServico(SERVICO);
         this.transacao = transacao;
@@ -215,7 +213,7 @@ public class BillingSimulado implements ManipuladorMensagem {
         List<String> invalidas = new ArrayList<>();
         BigDecimal valorPecas = BigDecimal.ZERO;
         for (JsonNode item : pedido.path("pecas")) {
-            Optional<PecaInsumo> peca = pecas.buscarPorId(item.get("pecaInsumoId").asString());
+            Optional<CatalogoSimulado.Peca> peca = pecas.buscar(item.get("pecaInsumoId").asString());
             if (peca.isEmpty()) {
                 invalidas.add(item.get("pecaInsumoId").asString());
             } else {
@@ -227,7 +225,8 @@ public class BillingSimulado implements ManipuladorMensagem {
                     "motivo", "Peca/Insumo nao encontrada com o ID: " + String.join(", ", invalidas), "pecasInvalidas", invalidas));
             return;
         }
-        BigDecimal maoDeObra = valor(pedido.path("valorMaoDeObra"));
+        // Sem mao de obra total no comando (o OS nao a informa mais), vale a soma dos servicos do diagnostico.
+        BigDecimal maoDeObra = pedido.hasNonNull("valorMaoDeObra") ? valor(pedido.path("valorMaoDeObra")) : somaDosServicos(pedido);
         BigDecimal desconto = valor(pedido.path("desconto"));
         BigDecimal total = maoDeObra.add(valorPecas).subtract(desconto);
         if (total.signum() < 0) {
@@ -354,6 +353,14 @@ public class BillingSimulado implements ManipuladorMensagem {
 
     private static String agora() {
         return Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
+    }
+
+    private static BigDecimal somaDosServicos(JsonNode pedido) {
+        BigDecimal soma = BigDecimal.ZERO;
+        for (JsonNode servico : pedido.path("servicos")) {
+            soma = soma.add(valor(servico.path("valorMaoDeObra")));
+        }
+        return soma;
     }
 
     private static BigDecimal valor(JsonNode no) {

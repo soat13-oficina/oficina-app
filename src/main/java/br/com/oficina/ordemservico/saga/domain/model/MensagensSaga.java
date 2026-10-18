@@ -11,9 +11,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 /**
  * Tipos e payloads das mensagens que o orquestrador troca, como em {@code docs/contratos/mensagens.md}.
  *
- * <p>Copia propria do OS Service: quando o Billing e a Execution forem extraidos, cada servico
- * carrega a sua versao do contrato - o que os une e o JSON Schema, nao uma classe compartilhada.
- * Dinheiro vai como texto ({@code "530.00"}); campos opcionais nulos nao sao serializados.
+ * <p>Copia propria do OS Service: Billing e Execution carregam, cada um, a sua versao do contrato - o
+ * que os une e o JSON Schema, nao uma classe compartilhada. Dinheiro vai como texto
+ * ({@code "530.00"}); campos opcionais nulos nao sao serializados.
  */
 public final class MensagensSaga {
 
@@ -25,8 +25,12 @@ public final class MensagensSaga {
     public static final String ESTORNAR_PAGAMENTO = "EstornarPagamento";
 
     // Comandos enviados pelo orquestrador - Execution
+    public static final String ENFILEIRAR_DIAGNOSTICO = "EnfileirarDiagnostico";
+    public static final String REABRIR_DIAGNOSTICO = "ReabrirDiagnostico";
     public static final String RESERVAR_PECAS = "ReservarPecas";
+    public static final String ENFILEIRAR_EXECUCAO = "EnfileirarExecucao";
     public static final String LIBERAR_RESERVA = "LiberarReserva";
+    public static final String CANCELAR_EXECUCAO = "CancelarExecucao";
 
     // Eventos recebidos - Billing
     public static final String ORCAMENTO_GERADO = "OrcamentoGerado";
@@ -43,15 +47,26 @@ public final class MensagensSaga {
     public static final String ESTORNO_FALHOU = "EstornoFalhou";
 
     // Eventos recebidos - Execution
+    public static final String DIAGNOSTICO_ENFILEIRADO = "DiagnosticoEnfileirado";
+    public static final String DIAGNOSTICO_INICIADO = "DiagnosticoIniciado";
+    public static final String DIAGNOSTICO_CONCLUIDO = "DiagnosticoConcluido";
+    public static final String DIAGNOSTICO_REABERTO = "DiagnosticoReaberto";
     public static final String PECAS_RESERVADAS = "PecasReservadas";
     public static final String RESERVA_FALHOU = "ReservaFalhou";
+    public static final String EXECUCAO_ENFILEIRADA = "ExecucaoEnfileirada";
+    public static final String EXECUCAO_INICIADA = "ExecucaoIniciada";
+    public static final String EXECUCAO_CONCLUIDA = "ExecucaoConcluida";
+    public static final String EXECUCAO_FALHOU = "ExecucaoFalhou";
     public static final String RESERVA_LIBERADA = "ReservaLiberada";
+    public static final String EXECUCAO_CANCELADA = "ExecucaoCancelada";
 
     /** Todos os eventos que o orquestrador consome em {@code os-saga-replies}. */
     public static final List<String> EVENTOS = List.of(
             ORCAMENTO_GERADO, ORCAMENTO_FALHOU, ORCAMENTO_APROVADO, ORCAMENTO_REJEITADO, APROVACAO_REVERTIDA,
             ORCAMENTO_CANCELADO, PAGAMENTO_SOLICITADO, PAGAMENTO_CONFIRMADO, PAGAMENTO_RECUSADO, PAGAMENTO_EXPIRADO,
-            PAGAMENTO_ESTORNADO, ESTORNO_FALHOU, PECAS_RESERVADAS, RESERVA_FALHOU, RESERVA_LIBERADA);
+            PAGAMENTO_ESTORNADO, ESTORNO_FALHOU, DIAGNOSTICO_ENFILEIRADO, DIAGNOSTICO_INICIADO, DIAGNOSTICO_CONCLUIDO,
+            DIAGNOSTICO_REABERTO, PECAS_RESERVADAS, RESERVA_FALHOU, EXECUCAO_ENFILEIRADA, EXECUCAO_INICIADA,
+            EXECUCAO_CONCLUIDA, EXECUCAO_FALHOU, RESERVA_LIBERADA, EXECUCAO_CANCELADA);
 
     private MensagensSaga() {
     }
@@ -69,6 +84,10 @@ public final class MensagensSaga {
     public record Funcionario(UUID id, String nome) {
     }
 
+    /** Funcionario que executou a acao (claims do JWT na Execution). */
+    public record Mecanico(String id, String nome) {
+    }
+
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Servico(String descricao, @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal valorMaoDeObra) {
     }
@@ -82,10 +101,10 @@ public final class MensagensSaga {
     // ------------------------------------------------------------------ comandos
 
     /**
-     * Snapshot do diagnostico para o Billing gerar o orcamento. {@code valorMaoDeObra}, {@code desconto},
-     * {@code validade} e {@code observacoes} sao opcionais e transitorios: enquanto o diagnostico mora no
-     * OS Service, o atendente os informa no envio para orcamento; com a Execution, a mao de obra vem por
-     * servico no {@code DiagnosticoConcluido}.
+     * Snapshot do diagnostico para o Billing gerar o orcamento. A mao de obra vem por servico, no
+     * {@code DiagnosticoConcluido}; {@code valorMaoDeObra}, {@code desconto}, {@code validade} e
+     * {@code observacoes} sao opcionais no contrato e o OS nao os informa mais (o Billing usa a soma da mao
+     * de obra dos servicos, desconto zero e a validade padrao).
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record GerarOrcamento(
@@ -102,7 +121,23 @@ public final class MensagensSaga {
             String observacoes) {
     }
 
+    /** Abertura da OS: entra na fila de diagnostico da Execution, com a previsao do atendente como ponto de partida. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record EnfileirarDiagnostico(
+            String numeroOrdemServico, Veiculo veiculo, List<Servico> servicosPrevistos, List<ItemPeca> pecasPrevistas, Instant abertaEm) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record ReabrirDiagnostico(String motivo, List<String> pecasInvalidas) {
+    }
+
     public record ReservarPecas(UUID orcamentoId, List<ItemPeca> itens) {
+    }
+
+    public record EnfileirarExecucao(UUID orcamentoId) {
+    }
+
+    public record CancelarExecucao(String motivo) {
     }
 
     public record LiberarReserva(String motivo) {
@@ -133,6 +168,13 @@ public final class MensagensSaga {
     }
 
     public record OrcamentoCancelado(UUID orcamentoId, boolean pagamentoCancelado) {
+    }
+
+    public record DiagnosticoConcluido(
+            Mecanico mecanico, String descricaoDiagnostico, List<Servico> servicos, List<ItemPeca> pecas, Instant concluidoEm) {
+    }
+
+    public record ExecucaoFalhou(Mecanico mecanico, String motivo, Instant abortadaEm) {
     }
 
     public record ReservaFalhou(UUID orcamentoId, List<PecaFaltante> faltantes) {

@@ -8,24 +8,27 @@ extraídos um a um ([ADR 0004](../adr/0004-saga-orquestrada.md), [ADR 0005](../a
 Toda mensagem passa pelo outbox (`outbox_mensagens`) e é entregue pelo publicador agendado. O
 `TransportePorFila` decide, **fila a fila**, como entregar:
 
-| Fila lógica | Passos 1 e 2 | Passo 3 (hoje: Billing extraído) | Passo 4 (Execution extraída) |
+| Fila lógica | Passos 1 e 2 | Passo 3 (Billing extraído) | Passo 4 (hoje: Execution extraída) |
 |---|---|---|---|
 | `billing-commands` | em memória | **SQS** | SQS |
 | `execution-commands` | em memória | em memória | **SQS** |
-| `os-saga-replies` | em memória | em memória (estoque) + **SQS** (Billing, lido pelo `ReceptorSqs`) | SQS |
+| `os-saga-replies` | em memória | em memória (estoque) + **SQS** (Billing, lido pelo `ReceptorSqs`) | **SQS** (Billing e Execution) |
 
-"Em memória" é entregar direto ao `ConsumidorMensagens`, no mesmo processo — o participante ainda
-mora no monólito. Desde o Passo 3 ninguém no OS atende `billing-commands`: sem
-`MENSAGERIA_SQS_ENVIO=billing-commands`, o `GerarOrcamento` falha no outbox ("Nenhum manipulador
-para o tipo GerarOrcamento") e a Saga desiste do passo depois dos reenvios. O orquestrador não sabe qual caminho cada mensagem fez: o envelope, a
-idempotência (`mensagens_processadas`) e o `source` de cada evento são os mesmos.
+"Em memória" é entregar direto ao `ConsumidorMensagens`, no mesmo processo — o participante mora no
+monólito. **Hoje nenhum participante mora no OS**: sem
+`MENSAGERIA_SQS_ENVIO=billing-commands,execution-commands`, o `GerarOrcamento` e o
+`EnfileirarDiagnostico` falham no outbox ("Nenhum manipulador para o tipo ...") e a Saga desiste do
+passo depois dos reenvios. O caminho em memória segue existindo como costura de teste: os testes do OS
+atendem as duas filas com o `BillingSimulado` e o `ExecutionSimulado`. O orquestrador não sabe qual
+caminho cada mensagem fez: o envelope, a idempotência (`mensagens_processadas`) e o `source` de cada
+evento são os mesmos.
 
 Configuração (`application.yml`, prefixo `mensageria.sqs`):
 
 | Propriedade | Variável | Padrão | Uso |
 |---|---|---|---|
 | `habilitado` | `MENSAGERIA_SQS_HABILITADO` | `false` | Cria o cliente SQS, o transporte e o receptor |
-| `envio` | `MENSAGERIA_SQS_ENVIO` | vazio | Filas que saem pelo SQS (ex.: `billing-commands`) |
+| `envio` | `MENSAGERIA_SQS_ENVIO` | vazio | Filas que saem pelo SQS (ex.: `billing-commands,execution-commands`) |
 | `consumo` | `MENSAGERIA_SQS_CONSUMO` | vazio | Filas que o serviço lê do SQS (ex.: `os-saga-replies`) |
 | `ambiente` | `AMBIENTE` | `local` | Nome físico `oficina-<ambiente>-<fila>.fifo` |
 | `endpoint` | `AWS_ENDPOINT_URL_SQS` | vazio (AWS) | LocalStack |

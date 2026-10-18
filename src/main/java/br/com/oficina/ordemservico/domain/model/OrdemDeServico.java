@@ -266,28 +266,31 @@ public class OrdemDeServico {
         alterarStatus(StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO);
     }
 
-    public void concluirDiagnostico(String descricaoServico, List<PecaPrevistaOrdem> pecas) {
+    /**
+     * Diagnostico concluido pelo mecanico na Execution (evento {@code DiagnosticoConcluido}): a OS guarda
+     * uma copia do resultado - servicos com a mao de obra e pecas - que e a base do orcamento. Um
+     * diagnostico reaberto e fechado de novo substitui a copia anterior (ADR 0002).
+     */
+    public void registrarDiagnostico(List<ServicoOrdem> servicosDiagnosticados, List<PecaPrevistaOrdem> pecasDiagnosticadas) {
         if (status != StatusOrdemDeServico.DIAGNOSTICO_EM_ANDAMENTO) {
             throw new RegraDeNegocioException("Diagnostico so pode ser concluido em andamento");
         }
-        if (descricaoServico == null || descricaoServico.isBlank()) {
-            throw new RegraDeNegocioException("Descricao do servico e obrigatoria no fechamento do diagnostico");
+        if (servicosDiagnosticados == null || servicosDiagnosticados.isEmpty()) {
+            throw new RegraDeNegocioException("O diagnostico precisa de ao menos um servico");
         }
-        // Mao de obra nao e definida no fechamento (e financeiro do orcamento): registra apenas a descricao.
-        // Diagnostico reaberto e fechado de novo com o mesmo servico nao o duplica.
-        if (servicos.stream().noneMatch(servico -> servico.getDescricao().equals(descricaoServico))) {
-            servicos.add(new ServicoOrdem(descricaoServico, null));
-        }
-        if (pecas != null) {
-            pecasPrevistas.addAll(pecas);
+        servicos.clear();
+        servicos.addAll(servicosDiagnosticados);
+        pecasPrevistas.clear();
+        if (pecasDiagnosticadas != null) {
+            pecasPrevistas.addAll(pecasDiagnosticadas);
         }
         alterarStatus(StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO);
     }
 
     /**
-     * O orcamento nao pode ser gerado com as pecas do diagnostico (peca inexistente): o diagnostico
-     * volta ao mecanico, que o fecha de novo informando as pecas. Chamado pela Saga ao receber
-     * {@code OrcamentoFalhou}. Os servicos ficam; as pecas, que causaram a falha, saem.
+     * O orcamento nao pode ser gerado com o diagnostico (peca inexistente, por exemplo): ele volta ao
+     * mecanico, que o fecha de novo. Chamado pela Saga ao receber {@code OrcamentoFalhou}. Os servicos
+     * ficam como ponto de partida; as pecas, que causaram a falha, saem.
      */
     public void reabrirDiagnostico() {
         if (status != StatusOrdemDeServico.DIAGNOSTICO_CONCLUIDO) {

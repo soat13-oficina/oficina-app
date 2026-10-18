@@ -19,8 +19,8 @@ Descrição e preço atuais das peças, para o Billing montar o orçamento.
 
 | | |
 |---|---|
-| Dono | Execution Service (no Passo 3, ainda o OS Service, módulo `pecainsumo`) |
-| Chamador | Billing Service, ao processar `GerarOrcamento` |
+| Dono | Execution Service (`ConsultaInternaPecasController`) |
+| Chamadores | Billing Service, ao processar `GerarOrcamento` (preço); OS Service, ao abrir a ordem com peças previstas (existência) |
 
 Requisição:
 
@@ -43,3 +43,25 @@ Resposta `200`:
 
 - `pecas` na ordem pedida; `inexistentes` = ids que não estão no cadastro. O Billing responde
   `OrcamentoFalhou` com `pecasInvalidas` = `inexistentes` quando a lista não está vazia.
+
+## `GET /internal/clientes/por-cpf/{cpf}`
+
+Cliente pelo CPF, para a Lambda de autenticação emitir o token (substitui a leitura direta do banco do OS).
+
+| | |
+|---|---|
+| Dono | OS Service (`ConsultaInternaClientesController`) |
+| Chamador | `oficina-lambda-auth` (função `token`), com timeout de 3 s |
+| Caminho | **Não** passa pelo API Gateway. A Lambda chega ao OS pelo ALB, em regra que só encaminha `/internal/clientes/*` com o header `X-Service-Token` (a aplicação confere o valor) |
+
+- `{cpf}` com ou sem máscara; só os dígitos são comparados (o cadastro guarda o documento como foi digitado). Diferente de 11 dígitos → `400`.
+
+Resposta `200`:
+
+```json
+{ "id": "3f1c9a2e-0000-4000-8000-000000000001", "nome": "Maria da Silva", "ativo": true }
+```
+
+- Cliente **inativo** também volta (`ativo: false`): quem recusa o token (`403 CLIENTE_INATIVO`) é a Lambda.
+- Sem cadastro → `404`. Token de serviço ausente ou errado → `401`.
+

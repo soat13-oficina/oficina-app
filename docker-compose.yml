@@ -25,13 +25,13 @@ services:
       - "8025:8025"
     restart: unless-stopped
 
-  # Filas SQS FIFO da Saga (ADR 0005). Imagem fixada: as 2026.x exigem token de conta.
-  # Ver docs/arquitetura/mensageria-local.md.
+  # Filas SQS FIFO da Saga (ADR 0005) e tabelas DynamoDB da Execution (ADR 0006). Imagem fixada: as
+  # 2026.x exigem token de conta. Ver docs/arquitetura/mensageria-local.md.
   localstack:
     image: localstack/localstack:4.14.0
     container_name: oficina_localstack
     environment:
-      SERVICES: sqs
+      SERVICES: sqs,dynamodb
     ports:
       - "4566:4566"
     volumes:
@@ -55,18 +55,24 @@ services:
       JWT_SECRET: ${JWT_SECRET:-ASjhd8213u41jksaJD7HS8AJDkjsaDH871A2132KJDQ293N12BDKS}
       SMTP_HOST: mailhog
       SMTP_PORT: 1025
-      # Rotas /internal/** (o Billing consulta as pecas aqui ate a Execution existir).
+      # X-Service-Token das chamadas internas que o OS faz (consulta de pecas na Execution) e recebe
+      # (/internal/**, a Lambda de autenticacao).
       SERVICE_TOKEN: ${SERVICE_TOKEN:-token-de-servico-local}
-      # Mensageria: tudo em memoria por padrao. Para mandar os comandos do Billing pelo SQS do
-      # O Billing e outro servico (oficina-billing-service): billing-commands vai pelo SQS do
-      # LocalStack e as respostas voltam em os-saga-replies (docs/arquitetura/mensageria-local.md).
+      # Cadastro de pecas: e da Execution (oficina-execution-service), rodando na maquina (porta 8082).
+      CATALOGO_PECAS_URL: ${CATALOGO_PECAS_URL:-http://host.docker.internal:8082}
+      # Billing e Execution sao outros servicos (oficina-billing-service, oficina-execution-service):
+      # billing-commands e execution-commands vao pelo SQS do LocalStack e as respostas voltam em
+      # os-saga-replies (docs/arquitetura/mensageria-local.md).
       MENSAGERIA_SQS_HABILITADO: ${MENSAGERIA_SQS_HABILITADO:-true}
-      MENSAGERIA_SQS_ENVIO: ${MENSAGERIA_SQS_ENVIO:-billing-commands}
+      MENSAGERIA_SQS_ENVIO: ${MENSAGERIA_SQS_ENVIO:-billing-commands,execution-commands}
       MENSAGERIA_SQS_CONSUMO: ${MENSAGERIA_SQS_CONSUMO:-os-saga-replies}
       AWS_ENDPOINT_URL_SQS: http://localstack:4566
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
+    # host.docker.internal para chegar na Execution rodando na maquina (no Linux precisa do host-gateway).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

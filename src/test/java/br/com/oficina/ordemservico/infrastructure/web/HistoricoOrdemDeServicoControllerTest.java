@@ -26,6 +26,7 @@ import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataFuncionarioRepository;
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataHistoricoStatusOrdemDeServicoRepository;
 import br.com.oficina.ordemservico.infrastructure.persistence.SpringDataOrdemDeServicoRepository;
+import br.com.oficina.support.saga.FluxoOficinaHttp;
 import br.com.oficina.veiculo.domain.model.TipoCombustivel;
 import br.com.oficina.veiculo.domain.model.Veiculo;
 import br.com.oficina.veiculo.domain.repository.VeiculoRepository;
@@ -66,18 +67,20 @@ class HistoricoOrdemDeServicoControllerTest {
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .apply(springSecurity())
+                .build();
+        // Zera tambem as Sagas, o outbox e os servicos simulados que outros testes deixaram.
+        new FluxoOficinaHttp(mockMvc, context).limpar();
         springDataHistoricoRepository.deleteAll();
         springDataOrdemDeServicoRepository.deleteAll();
         springDataVeiculoRepository.deleteAll();
         springDataClienteRepository.deleteAll();
         springDataFuncionarioRepository.deleteAll();
-        mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .apply(springSecurity())
-                .build();
     }
 
     @Test
-    void historicoTrazAAberturaEOInicioDoDiagnosticoNaOrdem() throws Exception {
+    void historicoTrazAAberturaEOInicioDoDiagnosticoFeitoPeloMecanico() throws Exception {
         Cliente cliente = clienteRepository.salvar(new Cliente("Maria", "20110101103", TipoCliente.PF));
         Funcionario funcionario = springDataFuncionarioRepository.save(new Funcionario("Joao", "12345678909"));
         veiculoRepository.salvar(new Veiculo(
@@ -91,8 +94,10 @@ class HistoricoOrdemDeServicoControllerTest {
                 .andExpect(status().isCreated());
         String numero = ordemDeServicoRepository.buscarTodas().get(0).getNumeroOrdemServico();
 
-        mockMvc.perform(post("/ordens-servico/" + numero + "/diagnostico/iniciar").with(user("tester")).with(csrf()))
-                .andExpect(status().isNoContent());
+        // O mecanico pega a OS na fila da Execution; a Saga move a ordem para "Diagnostico" ao receber o evento.
+        FluxoOficinaHttp fluxo = new FluxoOficinaHttp(mockMvc, context);
+        fluxo.processarMensagens();
+        fluxo.iniciarDiagnostico(numero);
 
         mockMvc.perform(get("/ordens-servico/" + numero + "/historico").with(user("tester")))
                 .andExpect(status().isOk())
@@ -105,7 +110,9 @@ class HistoricoOrdemDeServicoControllerTest {
                 .andExpect(jsonPath("$.alteracoes[0].origem").value("API"))
                 .andExpect(jsonPath("$.alteracoes[1].statusAnterior").value("OS_ABERTA"))
                 .andExpect(jsonPath("$.alteracoes[1].statusNovo").value("DIAGNOSTICO_EM_ANDAMENTO"))
-                .andExpect(jsonPath("$.alteracoes[1].situacao").value("Diagnóstico"));
+                .andExpect(jsonPath("$.alteracoes[1].situacao").value("Diagnóstico"))
+                .andExpect(jsonPath("$.alteracoes[1].origem").value("SAGA"))
+                .andExpect(jsonPath("$.alteracoes[1].sagaId").exists());
     }
 
     @Test

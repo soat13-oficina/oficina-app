@@ -29,6 +29,10 @@ jwt:
 seguranca:
   service-token: token-de-servico-de-teste
 
+# Nos testes quem responde pelo cadastro de pecas e o CatalogoSimulado (support/saga).
+catalogo-pecas:
+  url: http://localhost:1
+
 notificacao:
   reprocessamento:
     max-tentativas: 3

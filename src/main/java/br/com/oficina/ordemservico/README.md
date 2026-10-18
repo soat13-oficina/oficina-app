@@ -112,13 +112,18 @@ já criadas.
 2. **Motivo de encerramento obrigatório** — toda OS finalizada ou cancelada registra
    `MotivoEncerramento`: `SERVICO_CONCLUIDO`, `ORCAMENTO_RECUSADO`, `ORCAMENTO_EXPIRADO`,
    `PAGAMENTO_RECUSADO`, `PAGAMENTO_EXPIRADO` ou `FALHA_EXECUCAO`.
-3. **Baixa de peças na conclusão** — `ConcluirServicoService` consome as reservas que a Saga fez
-   para a OS (`ReservasDaOrdem.consumir`) na mesma transação da conclusão. Até a Fase 3 a
-   conclusão não baixava nada (só a finalização legada, inalcançável) e a reserva ficava presa.
-4. **Sem import entre módulos que viram serviços** — `ordemservico` não importa `orcamento`,
-   `pagamento` nem `pecainsumo` (regra ArchUnit em `ArquiteturaModulosTest`). Consultas síncronas
-   usam portas próprias (`application/port`: `CatalogoPecas`, `ReservasDaOrdem`) com adaptadores
-   transitórios em `br.com.oficina.ponte`; o resto vai por mensagens.
+3. **Diagnóstico e execução são do mecânico, na Execution** — o OS não tem mais endpoint para
+   iniciar/concluir o diagnóstico, enviar para orçamento, iniciar/concluir/abortar a execução. O
+   mecânico age em `POST /execucoes/...` (oficina-execution-service) e a Saga move a OS ao receber os
+   eventos (`DiagnosticoIniciado`, `DiagnosticoConcluido`, `ExecucaoIniciada`, `ExecucaoConcluida`,
+   `ExecucaoFalhou`). O diagnóstico concluído chega como **cópia** (serviços com mão de obra e peças,
+   `OrdemDeServico.registrarDiagnostico`) e é a base do orçamento; a baixa do estoque na conclusão é da
+   Execution (o evento `ExecucaoConcluida` já sai com as peças consumidas).
+4. **Sem import entre módulos que viram serviços** — `ordemservico` não importa classes de
+   `orcamento`, `pagamento` nem `pecainsumo` (regras ArchUnit em `ArquiteturaModulosTest`; esses
+   módulos moram no Billing e na Execution). A única consulta síncrona é a das peças previstas na
+   abertura: porta `CatalogoPecas` com adaptador REST (`infrastructure/catalogo`,
+   `POST /internal/pecas-insumos/consulta` na Execution, `X-Service-Token`); o resto vai por mensagens.
 5. **Evento de mudança de status** — `StatusOrdemDeServicoAlterado` é publicado sempre que
    uma transição de situação ocorre (pela API ou pela Saga); o módulo `notificacao` escuta esse
    evento de forma assíncrona.
@@ -132,50 +137,54 @@ já criadas.
 ## Ciclo de Vida
 
 ```
-POST /ordens-servico                                 → OS_ABERTA (Saga AGUARDANDO_DIAGNOSTICO)
-POST /{num}/diagnostico/iniciar                      → DIAGNOSTICO_EM_ANDAMENTO
-POST /{num}/diagnostico/concluir                     → DIAGNOSTICO_CONCLUIDO
-POST /{num}/diagnostico/enviar-para-orcamento (202)  → Saga GERANDO_ORCAMENTO
+POST /ordens-servico                                 → OS_ABERTA (Saga AGUARDANDO_DIAGNOSTICO; comando EnfileirarDiagnostico)
+   DiagnosticoEnfileirado                            → (a OS espera na fila do mecânico)
+DiagnosticoIniciado (Execution: mecânico)            → DIAGNOSTICO_EM_ANDAMENTO
+DiagnosticoConcluido (Execution: mecânico)           → DIAGNOSTICO_CONCLUIDO → Saga GERANDO_ORCAMENTO (comando GerarOrcamento)
    OrcamentoGerado                                   → AGUARDANDO_APROVACAO
 OrcamentoAprovado (Billing: cliente, funcionário ou integração) → Saga RESERVANDO_PECAS
    PecasReservadas                                   → AGUARDANDO_PAGAMENTO (link em GET /sagas/{ordemServicoId})
-PagamentoConfirmado (Billing: webhook do Mercado Pago) → AGUARDANDO_EXECUCAO
-POST /{num}/execucao/iniciar                         → SERVICO_EM_ANDAMENTO
-POST /{num}/servico/concluir                         → OS_FINALIZADA (peças baixadas do estoque)
+PagamentoConfirmado (Billing: webhook do Mercado Pago) → AGUARDANDO_EXECUCAO (comando EnfileirarExecucao)
+ExecucaoIniciada (Execution: mecânico)               → SERVICO_EM_ANDAMENTO
+ExecucaoConcluida (Execution: mecânico; estoque baixado lá) → OS_FINALIZADA
 POST /{num}/entrega                                  → ENTREGUE
 ```
 
 ## Saga (Fase 4)
 
 O orquestrador (`saga/application/OrquestradorSagaOrdemServico`) coordena o ciclo de vida da OS
-com `orcamento` e `pagamento` (futuro Billing Service) e o estoque de `pecainsumo` (futura
-Execution Service) **só por mensagens** — outbox `outbox_mensagens`, transporte em memória no
-Passo 1, SQS a partir do Passo 3 (ADR 0005). Estado em `saga_instancia`, história em
-`saga_passos`. Diagnóstico e execução ainda são ações HTTP do próprio OS (`PassosDaSaga`); viram
-eventos da Execution no Passo 4.
+com o Billing Service (orçamento e pagamento) e o Execution Service (fila, diagnóstico, execução e
+estoque) **só por mensagens** — outbox `outbox_mensagens`, SQS (ADR 0005). Estado em
+`saga_instancia`, história em `saga_passos`. A única entrada que não é mensagem é a abertura da OS
+(`PassosDaSaga.iniciar`); o mecânico e o cliente chegam ao orquestrador como eventos.
 
 | Momento | Quem dispara | Saga | OS |
 |---|---|---|---|
-| Abertura da OS | `POST /ordens-servico` | `AGUARDANDO_DIAGNOSTICO` | `OS_ABERTA` |
-| Envio para orçamento | `POST .../diagnostico/enviar-para-orcamento` (202) | `GERANDO_ORCAMENTO` → comando `GerarOrcamento` | `DIAGNOSTICO_CONCLUIDO` |
+| Abertura da OS | `POST /ordens-servico` | `AGUARDANDO_DIAGNOSTICO` → comando `EnfileirarDiagnostico` (vigia a resposta) | `OS_ABERTA` |
+| Fila confirmada | evento `DiagnosticoEnfileirado` | segue `AGUARDANDO_DIAGNOSTICO`, sem prazo (depende do mecânico) | — |
+| Mecânico inicia o diagnóstico | evento `DiagnosticoIniciado` | — | `DIAGNOSTICO_EM_ANDAMENTO` |
+| Mecânico conclui o diagnóstico | evento `DiagnosticoConcluido` | `GERANDO_ORCAMENTO` → comando `GerarOrcamento` (sozinho) | `DIAGNOSTICO_CONCLUIDO` (copia serviços e peças) |
 | Orçamento gerado | evento `OrcamentoGerado` | `AGUARDANDO_DECISAO`, prazo = `saga.prazo-decisao` ou a validade do orçamento | `AGUARDANDO_APROVACAO` |
-| Orçamento não gerado | evento `OrcamentoFalhou` | `AGUARDANDO_DIAGNOSTICO` (motivo guardado) | com peça inválida: `DIAGNOSTICO_EM_ANDAMENTO` sem as peças; senão fica `DIAGNOSTICO_CONCLUIDO` e o envio pode ser refeito |
+| Orçamento não gerado | evento `OrcamentoFalhou` | `COMPENSANDO` → `ReabrirDiagnostico` → `DiagnosticoReaberto` → `AGUARDANDO_DIAGNOSTICO` (motivo guardado) | `DIAGNOSTICO_EM_ANDAMENTO` sem as peças inválidas; o mecânico refaz |
 | Cliente aprova | evento `OrcamentoAprovado` | `RESERVANDO_PECAS` → comando `ReservarPecas` (tudo ou nada) | — |
 | Peças reservadas | evento `PecasReservadas` | `AGUARDANDO_PAGAMENTO` → comando `SolicitarPagamento` (prazo `saga.prazo-pagamento`) | `AGUARDANDO_PAGAMENTO` |
 | Estoque insuficiente | evento `ReservaFalhou` | `REVERTENDO_APROVACAO` → `ReverterAprovacao` → `AprovacaoRevertida` → `AGUARDANDO_DECISAO` com prazo novo | — |
 | Cobrança criada | evento `PagamentoSolicitado` | guarda `pagamentoId` e `linkPagamento`; vigia o prazo + `saga.margem-pagamento` | — |
-| Pagamento confirmado | evento `PagamentoConfirmado` | `AGUARDANDO_EXECUCAO` | `AGUARDANDO_EXECUCAO` |
-| Pagamento recusado / expirado | `PagamentoRecusado` / `PagamentoExpirado` (ou nada até o prazo + margem) | `COMPENSANDO` → `LiberarReserva` + `CancelarOrcamento` → `COMPENSADA` | `CANCELADA` (`PAGAMENTO_RECUSADO` / `PAGAMENTO_EXPIRADO`) |
-| Cliente rejeita | evento `OrcamentoRejeitado` | `ENCERRADA_SEM_EXECUCAO` | `OS_FINALIZADA` / `ORCAMENTO_RECUSADO` |
-| Prazo de decisão vence | `AgendadorPrazosSaga` (30 s) | `COMPENSANDO` → `CancelarOrcamento` → `ENCERRADA_SEM_EXECUCAO` | `OS_FINALIZADA` / `ORCAMENTO_EXPIRADO` (origem `TIMEOUT`) |
-| Mecânico inicia / conclui | `POST .../execucao/iniciar`, `.../servico/concluir` | `EM_EXECUCAO` → `CONCLUIDA` | `SERVICO_EM_ANDAMENTO` → `OS_FINALIZADA` |
-| Mecânico aborta | `POST .../execucao/abortar` | `COMPENSANDO` → `EstornarPagamento` + `LiberarReserva` → `COMPENSADA` | `CANCELADA` (`FALHA_EXECUCAO`) |
+| Pagamento confirmado | evento `PagamentoConfirmado` | `AGUARDANDO_EXECUCAO` → comando `EnfileirarExecucao` (vigia a resposta) | `AGUARDANDO_EXECUCAO` |
+| Fila de execução confirmada | evento `ExecucaoEnfileirada` | segue `AGUARDANDO_EXECUCAO`, sem prazo | — |
+| Pagamento recusado / expirado | `PagamentoRecusado` / `PagamentoExpirado` (ou nada até o prazo + margem) | `COMPENSANDO` → `LiberarReserva` + `CancelarOrcamento` + `CancelarExecucao` → `COMPENSADA` | `CANCELADA` (`PAGAMENTO_RECUSADO` / `PAGAMENTO_EXPIRADO`) |
+| Cliente rejeita | evento `OrcamentoRejeitado` | `COMPENSANDO` → `CancelarExecucao` → `ExecucaoCancelada` → `ENCERRADA_SEM_EXECUCAO` | `OS_FINALIZADA` / `ORCAMENTO_RECUSADO` |
+| Prazo de decisão vence | `AgendadorPrazosSaga` (30 s) | `COMPENSANDO` → `CancelarOrcamento` + `CancelarExecucao` → `ENCERRADA_SEM_EXECUCAO` | `OS_FINALIZADA` / `ORCAMENTO_EXPIRADO` (origem `TIMEOUT`) |
+| Mecânico inicia a execução | evento `ExecucaoIniciada` | `EM_EXECUCAO` | `SERVICO_EM_ANDAMENTO` |
+| Mecânico conclui | evento `ExecucaoConcluida` (a Execution já baixou o estoque) | `CONCLUIDA` | `OS_FINALIZADA` / `SERVICO_CONCLUIDO` |
+| Mecânico aborta | evento `ExecucaoFalhou` | `COMPENSANDO` → `EstornarPagamento` + `LiberarReserva` → `COMPENSADA` | `CANCELADA` (`FALHA_EXECUCAO`) |
 
 **Timeouts.** Todo comando espera resposta por `saga.prazo-resposta`. Comando de avanço
-(`GerarOrcamento`, `ReservarPecas`, `SolicitarPagamento`) sem resposta é reenviado — mesmo payload,
-`messageId` novo, a partir do outbox (`PublicadorMensagens.reenviar`) — até `saga.max-tentativas`;
-esgotou, o passo é tratado como falha (orçamento: volta a aguardar o envio; reserva: libera o que
-houver e reverte a aprovação; cobrança: cancela como pagamento expirado). Compensação sem
+(`EnfileirarDiagnostico`, `GerarOrcamento`, `ReservarPecas`, `SolicitarPagamento`,
+`EnfileirarExecucao`) sem resposta é reenviado — mesmo payload, `messageId` novo, a partir do outbox
+(`PublicadorMensagens.reenviar`) — até `saga.max-tentativas`; esgotou, o passo é tratado como falha
+(orçamento: reabre o diagnóstico; reserva: libera o que houver e reverte a aprovação; cobrança:
+cancela como pagamento expirado; fila da Execution sem confirmação: `FALHA_COMPENSACAO`, ação manual). Compensação sem
 confirmação é reenviada até o mesmo limite e depois a Saga para em `FALHA_COMPENSACAO` (log de
 erro, exige ação manual). `EstornoFalhou` mantém o estorno pendente e ele é pedido de novo no
 próximo prazo.
@@ -189,8 +198,10 @@ Configuração: `saga.prazo-decisao` (vazio em prd = validade do orçamento; `PT
 `saga.prazo-pagamento` (`PT24H`; `PT30M` em hml), `saga.margem-pagamento` (`PT10M`),
 `saga.prazos.intervalo-ms` (30000).
 
-BDD (Cucumber, roda no `./mvnw verify`): `src/test/resources/features/saga/decisao-do-orcamento.feature`
-e `reserva-pagamento-e-compensacoes.feature`.
+BDD (Cucumber, roda no `./mvnw verify`): `src/test/resources/features/saga/` —
+`fila-e-diagnostico.feature`, `decisao-do-orcamento.feature` e
+`reserva-pagamento-e-compensacoes.feature`. A Execution e o Billing são os dublês `ExecutionSimulado`
+e `BillingSimulado`, validados contra os JSON Schemas por `ContratoDasMensagensDaSagaTest`.
 
 ## Dependências Internas
 
@@ -199,7 +210,7 @@ e `reserva-pagamento-e-compensacoes.feature`.
 | `cliente` | `ordemservico` consome `cliente` | `CriarNovaOrdemDeServicoService` busca dados do cliente para snapshot |
 | `veiculo` | `ordemservico` consome `veiculo` | `CriarNovaOrdemDeServicoService` busca dados do veículo para snapshot |
 | `orcamento` / `pagamento` (Billing) | só mensagens | Envia `GerarOrcamento`, `ReverterAprovacao`, `CancelarOrcamento`, `SolicitarPagamento`, `EstornarPagamento`; consome os eventos correspondentes |
-| `pecainsumo` (Execution) | mensagens + portas | Envia `ReservarPecas` e `LiberarReserva`; `CatalogoPecas` (validação do diagnóstico) e `ReservasDaOrdem` (baixa na conclusão) via `br.com.oficina.ponte` |
+| `pecainsumo` / diagnóstico / execução (Execution) | mensagens + REST interno | Envia `EnfileirarDiagnostico`, `ReabrirDiagnostico`, `ReservarPecas`, `EnfileirarExecucao`, `LiberarReserva`, `CancelarExecucao`; consome os eventos correspondentes; `CatalogoPecas` (peças previstas na abertura) por `POST /internal/pecas-insumos/consulta` |
 | `notificacao` | `ordemservico` publica evento consumido por `notificacao` | Publica `StatusOrdemDeServicoAlterado` em todas as transições de situação |
 
 ## Dependências Externas

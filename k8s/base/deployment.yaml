@@ -26,7 +26,7 @@ spec:
       annotations:
         # Autodiscovery do Datadog Agent: raspa /actuator/prometheus DO POD, na porta 8081.
         # %%host%% é resolvido pelo agent para o IP do pod — não passa pelo Service, e por isso
-        # a porta 8081 pode ficar fora dele (o Service é LoadBalancer/NLB público).
+        # a porta 8081 pode ficar fora dele (o acesso externo é pelo Ingress/ALB, que só encaminha a 8080).
         #
         # TRÊS RENOMEAÇÕES ACONTECEM ENTRE O CÓDIGO E O DATADOG — todas verificadas contra a
         # saída real de /actuator/prometheus, não deduzidas:
@@ -48,6 +48,12 @@ spec:
         #   oficina.os.tempo_na_situacao.sum    dividendo, em SEGUNDOS
         #   oficina.os.tempo_na_situacao.max    pior caso na janela
         #   oficina.notificacoes.falhas.count   base do alerta de entrega perdida
+        #   oficina.saga.iniciadas.count / finalizadas.count{resultado} / compensacoes.count{motivo}
+        #   oficina.saga.ativas{passo}          funil da Saga (gauge)
+        #   oficina.saga.presas                 Sagas com prazo vencido (gauge; > 0 sustentado = nada anda)
+        #   oficina.saga.duracao.count/.sum{resultado}  da abertura ao estado final, em SEGUNDOS
+        #   oficina.mensageria.*                publicadas/consumidas/falhas por fila e tipo; dlq.mensagens{fila}
+        #   oficina.outbox.pendentes / esgotadas / idade.maxima   outbox parado (gauges; idade em segundos)
         #
         # A família _max vem PRIMEIRO: as entradas são avaliadas em ordem e a mais específica
         # precisa casar antes da mais genérica.
@@ -68,7 +74,22 @@ spec:
                     {"os_tempo_na_situacao_seconds": "os.tempo_na_situacao"},
                     {"os_criadas": "os.criadas"},
                     {"os_transicoes": "os.transicoes"},
-                    {"notificacoes_falhas": "notificacoes.falhas"}
+                    {"notificacoes_falhas": "notificacoes.falhas"},
+                    {"oficina_mensageria_publicadas": "mensageria.publicadas"},
+                    {"oficina_mensageria_consumidas": "mensageria.consumidas"},
+                    {"oficina_mensageria_falhas": "mensageria.falhas"},
+                    {"oficina_mensageria_sqs_recebidas": "mensageria.sqs.recebidas"},
+                    {"oficina_mensageria_dlq_mensagens": "mensageria.dlq.mensagens"},
+                    {"oficina_outbox_pendentes": "outbox.pendentes"},
+                    {"oficina_outbox_esgotadas": "outbox.esgotadas"},
+                    {"oficina_outbox_idade_maxima_seconds": "outbox.idade.maxima"},
+                    {"oficina_saga_iniciadas": "saga.iniciadas"},
+                    {"oficina_saga_finalizadas": "saga.finalizadas"},
+                    {"oficina_saga_compensacoes": "saga.compensacoes"},
+                    {"oficina_saga_ativas": "saga.ativas"},
+                    {"oficina_saga_presas": "saga.presas"},
+                    {"oficina_saga_duracao_seconds_max": "saga.duracao.max"},
+                    {"oficina_saga_duracao_seconds": "saga.duracao"}
                   ]
                 }
               ]
@@ -88,9 +109,8 @@ spec:
           ports:
             - name: http
               containerPort: 8080
-            # Actuator (health + prometheus). Deliberadamente AUSENTE do service.yaml: aquele
-            # Service é type: LoadBalancer e publica um NLB na internet, então tudo que responde
-            # na 8080 é público. Probes (kubelet) e o Datadog Agent falam com o IP do pod
+            # Actuator (health + prometheus). Deliberadamente AUSENTE do service.yaml e dos Ingress: o
+            # ALB é público (internet-facing), então tudo que responde na 8080 e tem rota é público. Probes (kubelet) e o Datadog Agent falam com o IP do pod
             # diretamente e não dependem do Service para alcançar esta porta.
             - name: management
               containerPort: 8081

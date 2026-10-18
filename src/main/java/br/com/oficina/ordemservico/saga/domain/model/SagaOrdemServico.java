@@ -18,6 +18,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
@@ -94,10 +95,35 @@ public class SagaOrdemServico {
     @Column(name = "atualizada_em", nullable = false)
     private LocalDateTime atualizadaEm;
 
+    // Status que a Saga tinha quando foi carregada do banco (null = ainda nao gravada): base das metricas de
+    // transicao (MetricasSaga), que contam a mudanca uma vez so, onde quer que ela aconteca.
+    @Transient
+    private StatusSaga statusPersistido;
+
     @Transient
     private final List<ComandoSaga> comandosAEnviar = new ArrayList<>();
 
+    // Pecas que o Billing recusou, para o ReabrirDiagnostico desta decisao. So vive ate o fim da transacao
+    // que a produziu: um reenvio da compensacao reaproveita o payload original (ComandoSaga#reenvio).
+    @Transient
+    private List<String> pecasInvalidasAReabrir;
+
     protected SagaOrdemServico() {
+    }
+
+    @PostLoad
+    void lembrarStatusPersistido() {
+        this.statusPersistido = status;
+    }
+
+    /** Status na ultima carga ou gravacao; {@code null} para uma Saga que ainda nao foi gravada. */
+    public StatusSaga getStatusPersistido() {
+        return statusPersistido;
+    }
+
+    /** Chamado pelo repositorio depois de gravar: a proxima comparacao parte do estado atual. */
+    public void marcarComoPersistida() {
+        this.statusPersistido = status;
     }
 
     private SagaOrdemServico(UUID ordemDeServicoId, StatusSaga status, PassoSaga passo, LocalDateTime agora) {
@@ -109,9 +135,17 @@ public class SagaOrdemServico {
         this.atualizadaEm = agora;
     }
 
-    /** Saga nova, na abertura da OS. */
-    public static SagaOrdemServico iniciar(UUID ordemDeServicoId, LocalDateTime agora) {
-        return new SagaOrdemServico(ordemDeServicoId, StatusSaga.AGUARDANDO_DIAGNOSTICO, PassoSaga.DIAGNOSTICO, agora);
+    /**
+     * Saga nova, na abertura da OS: a ordem entra na fila de diagnostico da Execution
+     * ({@code EnfileirarDiagnostico}). O prazo vigiado e o da resposta ({@code DiagnosticoEnfileirado});
+     * o diagnostico em si, que depende do mecanico, nao tem prazo.
+     */
+    public static SagaOrdemServico iniciar(
+            UUID ordemDeServicoId, MensagensSaga.EnfileirarDiagnostico pedido, LocalDateTime agora, Duration prazoResposta) {
+        SagaOrdemServico saga = new SagaOrdemServico(ordemDeServicoId, StatusSaga.AGUARDANDO_DIAGNOSTICO, PassoSaga.DIAGNOSTICO, agora);
+        saga.aguardarResposta(agora, prazoResposta);
+        saga.comandosAEnviar.add(new ComandoSaga(MensagensSaga.ENFILEIRAR_DIAGNOSTICO, Filas.EXECUTION_COMMANDS, pedido));
+        return saga;
     }
 
     /**
@@ -139,10 +173,28 @@ public class SagaOrdemServico {
         };
     }
 
+    // ------------------------------------------------------------------ passo 1: diagnostico
+
+    /** A Execution confirmou que a OS esta na fila de diagnostico: deixa de vigiar a resposta. */
+    public void diagnosticoEnfileirado(LocalDateTime agora) {
+        exigir(StatusSaga.AGUARDANDO_DIAGNOSTICO);
+        this.tentativasPasso = 0;
+        this.prazoExpiraEm = null;
+        this.atualizadaEm = agora;
+    }
+
+    /** Esperando a Execution confirmar a fila (de diagnostico ou de execucao); so ai ha prazo de resposta. */
+    public boolean aguardandoConfirmacaoDaFila() {
+        return (status == StatusSaga.AGUARDANDO_DIAGNOSTICO || status == StatusSaga.AGUARDANDO_EXECUCAO) && prazoExpiraEm != null;
+    }
+
     // ------------------------------------------------------------------ passo 2: orcamento
 
-    /** Diagnostico concluido enviado para orcamento: comando {@code GerarOrcamento} ao Billing. */
-    public void solicitarOrcamento(MensagensSaga.GerarOrcamento pedido, LocalDateTime agora, Duration prazoResposta) {
+    /**
+     * Mecanico concluiu o diagnostico ({@code DiagnosticoConcluido}): a Saga manda sozinha o comando
+     * {@code GerarOrcamento} ao Billing.
+     */
+    public void diagnosticoConcluido(MensagensSaga.GerarOrcamento pedido, LocalDateTime agora, Duration prazoResposta) {
         exigir(StatusSaga.AGUARDANDO_DIAGNOSTICO);
         this.motivo = null;
         mudar(StatusSaga.GERANDO_ORCAMENTO, PassoSaga.ORCAMENTO, agora);
@@ -158,12 +210,16 @@ public class SagaOrdemServico {
         esperarAte(prazoDecisao);
     }
 
-    /** O Billing nao conseguiu gerar o orcamento: a Saga volta a esperar o diagnostico. */
-    public void orcamentoFalhou(String motivoFalha, LocalDateTime agora) {
+    /**
+     * O Billing nao conseguiu gerar o orcamento: o diagnostico volta ao mecanico ({@code ReabrirDiagnostico},
+     * sem as pecas invalidas) e a Saga volta a esperar o diagnostico quando a Execution confirmar.
+     */
+    public void orcamentoFalhou(String motivoFalha, List<String> pecasInvalidas, LocalDateTime agora, Duration prazoResposta) {
         exigir(StatusSaga.GERANDO_ORCAMENTO);
         this.motivo = limitar(motivoFalha);
-        mudar(StatusSaga.AGUARDANDO_DIAGNOSTICO, PassoSaga.DIAGNOSTICO, agora);
-        this.prazoExpiraEm = null;
+        this.pecasInvalidasAReabrir = pecasInvalidas == null ? null : List.copyOf(pecasInvalidas);
+        compensar(StatusSaga.COMPENSANDO, StatusSaga.AGUARDANDO_DIAGNOSTICO,
+                Set.of(MensagensSaga.DIAGNOSTICO_REABERTO), agora, prazoResposta);
     }
 
     // ------------------------------------------------------------------ passo 3: decisao
@@ -179,23 +235,27 @@ public class SagaOrdemServico {
                 new MensagensSaga.ReservarPecas(orcamentoId, List.copyOf(itens))));
     }
 
-    /** Cliente rejeitou: encerramento de negocio, nao falha. */
-    public void orcamentoRejeitado(UUID orcamentoId, LocalDateTime agora) {
+    /**
+     * Cliente rejeitou: encerramento de negocio, nao falha. A execucao parada no diagnostico concluido
+     * e cancelada ({@code CancelarExecucao}) e a Saga encerra quando a Execution confirmar.
+     */
+    public void orcamentoRejeitado(UUID orcamentoId, LocalDateTime agora, Duration prazoResposta) {
         exigir(StatusSaga.AGUARDANDO_DECISAO);
         this.orcamentoId = orcamentoId;
         this.motivo = MotivoEncerramento.ORCAMENTO_RECUSADO.name();
-        mudar(StatusSaga.ENCERRADA_SEM_EXECUCAO, PassoSaga.FIM, agora);
+        compensar(StatusSaga.COMPENSANDO, StatusSaga.ENCERRADA_SEM_EXECUCAO,
+                Set.of(MensagensSaga.EXECUCAO_CANCELADA), agora, prazoResposta);
     }
 
     /**
-     * Prazo de decisao vencido: o orcamento precisa ser cancelado no Billing. A Saga espera a
-     * confirmacao ({@code OrcamentoCancelado}) para encerrar.
+     * Prazo de decisao vencido: o orcamento precisa ser cancelado no Billing e a execucao, na Execution.
+     * A Saga espera as confirmacoes ({@code OrcamentoCancelado}, {@code ExecucaoCancelada}) para encerrar.
      */
     public void prazoDecisaoVencido(LocalDateTime agora, Duration prazoResposta) {
         exigir(StatusSaga.AGUARDANDO_DECISAO);
         this.motivo = MotivoEncerramento.ORCAMENTO_EXPIRADO.name();
         compensar(StatusSaga.COMPENSANDO, StatusSaga.ENCERRADA_SEM_EXECUCAO,
-                Set.of(MensagensSaga.ORCAMENTO_CANCELADO), agora, prazoResposta);
+                Set.of(MensagensSaga.ORCAMENTO_CANCELADO, MensagensSaga.EXECUCAO_CANCELADA), agora, prazoResposta);
     }
 
     // ------------------------------------------------------------------ passo 4: reserva
@@ -251,25 +311,40 @@ public class SagaOrdemServico {
         return status == StatusSaga.AGUARDANDO_PAGAMENTO && pagamentoId == null;
     }
 
-    /** Pagamento confirmado: a OS entra na fila de execucao. */
-    public void pagamentoConfirmado(UUID pagamentoId, LocalDateTime agora) {
+    /**
+     * Pagamento confirmado: a OS entra na fila de execucao ({@code EnfileirarExecucao}). Ate a
+     * {@code ExecucaoEnfileirada} chegar, o prazo vigiado e o de resposta; depois, a execucao e do mecanico.
+     */
+    public void pagamentoConfirmado(UUID pagamentoId, LocalDateTime agora, Duration prazoResposta) {
         exigir(StatusSaga.AGUARDANDO_PAGAMENTO);
         this.pagamentoId = pagamentoId;
         mudar(StatusSaga.AGUARDANDO_EXECUCAO, PassoSaga.EXECUCAO, agora);
+        aguardarResposta(agora, prazoResposta);
+        comandosAEnviar.add(new ComandoSaga(MensagensSaga.ENFILEIRAR_EXECUCAO, Filas.EXECUTION_COMMANDS,
+                new MensagensSaga.EnfileirarExecucao(orcamentoId)));
     }
 
     /**
-     * Pagamento recusado ou expirado: libera as pecas e cancela o orcamento. A OS e cancelada na hora;
-     * a Saga termina {@code COMPENSADA} quando as duas confirmacoes chegarem.
+     * Pagamento recusado ou expirado: libera as pecas, cancela o orcamento e cancela a execucao. A OS e
+     * cancelada na hora; a Saga termina {@code COMPENSADA} quando as tres confirmacoes chegarem.
      */
     public void pagamentoNaoConcluido(MotivoEncerramento motivoPagamento, LocalDateTime agora, Duration prazoResposta) {
         exigir(StatusSaga.AGUARDANDO_PAGAMENTO);
         this.motivo = motivoPagamento.name();
         compensar(StatusSaga.COMPENSANDO, StatusSaga.COMPENSADA,
-                Set.of(MensagensSaga.RESERVA_LIBERADA, MensagensSaga.ORCAMENTO_CANCELADO), agora, prazoResposta);
+                Set.of(MensagensSaga.RESERVA_LIBERADA, MensagensSaga.ORCAMENTO_CANCELADO, MensagensSaga.EXECUCAO_CANCELADA),
+                agora, prazoResposta);
     }
 
     // ------------------------------------------------------------------ passo 6: execucao
+
+    /** A Execution confirmou que a OS esta na fila de execucao: deixa de vigiar a resposta. */
+    public void execucaoEnfileirada(LocalDateTime agora) {
+        exigir(StatusSaga.AGUARDANDO_EXECUCAO);
+        this.tentativasPasso = 0;
+        this.prazoExpiraEm = null;
+        this.atualizadaEm = agora;
+    }
 
     public void execucaoIniciada(LocalDateTime agora) {
         exigir(StatusSaga.AGUARDANDO_EXECUCAO);
@@ -317,6 +392,11 @@ public class SagaOrdemServico {
         if (destino == StatusSaga.AGUARDANDO_DECISAO) {
             mudar(StatusSaga.AGUARDANDO_DECISAO, PassoSaga.DECISAO, agora);
             esperarAte(prazoDecisaoReaberta);
+        } else if (destino == StatusSaga.AGUARDANDO_DIAGNOSTICO) {
+            // Diagnostico reaberto: de volta a espera do mecanico, que nao tem prazo.
+            mudar(StatusSaga.AGUARDANDO_DIAGNOSTICO, PassoSaga.DIAGNOSTICO, agora);
+            this.prazoExpiraEm = null;
+            this.pecasInvalidasAReabrir = null;
         } else {
             this.desfecho = destino;
             mudar(destino, PassoSaga.FIM, agora);
@@ -351,7 +431,7 @@ public class SagaOrdemServico {
         this.tentativasPasso++;
         this.prazoExpiraEm = agora.plus(prazoResposta);
         this.atualizadaEm = agora;
-        enfileirarCompensacoesPendentes(null);
+        enfileirarCompensacoesPendentes(null, true);
         return true;
     }
 
@@ -361,6 +441,8 @@ public class SagaOrdemServico {
      */
     public boolean reenviarComandoDeAvanco(LocalDateTime agora, Duration prazoResposta, int maxTentativas) {
         ComandoSaga reenvio = switch (status) {
+            case AGUARDANDO_DIAGNOSTICO -> ComandoSaga.reenvio(MensagensSaga.ENFILEIRAR_DIAGNOSTICO, Filas.EXECUTION_COMMANDS);
+            case AGUARDANDO_EXECUCAO -> ComandoSaga.reenvio(MensagensSaga.ENFILEIRAR_EXECUCAO, Filas.EXECUTION_COMMANDS);
             case GERANDO_ORCAMENTO -> ComandoSaga.reenvio(MensagensSaga.GERAR_ORCAMENTO, Filas.BILLING_COMMANDS);
             case RESERVANDO_PECAS -> ComandoSaga.reenvio(MensagensSaga.RESERVAR_PECAS, Filas.EXECUTION_COMMANDS);
             case AGUARDANDO_PAGAMENTO -> {
@@ -379,6 +461,16 @@ public class SagaOrdemServico {
         this.atualizadaEm = agora;
         comandosAEnviar.add(reenvio);
         return true;
+    }
+
+    /**
+     * A Execution nao confirmou a fila ({@code EnfileirarDiagnostico}/{@code EnfileirarExecucao}) nem
+     * depois dos reenvios: a OS fica sem fila e exige acao manual (monitorado).
+     */
+    public void filaSemConfirmacao(String motivoFalha, LocalDateTime agora) {
+        exigir(StatusSaga.AGUARDANDO_DIAGNOSTICO, StatusSaga.AGUARDANDO_EXECUCAO);
+        this.motivo = limitar(motivoFalha);
+        mudar(StatusSaga.FALHA_COMPENSACAO, PassoSaga.FIM, agora);
     }
 
     /** Prazo que nao tem mais o que disparar (dado inconsistente): deixa de ser lido pelo agendador. */
@@ -419,8 +511,18 @@ public class SagaOrdemServico {
     }
 
     private void enfileirarCompensacoesPendentes(List<MensagensSaga.PecaFaltante> faltantes) {
+        enfileirarCompensacoesPendentes(faltantes, false);
+    }
+
+    private void enfileirarCompensacoesPendentes(List<MensagensSaga.PecaFaltante> faltantes, boolean reenvio) {
         for (String confirmacao : pendentes()) {
             switch (confirmacao) {
+                case MensagensSaga.DIAGNOSTICO_REABERTO -> comandosAEnviar.add(reenvio
+                        ? ComandoSaga.reenvio(MensagensSaga.REABRIR_DIAGNOSTICO, Filas.EXECUTION_COMMANDS)
+                        : new ComandoSaga(MensagensSaga.REABRIR_DIAGNOSTICO, Filas.EXECUTION_COMMANDS,
+                                new MensagensSaga.ReabrirDiagnostico(motivo, pecasInvalidasAReabrir)));
+                case MensagensSaga.EXECUCAO_CANCELADA -> comandosAEnviar.add(new ComandoSaga(
+                        MensagensSaga.CANCELAR_EXECUCAO, Filas.EXECUTION_COMMANDS, new MensagensSaga.CancelarExecucao(motivo)));
                 case MensagensSaga.ORCAMENTO_CANCELADO -> comandosAEnviar.add(new ComandoSaga(
                         MensagensSaga.CANCELAR_ORCAMENTO, Filas.BILLING_COMMANDS,
                         new MensagensSaga.CancelarOrcamento(orcamentoId, motivo)));
