@@ -3,7 +3,7 @@
 > **Projeto:** Tech Challenge SOAT 13 — Oficina Mecânica
 > **Data da análise:** 14/10/2026
 > **Base:** os 4 repositórios locais (`oficina-app`, `oficina-infra-k8s`, `oficina-infra-database`, `oficina-lambda-auth`) e os enunciados da Fase 3 e da Fase 4.
-> **Status:** decisões da seção 15 confirmadas em 15/10/2026 (todas conforme a recomendação). Passos 0, 1 e 3 integrados em `desenvolvimento`; Passo 4 em andamento (E1 pronta, aguardando PR) — ver [seção 18](#18-andamento).
+> **Status:** decisões da seção 15 confirmadas em 15/10/2026 (todas conforme a recomendação). Passos 0, 1 e 3 integrados em `desenvolvimento`; Passo 4 com E1, E2 e as entregas 10 e 11 prontas em branches locais, aguardando PR — ver [seção 18](#18-andamento).
 >
 > **Vai continuar o desenvolvimento? Comece pela [seção 18.5](#185-como-continuar)** (estado atual, regras do grupo, ambiente local, roteiro do Passo 4 e do dia do deploy).
 >
@@ -1192,7 +1192,7 @@ Achados ainda abertos: `cliente.tipo` obrigatório no schema do `GerarOrcamento`
 | 1 — Desacoplar no monólito, Saga em memória, BDD | Integrado (#44, #45, #46) |
 | 2 — Plataforma e repositórios | **Parcial.** Feito: repositórios novos com esqueleto, CI (`testes`, `qualidade`, `validacao`), Sonar e `pr-source-guard`; `infra/` do OS e do Billing escritos e validados, **nunca aplicados**. Falta: AWS Load Balancer Controller, generalizar o Datadog e remover a role `<cluster>-ses-send-email` no `oficina-infra-k8s` (8.4); quotas (9.4) |
 | 3 — Extrair Billing e Mercado Pago | Integrado (18.4). Validado ponta a ponta local; falta rodar em hml com o sandbox real do Mercado Pago |
-| 4 — Extrair Execution e DynamoDB | **Em andamento.** E1 (estoque no DynamoDB) pronta na branch `feature/estoque`, sem PR ainda ([18.6](#186-passo-4-e1--estoque-de-peças-no-dynamodb)); próxima: E2 — roteiro abaixo |
+| 4 — Extrair Execution e DynamoDB | **Pronto no código, sem PR.** E1, E2, entrega 10 (OS) e entrega 11 (infra) em branches locais encadeadas ([18.6](#186-passo-4-e1--estoque-de-peças-no-dynamodb) e [18.7](#187-passo-4-e2-entrega-10-e-entrega-11)); falta abrir os PRs, a migration que apaga as tabelas antigas do OS e rodar tudo na AWS |
 | 5 — Lambda e gateway | A fazer (8.6, 9.3) |
 | 6 — Observabilidade, docs, vídeo, PDF | A fazer (12, 14) |
 
@@ -1294,9 +1294,9 @@ dono).
 | # | Repositório / branch | Conteúdo |
 |---|---|---|
 | E1 ✅ | `oficina-execution-service` `feature/estoque` | **Entregue em 17/10/2026, sem PR (ver 18.6).** Peças e estoque no DynamoDB (Enhanced Client, tabelas `pecas` e `reservas`); CRUD `/pecas-insumos` com os mesmos caminhos e respostas do OS; `POST /internal/pecas-insumos/consulta` com `X-Service-Token`; mensageria copiada do Billing com persistência em `execution-controle`; participante `ReservarPecas`/`LiberarReserva` com `TransactWriteItems`; seed `scripts/seed-pecas.json`; testes com LocalStack (DynamoDB + SQS) em Testcontainers e de contrato; excluir `UserDetailsServiceAutoConfiguration` |
-| E2 | `oficina-execution-service` `feature/diagnostico-execucao` (sobre E1) | Tabela `execucoes` + GSI `fila-por-etapa`; endpoints do mecânico (fila, iniciar/concluir diagnóstico, iniciar/concluir/abortar execução); comandos `EnfileirarDiagnostico`, `ReabrirDiagnostico`, `EnfileirarExecucao`, `CancelarExecucao` e eventos `Diagnostico*`/`Execucao*`; conclusão consome as reservas (baixa do estoque) |
-| 10 | `oficina-app` `feature/fase4-execution-extraida` | Orquestrador com os passos de diagnóstico e execução; `GerarOrcamento` sai sozinho no `DiagnosticoConcluido` (somem os campos transitórios marcados com ¹ em `mensagens.md`); remove `pecainsumo`, `ponte`, diagnóstico e execução; `CatalogoPecas` por REST; `execution-commands` pelo SQS; `ExecutionSimulado` nos testes (como o `BillingSimulado`, validado contra o contrato); ArchUnit, BDD, docker-compose e `mensageria-local.md` atualizados |
-| 11 | `oficina-execution-service` `feature/infra` (+ ajuste no Billing) | `infra/` (tabelas DynamoDB on-demand, `execution-commands` + DLQ, ECR, Role IRSA com DynamoDB + SQS) copiado do Billing; `infra.yml`; `ci-cd.yml` com build, deploy e seed em hml. No Billing, `CATALOGO_PECAS_URL` passa a `http://oficina-execution-service:8080` (`k8s/overlays/*/app.env`) |
+| E2 ✅ | `oficina-execution-service` `feature/diagnostico-execucao` (sobre E1) | Tabela `execucoes` + GSI `fila-por-etapa`; endpoints do mecânico (fila, iniciar/concluir diagnóstico, iniciar/concluir/abortar execução); comandos `EnfileirarDiagnostico`, `ReabrirDiagnostico`, `EnfileirarExecucao`, `CancelarExecucao` e eventos `Diagnostico*`/`Execucao*`; conclusão consome as reservas (baixa do estoque) |
+| 10 ✅ | `oficina-app` `feature/fase4-execution-extraida` | Orquestrador com os passos de diagnóstico e execução; `GerarOrcamento` sai sozinho no `DiagnosticoConcluido` (somem os campos transitórios marcados com ¹ em `mensagens.md`); remove `pecainsumo`, `ponte`, diagnóstico e execução; `CatalogoPecas` por REST; `execution-commands` pelo SQS; `ExecutionSimulado` nos testes (como o `BillingSimulado`, validado contra o contrato); ArchUnit, BDD, docker-compose e `mensageria-local.md` atualizados |
+| 11 ✅ | `oficina-execution-service` `feature/infra` (+ ajuste no Billing, `feature/catalogo-na-execution`) | `infra/` (tabelas DynamoDB on-demand, `execution-commands` + DLQ, ECR, Role IRSA com DynamoDB + SQS) copiado do Billing; `infra.yml`; `ci-cd.yml` com build, deploy e seed em hml. No Billing, `CATALOGO_PECAS_URL` passa a `http://oficina-execution-service:8080` (`k8s/overlays/*/app.env`) |
 
 Também do Passo 4: resolver `cliente.tipo` no schema do `GerarOrcamento` (18.4) e, depois que Billing e
 Execution estiverem no ar, a migration que apaga do RDS do OS as tabelas que mudaram de dono
@@ -1367,10 +1367,48 @@ Branch `feature/estoque` do `oficina-execution-service` (2 commits locais, **ain
 - `DELETE` só é recusado com reserva ativa (400). Reserva antiga já liberada ou consumida não bloqueia: o DynamoDB não tem FK (no OS isso dava 409).
 - Rota inexistente responde 404 (o `ApiExceptionHandler` copiado do Billing a transformava em 500).
 
-**Não validado:** o `EstoqueDynamoLocalStackTest` (12 testes, Testcontainers + LocalStack 4.14.0) exige Docker e foi ignorado localmente; o CI o executa. É ele quem confere de verdade as expressões do DynamoDB, a transação, a corrida pelo último item e o caminho outbox → SQS. Os adapters foram conferidos só contra um duplo do `DynamoDbClient`. **Antes de abrir o PR, rodar `./mvnw verify` com o Docker ligado.**
+**Validado com Docker em 17/10/2026:** o `EstoqueDynamoLocalStackTest` (Testcontainers + LocalStack 4.14.0) confere as expressões do DynamoDB, a transação, a corrida pelo último item e o caminho outbox → SQS; `./mvnw verify` verde com ele ligado (detalhes em [18.7](#187-passo-4-e2-entrega-10-e-entrega-11)).
 
 **Achados ainda abertos:**
 
-- O LocalStack do `docker-compose` deste repositório só liga o SQS (`SERVICES: sqs`); a Execution precisa de `sqs,dynamodb`. A mudança entra na entrega 10 (o README do Execution explica como subir um LocalStack com DynamoDB por fora).
+- ~~O LocalStack do `docker-compose` só ligava o SQS~~ — resolvido na entrega 10 (`SERVICES: sqs,dynamodb`).
 - O `ApiExceptionHandler` do Billing tem o mesmo defeito de rota inexistente → 500.
-- k8s (variáveis do SQS e do DynamoDB, `SERVICE_TOKEN`, readiness com `dynamoDb` via `MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE`) e o `infra/` ficam para a entrega 11.
+- ~~k8s e `infra/`~~ — resolvidos na entrega 11 (18.7).
+
+### 18.7 Passo 4, E2, entrega 10 e entrega 11
+
+17/10/2026, tudo em branches locais **sem push nem PR**, empilhadas: `oficina-execution-service` `feature/estoque` → `feature/diagnostico-execucao` (E2) → `feature/infra` (11); `oficina-app` `feature/fase4-execution-extraida` (10, parte de `desenvolvimento`); `oficina-billing-service` `feature/catalogo-na-execution` (parte de `desenvolvimento`). A AWS segue desligada. **Validado com o Docker ligado** (LocalStack via Testcontainers): Execution 220 testes, OS 396 testes, JaCoCo ≥ 80% nos dois.
+
+**E2 — diagnóstico e execução na Execution.** Tabela `execucoes` (um documento por OS, com `versao` e escrita condicional) e GSI `fila-por-etapa`. O mecânico age na Execution (`/execucoes/...`: fila, iniciar/concluir diagnóstico, iniciar/concluir/abortar execução); a Saga só reage a `Diagnostico*`/`Execucao*` e manda `EnfileirarDiagnostico`, `ReabrirDiagnostico`, `EnfileirarExecucao` e `CancelarExecucao`. Concluir a execução consome as reservas (baixa do estoque).
+
+**Entrega 10 — OS sem diagnóstico, execução e peças.** Saem `pecainsumo`, `ponte` e os casos de uso/endpoints de diagnóstico e execução. `SagaOrdemServico` e o orquestrador ganham os passos novos; `GerarOrcamento` sai sozinho no `DiagnosticoConcluido` (somem os campos ¹ de `mensagens.md`); `OrcamentoFalhou` reabre o diagnóstico; rejeição, decisão expirada e falha de pagamento também cancelam a execução; sem confirmação da fila no prazo, a OS vai a `FALHA_COMPENSACAO`. `CatalogoPecasExecutionRest` consulta a Execution. Testes com `ExecutionSimulado` e `CatalogoSimulado` (escritos à mão, validados contra os JSON Schemas); BDD, ArchUnit, `docker-compose` (`SERVICES: sqs,dynamodb`, `scripts/localstack/criar-tabelas.sh`) e docs atualizados.
+
+**Entrega 11 — infra da Execution.** `infra/` (4 tabelas DynamoDB sob demanda com os dois GSIs e TTL, `execution-commands` + DLQ, ECR, Role IRSA com SQS + DynamoDB), `infra.yml`, `ci-cd.yml` (build, deploy, rollout e seed do catálogo se a tabela estiver vazia), overlays com `SERVICE_TOKEN`, SQS e readiness incluindo o `dynamoDb` (teste de prontidão no LocalStack). Validado só com `terraform fmt`/`validate` (imagem oficial do Terraform) e `kubectl kustomize`: **nunca aplicado**. No Billing, `CATALOGO_PECAS_URL` aponta para `http://oficina-execution-service:8080`.
+
+**Validação ponta a ponta local (17/10/2026).** Os três serviços como processos reais (OS 8080, Billing 8081 com gateway simulado, Execution 8082) sobre o LocalStack do `docker-compose` (SQS + DynamoDB) e dois Postgres, sem nenhum simulado em memória. Percorrido por HTTP, com a Saga acompanhada em `GET /sagas/{id}`:
+
+| Cenário (6.8) | Resultado |
+|---|---|
+| Feliz: abre OS (com previsão) → fila de diagnóstico → diagnóstico → orçamento (preço consultado na Execution: 2 × 80 + 150 = 310) → cliente aprova (JWT de cliente) → reserva (disponível 20 → 18) → pagamento simulado → fila de execução → iniciar/concluir | Saga `CONCLUIDA`, OS `Finalizada`, estoque baixado de verdade (20 → 18, reservada 0) |
+| Peça sem estoque (radiador) | `ReservaFalhou` → `ReverterAprovacao`: OS volta a aguardar decisão, nada reservado |
+| Cliente rejeita o orçamento | `CancelarExecucao` → Execution `CANCELADA`, OS `Finalizada` por `ORCAMENTO_RECUSADO` |
+| Pagamento recusado | `CancelarExecucao`, `CancelarOrcamento`, `LiberarReserva`: Saga `COMPENSADA`, OS `Cancelada`, reserva devolvida |
+| Mecânico aborta a execução | `EstornarPagamento` + `LiberarReserva`: Saga `COMPENSADA` por `FALHA_EXECUCAO`, OS `Cancelada`, estoque inteiro |
+
+Não exercitados nesta rodada (cobertos só por testes automatizados): prazo de decisão/pagamento expirado, DLQ, queda de um participante com reenvio. Também validado: `scripts/carregar-seed-pecas.sh` (rodado num contêiner com `aws` e `jq`, como o `ci-cd.yml` fará) e a tabela `fila-por-etapa` lendo a fila real.
+
+**Decisões que divergem do plano original:**
+
+- O GSI `fila-por-etapa` ordena por `entrouNaEtapaEm` (a ADR 0006 dizia `criadoEm`): é a data de entrada na etapa que define a fila.
+- Os eventos da Execution levam o mecânico do JWT (`subject` como id, claim `nome` com fallback para o subject).
+- `cliente.tipo` no `GerarOrcamento`: resolvido no OS: vale o tipo cadastrado e, em cliente antigo sem tipo, PF/PJ sai do tamanho do documento.
+- `ExecutionSimulado` não valida peças, para o `OrcamentoFalhou` poder ser provocado nos testes.
+
+**Pendências e achados abertos:**
+
+- Migration que apaga do RDS do OS as tabelas que mudaram de dono (orçamentos, tokens, pagamentos, peças, reservas) — só depois de Billing e Execution no ar.
+- A coleção Insomnia (`docs/collections/oficina-api.insomnia.json`, gerada por `scripts/gerar-collection-insomnia.py`) ainda lista endpoints removidos; é refeita no Passo 6.
+- O `ApiExceptionHandler` do Billing ainda responde 500 a rota inexistente (a Execution e o OS já respondem 404).
+- O segredo JWT de desenvolvimento difere entre o `docker-compose.yml` do OS (`ASjhd8213u...`) e o default do `application.yml` do OS e do Billing (`SUA_CHAVE_SECRETA...`): com o OS no compose e o Billing/Execution na máquina, o token não vale entre eles — exportar `JWT_SECRET` igual nos três.
+- Scripts `.sh` do Execution agora são sempre LF (`.gitattributes`): o checkout CRLF do Windows quebrava o `set -o pipefail`.
+- Abrir os PRs na ordem: Billing (`catalogo-na-execution`), Execution (`estoque` → `diagnostico-execucao` → `infra`), OS (`execution-extraida`), cada um para `desenvolvimento`.
