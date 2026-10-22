@@ -733,10 +733,10 @@ Configuração:
 |---|---|---|
 | VPC, EKS, node group, add-ons, AWS Load Balancer Controller, Datadog agent/dashboard/monitores | `oficina-infra-k8s` | Plataforma compartilhada |
 | RDS do OS Service | `oficina-infra-database` | Já existe |
-| ECR, fila `os-saga-replies` + DLQ, role IRSA (SQS + SES), `service-token` | `oficina-app/infra/` | Novo |
+| ECR, fila `os-saga-replies` + DLQ, role IRSA (SQS + SES), `service-token`, `jwt-secret` | `oficina-app/infra/` | Novo (`jwt-secret` veio do `oficina-lambda-auth`, ver 18.9) |
 | ECR, RDS do Billing, fila `billing-commands` + DLQ, role IRSA, segredo MP | `oficina-billing-service/infra/` | Novo |
 | ECR, tabelas DynamoDB, fila `execution-commands` + DLQ, role IRSA | `oficina-execution-service/infra/` | Novo |
-| API Gateway, Lambdas, segredo JWT | `oficina-lambda-auth/infra/` | Já existe |
+| API Gateway, Lambdas | `oficina-lambda-auth/infra/` | Já existe |
 
 ### 9.2 Ordem de provisionamento e destruição
 
@@ -1321,26 +1321,52 @@ Preparação, sem custo (pode ser feita antes, a qualquer momento):
 
 1. Marcar os checks obrigatórios `testes`, `qualidade`, `validacao` e `guard` na proteção de
    `master`/`homologacao` dos três repositórios de serviço.
-2. Variable `TF_STATE_BUCKET` (Settings → Secrets and variables → Actions) nos repositórios com
-   `infra/` próprio: `oficina-app`, Billing e Execution.
-3. Credenciais de teste do Mercado Pago à mão (`access_token` do vendedor de teste e a assinatura
-   secreta do webhook, do painel de integrações) — só em arquivo local, nunca no repositório.
+2. **As mesmas** chaves AWS (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) nos seis repositórios, ou
+   como secret da organização: o `eks.tf` dá acesso de admin só a quem cria o cluster
+   (`enable_cluster_creator_admin_permissions`), e com outro usuário o `kubectl` dos deploys é recusado.
+3. Variable `TF_STATE_BUCKET` (Settings → Secrets and variables → Actions) nos seis repositórios, todos
+   com o mesmo bucket (o bucket precisa existir: bootstrap no README do `oficina-infra-k8s`).
+4. `oficina-infra-k8s`: secrets `DATADOG_API_KEY` e `DATADOG_APP_KEY` (conferir se a conta do Datadog
+   ainda está ativa). `oficina-app`: variable `AWS_SES_REMETENTE` (endereço verificado no SES; com o
+   SES em sandbox, o e-mail do cliente da demonstração também precisa estar verificado).
+5. Environments `homologacao` e `producao`: se tiverem regra de *Deployment branches*, liberar
+   `desenvolvimento` (o `apply` do `oficina-infra-k8s` roda no Environment `producao` a partir dela).
+6. Mercado Pago (ADR 0007): contas de teste de **vendedor** e de **comprador**; logado como o vendedor
+   de teste, criar a aplicação (Checkout Pro) e copiar as **credenciais de produção** dele
+   (`APP_USR-...`). Credenciais `TEST-` não servem: pagamento criado com elas não dispara webhook
+   (documentação do Mercado Pago). Em Webhooks (modo produtivo, evento "Pagamentos"), salvar uma URL
+   HTTPS provisória para gerar a **assinatura secreta**; a URL real entra no dia. `access_token` e
+   assinatura vão para um `mercadopago.json` local, nunca para repositório ou chat.
 
 No dia, nesta ordem (9.2):
 
-1. `oficina-infra-k8s` (plataforma, com o Load Balancer Controller), depois `oficina-infra-database`.
-2. `infra/` do OS, do Billing e da Execution: workflow **Infra** de cada repositório → *Run workflow*
-   → `hml` → `apply`.
-3. Segredo do Mercado Pago, a partir do arquivo local (README do `infra/` do Billing):
+1. **Branch padrão** de `oficina-app`, `oficina-billing-service` e `oficina-execution-service` →
+   `desenvolvimento` (Settings → General). O GitHub só mostra *Run workflow* para workflow que existe
+   na branch padrão, e o `infra.yml` (e, no Billing e na Execution, também o `ci-cd.yml`) ainda não está
+   na `master`. Voltar para `master` depois do destroy.
+2. `oficina-infra-k8s`: *Run workflow* a partir de `desenvolvimento` (o Load Balancer Controller ainda
+   não está na `master`), `apply` com `datadog: off`; quando terminar, de novo com `datadog: on`.
+   Não fazer merge na `master` desse repositório no dia: push nela aplica sozinho.
+3. `oficina-infra-database`: *Run workflow* → `hml` → `apply`.
+4. `infra/` do OS, do Billing e da Execution: workflow **Infra** de cada repositório → *Run workflow*
+   → `hml` → `apply`. O do OS cria o ECR, o `service-token` e o `jwt-secret` (18.9).
+5. Segredo do Mercado Pago, a partir do arquivo local (README do `infra/` do Billing):
    `aws secretsmanager put-secret-value --secret-id oficina/hml/mercadopago --secret-string file://mercadopago.json`.
    Sem ele o Billing sobe em hml com o gateway simulado.
-4. PR `desenvolvimento` → `homologacao` nos três serviços: o push em `homologacao` faz build e deploy
-   em `oficina-hml`.
-5. `oficina-lambda-auth` (gateway, autenticação, rota do webhook). Com a URL do API Gateway em mãos,
-   criar a variable `MERCADOPAGO_NOTIFICATION_URL` (`https://<gateway>/webhooks/mercadopago`) no
-   Environment `hml` do Billing e reimplantar o Billing (*Run workflow* do `ci-cd.yml`).
-6. Validar o fluxo do roteiro 14.2 e gravar.
-7. **Destroy na ordem inversa**, no mesmo dia.
+6. PR `desenvolvimento` → `homologacao` nos três serviços: o push em `homologacao` faz build e deploy
+   em `oficina-hml` e grava a URL do ALB no SSM.
+7. `oficina-lambda-auth`: PR `desenvolvimento` → `homologacao` (o push aplica `hml`). Anotar o output
+   `api_gateway_url`.
+8. Webhook: no painel do Mercado Pago, trocar a URL provisória por `https://<gateway>/webhooks/mercadopago`;
+   criar a variable `MERCADOPAGO_NOTIFICATION_URL` com o mesmo valor no Environment `homologacao` do
+   Billing e reimplantar o Billing (*Run workflow* do `ci-cd.yml`, branch `homologacao`, `hml`).
+9. Validar o fluxo do roteiro 14.2 (pagamento logado como o comprador de teste, em aba anônima, com os
+   cartões de teste da documentação) e gravar. Se o link de pagamento recusar a conta de teste, trocar
+   o link pela variable `MERCADOPAGO_SANDBOX` (`false` = `init_point`) no Environment `homologacao` e
+   reimplantar o Billing.
+10. **Destroy na ordem inversa**, no mesmo dia: `oficina-lambda-auth` → `infra/` da Execution, do Billing
+    e do OS → `oficina-infra-database` → `oficina-infra-k8s` (apaga os Ingress, e com eles o ALB, antes
+    do `terraform destroy`). No dia seguinte, conferir no console se sobrou ALB, ENI ou volume EBS.
 
 #### Continuar com o Claude Code
 
@@ -1432,3 +1458,24 @@ Não exercitados nesta rodada (cobertos só por testes automatizados): prazo de 
 - `oficina-infra-k8s` `alb-controller-e-multi-servico` e `oficina-lambda-auth` `cliente-via-api`: um PR cada. O ALB do OS depende do controller: só funciona com o `oficina-infra-k8s` aplicado primeiro (ordem do dia do deploy).
 
 **Ainda falta (Passo 6):** READMEs e `docs/arquitetura/` dos três serviços, Swagger e collection do fluxo completo (a Insomnia ainda lista endpoints removidos), evidências de cobertura, vídeo e PDF. E, no dia do deploy, confirmar os nomes das métricas no Datadog real (foram conferidos só contra o `/actuator/prometheus` local).
+
+### 18.9 Revisão do roteiro do dia do deploy
+
+22/10/2026. Lendo os workflows e o Terraform dos seis repositórios contra o roteiro da 18.5, três
+coisas impediam a subida (nada foi aplicado; validação só local):
+
+| Problema | Correção |
+|---|---|
+| O ECR `oficina` do OS saiu do `oficina-infra-k8s` (18.8), mas não entrou no `infra/` do OS: o build do OS falharia no push da imagem | `oficina-app/infra/ecr.tf` cria `oficina-os-service-<env>`, como no Billing e na Execution; o `ci-cd.yml` publica nele e confere se ele existe antes do build |
+| Ciclo na subida: o deploy do Billing e da Execution exige `oficina/<env>/jwt-secret`, criado pelo `oficina-lambda-auth`, que por sua vez exige o ALB gravado no SSM por esses deploys. Só o OS subia sem o segredo, gerando um valor que não valia para o token da Lambda | O `jwt-secret` passa para o `infra/` do OS (mesmo padrão do `service-token`) e o `oficina-lambda-auth` lê por nome. A ordem da 9.2 volta a ser linear. O deploy do OS agora falha sem o segredo, como o dos outros dois |
+| *Run workflow* só aparece para workflow da branch padrão (`master`), onde o `infra.yml` dos serviços ainda não existe | Trocar a branch padrão para `desenvolvimento` no dia (passo 1 do roteiro) |
+
+Também: o Billing aceita a variable `MERCADOPAGO_SANDBOX` por Environment, para trocar entre
+`sandbox_init_point` e `init_point` sem commit (o link certo depende do tipo de credencial do Mercado
+Pago e só dá para confirmar com a conta de teste); preparação do Mercado Pago, das chaves AWS e dos
+Environments acrescentada à 18.5.
+
+Branches (cada uma com PR para `desenvolvimento`): `oficina-app` `feature/fase4-deploy-ecr-jwt`,
+`oficina-lambda-auth` `feature/jwt-criado-pelo-os`, `oficina-billing-service` e
+`oficina-execution-service` `feature/deploy-jwt-do-os`. Integrar o `oficina-app` e o
+`oficina-lambda-auth` juntos: a Lambda passa a exigir o segredo criado pelo `infra/` do OS.

@@ -38,7 +38,7 @@ explica: o Datadog correlaciona métricas Micrometer e traces pelo nome).
 | Recurso | Nome | Dono (`infra/` de) |
 |---|---|---|
 | Cluster EKS | `oficina` *(mantém)* | `oficina-infra-k8s` |
-| ECR | `oficina-os-service`, `oficina-billing-service`, `oficina-execution-service` | cada serviço |
+| ECR | `oficina-os-service-<env>`, `oficina-billing-service-<env>`, `oficina-execution-service-<env>` | cada serviço |
 | Tag de imagem | `<ambiente>-<sha>` e `<ambiente>-latest` *(mantém)* | pipeline |
 | RDS do OS | `oficina-db-<env>` *(mantém)* | `oficina-infra-database` |
 | RDS do Billing | `oficina-billing-db-<env>` | Billing |
@@ -53,7 +53,7 @@ explica: o Datadog correlaciona métricas Micrometer e traces pelo nome).
 
 | Nome | Conteúdo | Quem cria | Quem lê |
 |---|---|---|---|
-| `oficina/<env>/jwt-secret` *(mantém)* | Segredo HMAC do JWT | `oficina-lambda-auth` | Lambdas e os três serviços |
+| `oficina/<env>/jwt-secret` *(mantém o nome)* | Segredo HMAC do JWT | `infra/` do OS (até a Fase 3, `oficina-lambda-auth`) | Lambdas e os três serviços |
 | `oficina/<env>/service-token` | Token do header `X-Service-Token` em `/internal/**` | `infra/` do OS | OS, Lambda `token`, Billing, Execution |
 | `oficina/<env>/mercadopago` | JSON `{ "access_token", "webhook_secret" }` | `infra/` do Billing (valor colocado à mão) | Billing |
 | Segredo gerenciado do RDS | usuário e senha do banco | RDS (`manage_master_user_password`) *(mantém)* | serviço dono do banco |

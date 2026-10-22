@@ -22,3 +22,13 @@ output "service_token_secret_name" {
   description = "Nome do segredo do token interno, lido pelas pipelines do OS e do Billing."
   value       = aws_secretsmanager_secret.service_token.name
 }
+
+output "jwt_secret_name" {
+  description = "Nome do segredo do JWT, lido pelas pipelines dos tres servicos e pelo oficina-lambda-auth."
+  value       = aws_secretsmanager_secret.jwt.name
+}
+
+output "ecr_repository_url" {
+  description = "Repositorio das imagens do OS neste ambiente."
+  value       = aws_ecr_repository.servico.repository_url
+}
