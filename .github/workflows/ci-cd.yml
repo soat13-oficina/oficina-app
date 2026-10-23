@@ -11,19 +11,21 @@ name: CI/CD (aplicacao)
 #   workflow_dispatch         -> imagem + deploy no ambiente escolhido no input
 #
 # O dispatch existe para REIMPLANTAR sem inventar commit: a plataforma e efemera
-# (apply/destroy sob demanda para nao pagar ocioso) e, como o ECR vive no repo
-# oficina-infra-k8s, um destroy leva a imagem junto. Subir o ambiente de novo e
-# entao: dispatch em infra-k8s -> infra-database -> Infra (OS Service) deste repo ->
-# infra/ do Billing -> lambda-auth -> AQUI, sem push.
+# (apply/destroy sob demanda para nao pagar ocioso) e o ECR vive no infra/ deste
+# repo, entao um destroy leva a imagem junto. Subir o ambiente de novo e entao:
+# dispatch em infra-k8s -> infra-database -> Infra (OS Service) deste repo ->
+# infra/ do Billing e da Execution -> AQUI, sem push -> lambda-auth.
 #
 # INFRAESTRUTURA de que este deploy depende:
-#   oficina-infra-k8s        VPC, EKS e ECR
+#   oficina-infra-k8s        VPC, EKS e o AWS Load Balancer Controller (Ingress)
 #   oficina-infra-database   RDS oficina-db-hml e oficina-db-prd
-#   infra/ (este repo)       fila os-saga-replies + DLQ, Role IRSA (SQS + SES) e o
-#                            segredo oficina/<env>/service-token - workflow infra.yml, manual
+#   infra/ (este repo)       ECR oficina-os-service-<env>, fila os-saga-replies + DLQ, Role
+#                            IRSA (SQS + SES) e os segredos oficina/<env>/service-token e
+#                            oficina/<env>/jwt-secret - workflow infra.yml, manual
 #   oficina-billing-service  fila billing-commands (o OS manda os comandos do Billing)
-#   oficina-lambda-auth      API Gateway, Lambdas e o segredo do JWT
-# Todos precisam estar aplicados antes do primeiro deploy daquele ambiente.
+#   oficina-execution-service fila execution-commands
+# Todos precisam estar aplicados antes do primeiro deploy daquele ambiente. O
+# oficina-lambda-auth vem DEPOIS: ele le a URL do ALB que este deploy grava no SSM.
 #
 # Configuração necessária no repositório:
 #   Secrets:   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
@@ -35,8 +37,8 @@ on:
   push:
     branches: [master, homologacao, desenvolvimento]
   # Permite reimplantar SEM inventar um commit. Necessario porque a infra e efemera:
-  # o ECR mora no oficina-infra-k8s, entao um destroy da plataforma leva a imagem junto
-  # e o ambiente precisa ser reconstruido a partir do codigo que ja esta na branch.
+  # o ECR mora no infra/ deste repo, entao um destroy leva a imagem junto e o
+  # ambiente precisa ser reconstruido a partir do codigo que ja esta na branch.
   workflow_dispatch:
     inputs:
       environment:
@@ -51,7 +53,6 @@ permissions:
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
-  ECR_REPOSITORY: oficina
   EKS_CLUSTER: oficina
   # Ambiente-alvo: do input quando disparado a mao, senao deduzido da branch.
   # A expressao e repetida (e nao referenciada via env) porque o contexto `env` nao
@@ -186,9 +187,8 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      # Tag com o ambiente no prefixo: as imagens de hml e prd convivem no
-      # mesmo repositorio ECR e precisam ser distinguiveis num "aws ecr
-      # describe-images". A tag movel <env>-latest facilita rollback manual.
+      # Um repositorio ECR por ambiente (infra/ecr.tf). A tag mantem o ambiente no
+      # prefixo, como antes, e a tag movel <env>-latest facilita rollback manual.
       - id: image
         name: Define a tag da imagem
         run: |
@@ -197,14 +197,22 @@ jobs:
           # uma imagem disparada a mao para prd a partir de outra branch.
           echo "tag=${AMBIENTE}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "moving_tag=${AMBIENTE}-latest" >> "$GITHUB_OUTPUT"
+          echo "repo=oficina-os-service-${AMBIENTE}" >> "$GITHUB_OUTPUT"
+
+      - name: Confere o repositorio ECR
+        run: |
+          if ! aws ecr describe-repositories --repository-names "${{ steps.image.outputs.repo }}" >/dev/null 2>&1; then
+            echo "::error::Repositorio ECR ${{ steps.image.outputs.repo }} nao existe. Rode o workflow 'Infra (OS Service)' (apply em $AMBIENTE)."
+            exit 1
+          fi
 
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.image.outputs.tag }}
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.image.outputs.moving_tag }}
+            ${{ steps.ecr.outputs.registry }}/${{ steps.image.outputs.repo }}:${{ steps.image.outputs.tag }}
+            ${{ steps.ecr.outputs.registry }}/${{ steps.image.outputs.repo }}:${{ steps.image.outputs.moving_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -287,8 +295,8 @@ jobs:
           kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
       # Secrets sao criados imperativamente e NUNCA versionados. O JWT_SECRET e
-      # o mesmo que a Lambda de autenticacao usa para assinar o token - o
-      # contrato do nome esta no README de oficina-lambda-auth.
+      # o mesmo que a Lambda de autenticacao usa para assinar o token; o segredo
+      # e criado pelo infra/ deste repo (infra/secrets.tf).
       - name: Cria os Secrets do ambiente
         env:
           DB_USER: ${{ steps.db.outputs.db_user }}
@@ -304,11 +312,8 @@ jobs:
             --secret-id "oficina/${AMBIENTE}/jwt-secret" \
             --query SecretString --output text 2>/dev/null || true)
           if [ -z "$JWT_SECRET" ]; then
-            # Permite subir a aplicacao antes de oficina-lambda-auth existir.
-            # Enquanto for gerado aqui, o token emitido pela Lambda NAO sera
-            # aceito pela API - os dois lados precisam do mesmo segredo.
-            echo "::warning::Segredo oficina/${AMBIENTE}/jwt-secret nao encontrado no Secrets Manager. Gerando um valor local: o login via Lambda so funcionara depois que oficina-lambda-auth for aplicado e este deploy for repetido."
-            JWT_SECRET=$(openssl rand -base64 48)
+            echo "::error::Segredo oficina/${AMBIENTE}/jwt-secret nao encontrado. Rode o workflow 'Infra (OS Service)' (apply em $AMBIENTE) antes deste deploy."
+            exit 1
           fi
           echo "::add-mask::$JWT_SECRET"
 
@@ -348,7 +353,7 @@ jobs:
             echo "DD_VERSION=${TAG}"
           } >> "$OVERLAY/app.env"
 
-          sed -i "s#__IMAGE_REPO__#${REGISTRY}/${ECR_REPOSITORY}#" "$OVERLAY/kustomization.yaml"
+          sed -i "s#__IMAGE_REPO__#${REGISTRY}/oficina-os-service-${AMBIENTE}#" "$OVERLAY/kustomization.yaml"
           sed -i "s#__IMAGE_TAG__#${TAG}#"                          "$OVERLAY/kustomization.yaml"
           sed -i "s#__IRSA_ROLE_ARN__#${IRSA_ROLE_ARN}#"            "$OVERLAY/patch-serviceaccount.yaml"
 

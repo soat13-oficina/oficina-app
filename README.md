@@ -522,7 +522,7 @@ cada deploy:
 | Secret | Origem |
 |---|---|
 | `oficina-db-credentials` | Secrets Manager, gerenciado pelo próprio RDS |
-| `oficina-app-secrets` | `JWT_SECRET` vem de `oficina/<ambiente>/jwt-secret` (criado por `oficina-lambda-auth` — é o mesmo segredo que assina o token); `ORCAMENTO_WEBHOOK_SECRET` vem do secret de repositório de mesmo nome |
+| `oficina-app-secrets` | `JWT_SECRET` vem de `oficina/<ambiente>/jwt-secret` (criado pelo [`infra/`](infra/README.md) deste repositório — é o mesmo segredo com que a Lambda assina o token); `ORCAMENTO_WEBHOOK_SECRET` vem do secret de repositório de mesmo nome |
 
 Três marcadores (`__IMAGE_REPO__`, `__IMAGE_TAG__`, `__SES_IAM_ROLE_ARN__`) são
 preenchidos pela pipeline; os comandos para preenchê-los à mão estão comentados
@@ -533,7 +533,8 @@ nos próprios arquivos.
 **Não fica mais neste repositório.** Provisionamento, custos, bootstrap do state
 no S3 e ordem de apply/destroy estão nos READMEs de:
 
-- **`oficina-infra-k8s`** — VPC, EKS, ECR, IAM/IRSA. Aplique **primeiro**.
+- **`oficina-infra-k8s`** — VPC, EKS, IAM/IRSA. Aplique **primeiro**.
+- **[`infra/`](infra/README.md) deste repositório** — ECR, filas e Role do OS, segredos `service-token` e `jwt-secret`.
 - **`oficina-infra-database`** — RDS `oficina-db-hml` e `oficina-db-prd`.
 - **`oficina-lambda-auth`** — API Gateway e Lambdas de autenticação.
 
