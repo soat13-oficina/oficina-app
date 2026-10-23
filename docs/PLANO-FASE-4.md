@@ -1479,3 +1479,16 @@ Branches (cada uma com PR para `desenvolvimento`): `oficina-app` `feature/fase4-
 `oficina-lambda-auth` `feature/jwt-criado-pelo-os`, `oficina-billing-service` e
 `oficina-execution-service` `feature/deploy-jwt-do-os`. Integrar o `oficina-app` e o
 `oficina-lambda-auth` juntos: a Lambda passa a exigir o segredo criado pelo `infra/` do OS.
+
+### 18.10 Correções integradas e CI de integração do OS
+
+23/10/2026. As quatro branches da 18.9 entraram em `desenvolvimento`: Billing #6, Execution #4,
+`oficina-lambda-auth` #8 e `oficina-app` #53. Falta conferir se o state `hml` da Lambda está vazio,
+antes do primeiro `apply` dela; se não estiver, tirar o segredo antigo do state (`terraform state rm`).
+
+O check *Testes de integracao (PostgreSQL)* do OS falhava em `desenvolvimento` desde o #43 (16/10;
+verde até o #40, com o mesmo código). Como o `build` depende dele, o build e o deploy do OS não rodariam
+no dia. Causa: `ClienteUnicidadeDocumentoIntegrationTest` não é `@Transactional` e deixava clientes no
+Postgres compartilhado; quando o runner executa as classes em outra ordem,
+`JpaClienteRepositoryIntegrationTest` conta 3 clientes em vez de 1. Correção: limpeza também no
+`@AfterEach`. Reproduzido e validado localmente com `-Dsurefire.runOrder=random` (seeds 2 e 6 falhavam).
