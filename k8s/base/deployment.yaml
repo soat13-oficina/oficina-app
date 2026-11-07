@@ -145,6 +145,11 @@ spec:
             # no MDC, que o logging estruturado do Spring Boot já serializa no JSON.
             - name: DD_LOGS_INJECTION
               value: "true"
+            # Sem o dump "DATADOG TRACER CONFIGURATION" a cada subida: um JSON de varios KB no stderr,
+            # que a Datadog marca como status error por vir do stderr. Para ver a configuracao do tracer
+            # num diagnostico, basta voltar para "true".
+            - name: DD_TRACE_STARTUP_LOGS
+              value: "false"
             # Log em JSON (Elastic Common Schema, nativo do Spring Boot 4). O MDC vai para o
             # nível raiz do JSON, que é onde a Datadog procura dd.trace_id, correlation_id e
             # numero_ordem_servico. Sem isto o console volta ao formato humano de desenvolvimento.
