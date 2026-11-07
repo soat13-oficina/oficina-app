@@ -1,0 +1,34 @@
+# Unica rota interna que passa pelo ALB: a Lambda de autenticacao (oficina-lambda-auth) consulta o
+# cliente pelo CPF aqui, sem passar pelo API Gateway (ADR 0008, "Caminhos internos").
+#
+# E um Ingress a parte porque a condicao do ALB vale para todas as rotas do Service dentro de um Ingress:
+# misturada ao Ingress publico, exigiria o header em todas. O ALB so deixa passar quem traz o
+# X-Service-Token (qualquer valor: "*"); quem confere o VALOR, em tempo constante, e a aplicacao
+# (ServiceTokenFilter) - o controle que vale em qualquer caminho de rede.
+#
+# O outro caminho interno, /internal/pecas-insumos da Execution, nao entra em Ingress nenhum.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oficina-api-interno
+  labels:
+    app: oficina-api
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
+    alb.ingress.kubernetes.io/healthcheck-port: "8081"
+    alb.ingress.kubernetes.io/conditions.oficina-api: >-
+      [{"field":"http-header","httpHeaderConfig":{"httpHeaderName":"X-Service-Token","values":["*"]}}]
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /internal/clientes
+            pathType: Prefix
+            backend:
+              service:
+                name: oficina-api
+                port:
+                  name: http

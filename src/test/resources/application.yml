@@ -26,12 +26,27 @@ jwt:
   secret: chave-secreta-de-teste-para-rodar-os-testes-unitarios-2026
   expiration: 86400000
 
-orcamento:
-  webhook:
-    secret: segredo-teste
+seguranca:
+  service-token: token-de-servico-de-teste
+
+# Nos testes quem responde pelo cadastro de pecas e o CatalogoSimulado (support/saga).
+catalogo-pecas:
+  url: http://localhost:1
 
 notificacao:
   reprocessamento:
     max-tentativas: 3
     intervalo: 300000
     carencia-segundos: 60
+
+# Os testes chamam o PublicadorOutbox direto; o agendamento concorreria com eles.
+mensageria:
+  servico: oficina-os-service
+  outbox:
+    agendamento-habilitado: false
+
+# Os testes aplicam os prazos chamando o orquestrador com o relogio que quiserem.
+saga:
+  prazos:
+    agendamento-habilitado: false
+

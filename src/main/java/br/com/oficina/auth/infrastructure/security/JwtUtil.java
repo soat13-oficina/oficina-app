@@ -17,6 +17,8 @@ import java.util.Objects;
 @Component
 public class JwtUtil {
 
+    public static final String TIPO_FUNCIONARIO = "FUNCIONARIO";
+
     private final SecretKey key;
     private final long expiration;
 
@@ -26,9 +28,15 @@ public class JwtUtil {
         this.expiration = expiration;
     }
 
+    /**
+     * Token de funcionario (login por e-mail e senha). A claim {@code tipo=FUNCIONARIO} e o que os
+     * servicos da Fase 4 (Billing, Execution) usam para reconhecer o funcionario sem consultar a
+     * tabela {@code usuarios}, que so existe aqui.
+     */
     public String generateToken(String email) {
         return Jwts.builder()
                 .subject(email)
+                .claim("tipo", TIPO_FUNCIONARIO)
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(key)

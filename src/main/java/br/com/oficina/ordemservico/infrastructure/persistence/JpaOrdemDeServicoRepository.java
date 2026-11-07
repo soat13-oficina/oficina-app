@@ -10,21 +10,31 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.oficina.ordemservico.domain.model.OrdemDeServico;
+import br.com.oficina.ordemservico.domain.repository.HistoricoStatusOrdemDeServicoRepository;
 import br.com.oficina.ordemservico.domain.repository.OrdemDeServicoRepository;
 
 @Repository
 @Transactional(readOnly = true)
 public class JpaOrdemDeServicoRepository implements OrdemDeServicoRepository {
     private final SpringDataOrdemDeServicoRepository repository;
+    private final HistoricoStatusOrdemDeServicoRepository historicoRepository;
 
-    public JpaOrdemDeServicoRepository(SpringDataOrdemDeServicoRepository repository) {
+    public JpaOrdemDeServicoRepository(
+            SpringDataOrdemDeServicoRepository repository,
+            HistoricoStatusOrdemDeServicoRepository historicoRepository) {
         this.repository = repository;
+        this.historicoRepository = historicoRepository;
     }
 
+    /**
+     * Grava a ordem e, na mesma transacao, as mudancas de status que ela acumulou desde a ultima
+     * gravacao. O id so existe depois do save numa ordem recem-aberta, por isso o historico vem depois.
+     */
     @Override
     @Transactional
     public void salvar(OrdemDeServico ordemDeServico) {
         repository.save(ordemDeServico);
+        historicoRepository.registrar(ordemDeServico.getId(), ordemDeServico.descarregarAlteracoesDeStatus());
     }
 
     @Override

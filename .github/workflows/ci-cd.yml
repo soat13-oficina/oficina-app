@@ -11,19 +11,24 @@ name: CI/CD (aplicacao)
 #   workflow_dispatch         -> imagem + deploy no ambiente escolhido no input
 #
 # O dispatch existe para REIMPLANTAR sem inventar commit: a plataforma e efemera
-# (apply/destroy sob demanda para nao pagar ocioso) e, como o ECR vive no repo
-# oficina-infra-k8s, um destroy leva a imagem junto. Subir o ambiente de novo e
-# entao: dispatch em infra-k8s -> infra-database -> lambda-auth -> AQUI, sem push.
+# (apply/destroy sob demanda para nao pagar ocioso) e o ECR vive no infra/ deste
+# repo, entao um destroy leva a imagem junto. Subir o ambiente de novo e entao:
+# dispatch em infra-k8s -> infra-database -> Infra (OS Service) deste repo ->
+# infra/ do Billing e da Execution -> AQUI, sem push -> lambda-auth.
 #
-# A INFRAESTRUTURA VIVE FORA DESTE REPOSITÓRIO (Fase 3):
-#   oficina-infra-k8s        VPC, EKS, ECR e a IAM Role de SES
+# INFRAESTRUTURA de que este deploy depende:
+#   oficina-infra-k8s        VPC, EKS e o AWS Load Balancer Controller (Ingress)
 #   oficina-infra-database   RDS oficina-db-hml e oficina-db-prd
-#   oficina-lambda-auth      API Gateway, Lambdas e o segredo do JWT
-# Todos precisam estar aplicados antes do primeiro deploy daquele ambiente.
+#   infra/ (este repo)       ECR oficina-os-service-<env>, fila os-saga-replies + DLQ, Role
+#                            IRSA (SQS + SES) e os segredos oficina/<env>/service-token e
+#                            oficina/<env>/jwt-secret - workflow infra.yml, manual
+#   oficina-billing-service  fila billing-commands (o OS manda os comandos do Billing)
+#   oficina-execution-service fila execution-commands
+# Todos precisam estar aplicados antes do primeiro deploy daquele ambiente. O
+# oficina-lambda-auth vem DEPOIS: ele le a URL do ALB que este deploy grava no SSM.
 #
 # Configuração necessária no repositório:
 #   Secrets:   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-#              ORCAMENTO_WEBHOOK_SECRET (opcional, ver job de deploy)
 #   Variables: AWS_SES_REMETENTE (endereço verificado no SES)
 #              AWS_REGION (opcional, default us-east-1)
 
@@ -32,8 +37,8 @@ on:
   push:
     branches: [master, homologacao, desenvolvimento]
   # Permite reimplantar SEM inventar um commit. Necessario porque a infra e efemera:
-  # o ECR mora no oficina-infra-k8s, entao um destroy da plataforma leva a imagem junto
-  # e o ambiente precisa ser reconstruido a partir do codigo que ja esta na branch.
+  # o ECR mora no infra/ deste repo, entao um destroy leva a imagem junto e o
+  # ambiente precisa ser reconstruido a partir do codigo que ja esta na branch.
   workflow_dispatch:
     inputs:
       environment:
@@ -48,7 +53,6 @@ permissions:
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
-  ECR_REPOSITORY: oficina
   EKS_CLUSTER: oficina
   # Ambiente-alvo: do input quando disparado a mao, senao deduzido da branch.
   # A expressao e repetida (e nao referenciada via env) porque o contexto `env` nao
@@ -115,6 +119,31 @@ jobs:
       - name: Testes de integracao contra PostgreSQL real
         run: ./mvnw --batch-mode test -Dtest='**/*IntegrationTest' -Dspring.profiles.active=integration
 
+  # BDD da Saga (Fase 4): os cenarios Cucumber de src/test/resources/features contra a aplicacao
+  # inteira. Ja rodam dentro do "testes"; aqui ficam isolados como status check proprio e com o
+  # relatorio HTML publicado - e o que se mostra na avaliacao.
+  bdd:
+    name: BDD da Saga (Cucumber)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Cenarios Cucumber
+        run: ./mvnw --batch-mode test -Dtest=RunCucumberTest -Dsurefire.failIfNoSpecifiedTests=false -Djacoco.skip=true
+
+      - name: Publica relatorio do Cucumber
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cucumber-report
+          path: target/cucumber/
+
   # Valida que os dois overlays continuam renderizando. Roda em PR tambem:
   # um erro de kustomize so apareceria no deploy sem este job.
   validacao:
@@ -133,7 +162,7 @@ jobs:
 
   build:
     name: Build e push da imagem (ECR)
-    needs: [testes, testes-integracao, validacao]
+    needs: [testes, testes-integracao, bdd, validacao]
     # Push nas branches de ambiente OU dispatch manual. O dispatch sempre reconstroi a
     # imagem em vez de reaproveitar uma tag existente: depois de um destroy da plataforma
     # o ECR nao existe mais, entao "redeploy" e necessariamente rebuild.
@@ -158,9 +187,8 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      # Tag com o ambiente no prefixo: as imagens de hml e prd convivem no
-      # mesmo repositorio ECR e precisam ser distinguiveis num "aws ecr
-      # describe-images". A tag movel <env>-latest facilita rollback manual.
+      # Um repositorio ECR por ambiente (infra/ecr.tf). A tag mantem o ambiente no
+      # prefixo, como antes, e a tag movel <env>-latest facilita rollback manual.
       - id: image
         name: Define a tag da imagem
         run: |
@@ -169,14 +197,22 @@ jobs:
           # uma imagem disparada a mao para prd a partir de outra branch.
           echo "tag=${AMBIENTE}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "moving_tag=${AMBIENTE}-latest" >> "$GITHUB_OUTPUT"
+          echo "repo=oficina-os-service-${AMBIENTE}" >> "$GITHUB_OUTPUT"
+
+      - name: Confere o repositorio ECR
+        run: |
+          if ! aws ecr describe-repositories --repository-names "${{ steps.image.outputs.repo }}" >/dev/null 2>&1; then
+            echo "::error::Repositorio ECR ${{ steps.image.outputs.repo }} nao existe. Rode o workflow 'Infra (OS Service)' (apply em $AMBIENTE)."
+            exit 1
+          fi
 
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.image.outputs.tag }}
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.image.outputs.moving_tag }}
+            ${{ steps.ecr.outputs.registry }}/${{ steps.image.outputs.repo }}:${{ steps.image.outputs.tag }}
+            ${{ steps.ecr.outputs.registry }}/${{ steps.image.outputs.repo }}:${{ steps.image.outputs.moving_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -241,14 +277,17 @@ jobs:
           echo "db_user=$DB_USER" >> "$GITHUB_OUTPUT"
           echo "db_pass=$DB_PASS" >> "$GITHUB_OUTPUT"
 
-      # A Role e criada pelo Terraform de oficina-infra-k8s com nome previsivel
-      # "<cluster>-ses-send-email" e confia no ServiceAccount oficina-api nos
-      # dois namespaces de ambiente.
-      - name: Descobre o ARN da IAM Role de SES
-        id: ses
+      # A Role e criada pelo infra/ deste repositorio (workflow "Infra (OS Service)") com nome
+      # previsivel "oficina-<env>-oficina-os-service": SQS da Saga + SES, confiando so na
+      # ServiceAccount oficina-api do namespace do ambiente.
+      - name: Descobre o ARN da IAM Role do servico
+        id: irsa
         run: |
-          ROLE_ARN=$(aws iam get-role --role-name "${EKS_CLUSTER}-ses-send-email" \
-            --query 'Role.Arn' --output text)
+          ROLE="oficina-${AMBIENTE}-oficina-os-service"
+          if ! ROLE_ARN=$(aws iam get-role --role-name "$ROLE" --query 'Role.Arn' --output text 2>/dev/null); then
+            echo "::error::Role $ROLE nao encontrada. Rode o workflow 'Infra (OS Service)' (apply em $AMBIENTE) antes deste deploy: ele cria a fila os-saga-replies, a Role e o service-token."
+            exit 1
+          fi
           echo "role_arn=$ROLE_ARN" >> "$GITHUB_OUTPUT"
 
       - name: Garante o namespace
@@ -256,13 +295,12 @@ jobs:
           kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
       # Secrets sao criados imperativamente e NUNCA versionados. O JWT_SECRET e
-      # o mesmo que a Lambda de autenticacao usa para assinar o token - o
-      # contrato do nome esta no README de oficina-lambda-auth.
+      # o mesmo que a Lambda de autenticacao usa para assinar o token; o segredo
+      # e criado pelo infra/ deste repo (infra/secrets.tf).
       - name: Cria os Secrets do ambiente
         env:
           DB_USER: ${{ steps.db.outputs.db_user }}
           DB_PASS: ${{ steps.db.outputs.db_pass }}
-          WEBHOOK_SECRET_INPUT: ${{ secrets.ORCAMENTO_WEBHOOK_SECRET }}
         run: |
           kubectl create secret generic oficina-db-credentials \
             --namespace "$NAMESPACE" \
@@ -274,36 +312,32 @@ jobs:
             --secret-id "oficina/${AMBIENTE}/jwt-secret" \
             --query SecretString --output text 2>/dev/null || true)
           if [ -z "$JWT_SECRET" ]; then
-            # Permite subir a aplicacao antes de oficina-lambda-auth existir.
-            # Enquanto for gerado aqui, o token emitido pela Lambda NAO sera
-            # aceito pela API - os dois lados precisam do mesmo segredo.
-            echo "::warning::Segredo oficina/${AMBIENTE}/jwt-secret nao encontrado no Secrets Manager. Gerando um valor local: o login via Lambda so funcionara depois que oficina-lambda-auth for aplicado e este deploy for repetido."
-            JWT_SECRET=$(openssl rand -base64 48)
+            echo "::error::Segredo oficina/${AMBIENTE}/jwt-secret nao encontrado. Rode o workflow 'Infra (OS Service)' (apply em $AMBIENTE) antes deste deploy."
+            exit 1
           fi
           echo "::add-mask::$JWT_SECRET"
 
-          WEBHOOK_SECRET="$WEBHOOK_SECRET_INPUT"
-          if [ -z "$WEBHOOK_SECRET" ]; then
-            # Preserva o valor ja aplicado, para nao invalidar webhooks a cada deploy.
-            WEBHOOK_SECRET=$(kubectl -n "$NAMESPACE" get secret oficina-app-secrets \
-              -o jsonpath='{.data.ORCAMENTO_WEBHOOK_SECRET}' 2>/dev/null | base64 -d || true)
+          # Token das rotas /internal/** (o Billing consulta precos das pecas). Criado pelo infra/
+          # deste repositorio; o Billing le o mesmo segredo.
+          SERVICE_TOKEN=$(aws secretsmanager get-secret-value \
+            --secret-id "oficina/${AMBIENTE}/service-token" \
+            --query SecretString --output text 2>/dev/null || true)
+          if [ -z "$SERVICE_TOKEN" ]; then
+            echo "::error::Segredo oficina/${AMBIENTE}/service-token nao encontrado. Rode o workflow 'Infra (OS Service)' (apply em $AMBIENTE)."
+            exit 1
           fi
-          if [ -z "$WEBHOOK_SECRET" ]; then
-            WEBHOOK_SECRET=$(openssl rand -base64 36)
-            echo "::warning::ORCAMENTO_WEBHOOK_SECRET nao configurado como secret do repositorio; um valor aleatorio foi gerado para este ambiente."
-          fi
-          echo "::add-mask::$WEBHOOK_SECRET"
+          echo "::add-mask::$SERVICE_TOKEN"
 
           kubectl create secret generic oficina-app-secrets \
             --namespace "$NAMESPACE" \
             --from-literal=JWT_SECRET="$JWT_SECRET" \
-            --from-literal=ORCAMENTO_WEBHOOK_SECRET="$WEBHOOK_SECRET" \
+            --from-literal=SERVICE_TOKEN="$SERVICE_TOKEN" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Preenche o overlay de ${{ env.AMBIENTE }}
         env:
           JDBC_URL: ${{ steps.db.outputs.jdbc_url }}
-          SES_ROLE_ARN: ${{ steps.ses.outputs.role_arn }}
+          IRSA_ROLE_ARN: ${{ steps.irsa.outputs.role_arn }}
           REGISTRY: ${{ needs.build.outputs.registry }}
           TAG: ${{ needs.build.outputs.tag }}
         run: |
@@ -319,9 +353,9 @@ jobs:
             echo "DD_VERSION=${TAG}"
           } >> "$OVERLAY/app.env"
 
-          sed -i "s#__IMAGE_REPO__#${REGISTRY}/${ECR_REPOSITORY}#" "$OVERLAY/kustomization.yaml"
+          sed -i "s#__IMAGE_REPO__#${REGISTRY}/oficina-os-service-${AMBIENTE}#" "$OVERLAY/kustomization.yaml"
           sed -i "s#__IMAGE_TAG__#${TAG}#"                          "$OVERLAY/kustomization.yaml"
-          sed -i "s#__SES_IAM_ROLE_ARN__#${SES_ROLE_ARN}#"          "$OVERLAY/patch-serviceaccount.yaml"
+          sed -i "s#__IRSA_ROLE_ARN__#${IRSA_ROLE_ARN}#"            "$OVERLAY/patch-serviceaccount.yaml"
 
           echo "--- manifesto final ---"
           kubectl kustomize "$OVERLAY"
@@ -332,40 +366,66 @@ jobs:
       - name: Aguarda rollout da aplicacao
         run: kubectl -n "$NAMESPACE" rollout status deployment/oficina-api --timeout=300s
 
-      - name: Evidencias do deploy (pods, service, HPA, URL publica)
+      # O ALB e criado pelo AWS Load Balancer Controller (oficina-infra-k8s) a partir dos Ingress do
+      # ambiente e leva alguns minutos; o hostname aparece no status do Ingress quando ele fica pronto.
+      - name: Descobre o hostname do ALB
+        id: alb
         run: |
-          kubectl -n "$NAMESPACE" get pods,svc,hpa,resourcequota
+          for TENTATIVA in $(seq 1 40); do
+            ALB=$(kubectl -n "$NAMESPACE" get ingress oficina-api               -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+            if [ -n "$ALB" ]; then
+              echo "hostname=$ALB" >> "$GITHUB_OUTPUT"
+              echo "ALB (${AMBIENTE}): http://${ALB}"
+              exit 0
+            fi
+            echo "Tentativa $TENTATIVA: o Ingress ainda nao tem hostname (o controller leva ~3 min)."
+            sleep 10
+          done
+          echo "::error::O Ingress oficina-api nao ganhou hostname em ~7 min. O AWS Load Balancer Controller esta instalado (oficina-infra-k8s)?"
+          kubectl -n "$NAMESPACE" describe ingress oficina-api
+          exit 1
+
+      # Liga o deploy ao API Gateway sem edicao manual (ADR 0008): o Terraform do oficina-lambda-auth
+      # le este parametro. O ALB e um so por ambiente (IngressGroup), entao Billing e Execution gravam o mesmo valor.
+      - name: Publica a URL do ALB no SSM
+        env:
+          ALB: ${{ steps.alb.outputs.hostname }}
+        run: |
+          aws ssm put-parameter --name "/oficina/${AMBIENTE}/alb-url"             --type String --overwrite --value "http://${ALB}"
+
+      - name: Evidencias do deploy (pods, service, ingress, HPA, URL publica)
+        env:
+          ALB: ${{ steps.alb.outputs.hostname }}
+        run: |
+          kubectl -n "$NAMESPACE" get pods,svc,ingress,hpa,resourcequota
           kubectl -n "$NAMESPACE" top pods || echo "metrics-server ainda sem amostras coletadas"
-          NLB=$(kubectl -n "$NAMESPACE" get svc oficina-api \
-            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          echo "URL do NLB (${AMBIENTE}): http://${NLB}"
           {
             echo "## Deploy em \`${AMBIENTE}\`"
             echo ""
             echo "- Namespace: \`${NAMESPACE}\`"
             echo "- Imagem: \`${{ needs.build.outputs.tag }}\`"
-            echo "- NLB: http://${NLB}"
+            echo "- ALB: http://${ALB} (gravado em \`/oficina/${AMBIENTE}/alb-url\` no SSM)"
             echo ""
-            echo "Preencha \`app_base_url\` do ambiente \`${AMBIENTE}\` em oficina-lambda-auth com essa URL para publicar a rota proxy do API Gateway."
+            echo "O \`oficina-lambda-auth\` le essa URL do SSM: basta aplica-lo depois dos deploys, sem preencher \`app_base_url\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Confirma que a aplicacao responde de fato, e nao apenas que o rollout
-      # terminou: um pod pode ficar Ready e o NLB ainda nao ter alvos saudaveis.
-      - name: Healthcheck pelo NLB
+      # Confirma que a aplicacao responde de fato pelo ALB, e nao apenas que o rollout terminou: um pod
+      # pode ficar Ready e o ALB ainda nao ter alvos saudaveis. Rota protegida sem token: 401/403 prova
+      # que a requisicao chegou ao OS (o 404 do ALB, sem regra, nao conta).
+      - name: Healthcheck pelo ALB
+        env:
+          ALB: ${{ steps.alb.outputs.hostname }}
         run: |
-          NLB=$(kubectl -n "$NAMESPACE" get svc oficina-api \
-            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           for TENTATIVA in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
-              "http://${NLB}/actuator/health" || true)
-            if [ "$STATUS" = "200" ]; then
-              echo "Aplicacao respondendo (HTTP 200) na tentativa $TENTATIVA."
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10               "http://${ALB}/sagas/00000000-0000-0000-0000-000000000000" || true)
+            if [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ] || [ "$STATUS" = "200" ]; then
+              echo "Aplicacao respondendo pelo ALB (HTTP ${STATUS}) na tentativa $TENTATIVA."
               exit 0
             fi
-            echo "Tentativa $TENTATIVA: HTTP ${STATUS:-sem resposta} - o NLB leva ~2 min para registrar os alvos."
+            echo "Tentativa $TENTATIVA: HTTP ${STATUS:-sem resposta} - o ALB leva ~2 min para registrar os alvos."
             sleep 15
           done
-          echo "::error::Aplicacao nao respondeu 200 em /actuator/health apos ~7 min."
+          echo "::error::Aplicacao nao respondeu pelo ALB apos ~7 min."
           kubectl -n "$NAMESPACE" describe deployment/oficina-api
           kubectl -n "$NAMESPACE" logs -l app=oficina-api --tail=100
           exit 1

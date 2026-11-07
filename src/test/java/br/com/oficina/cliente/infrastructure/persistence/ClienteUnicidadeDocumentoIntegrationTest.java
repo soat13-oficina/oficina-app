@@ -2,6 +2,7 @@ package br.com.oficina.cliente.infrastructure.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,13 @@ class ClienteUnicidadeDocumentoIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        clienteRepository.deleteAll();
+    }
+
+    // A classe não é @Transactional: sem esta limpeza, os clientes ficam no Postgres compartilhado e quebram
+    // as contagens de JpaClienteRepositoryIntegrationTest quando a ordem das classes muda (aconteceu no CI).
+    @AfterEach
+    void tearDown() {
         clienteRepository.deleteAll();
     }
 

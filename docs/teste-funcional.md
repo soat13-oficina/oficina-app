@@ -1,5 +1,9 @@
 # Teste Funcional — Passo a Passo
 
+> **Fase 4:** desde o Passo 3, orçamento, pagamento, webhook de decisão e tokens de integração
+> (`/orcamentos`, `/pagamentos`, `/integracoes`) moram no `oficina-billing-service`. Este documento
+> descreve o fluxo das fases 2 e 3, com tudo no monólito.
+
 ## Fluxo Completo
 
 ```mermaid

@@ -51,8 +51,11 @@ class OrdemDeServicoTest {
 
         ordemDeServico.iniciarDiagnostico();
         ordemDeServico.concluirDiagnostico();
-        ordemDeServico.enviarParaOrcamento();
-        ordemDeServico.finalizar();
+        ordemDeServico.enviarParaAprovacao();
+        ordemDeServico.aguardarPagamento();
+        ordemDeServico.confirmarPagamento();
+        ordemDeServico.iniciarExecucao();
+        ordemDeServico.concluirServico();
         ordemDeServico.entregarAoCliente();
 
         assertEquals(StatusOrdemDeServico.ENTREGUE, ordemDeServico.getStatus());
@@ -85,14 +88,14 @@ class OrdemDeServicoTest {
     }
 
     @Test
-    void naoDeveFinalizarSemDiagnosticoConcluido() {
+    void naoDeveAguardarPagamentoSemOrcamentoEnviado() {
         OrdemDeServico ordemDeServico = novaOrdem("OS-005");
 
         RegraDeNegocioException exception = assertThrows(
                 RegraDeNegocioException.class,
-                ordemDeServico::finalizar);
+                ordemDeServico::aguardarPagamento);
 
-        assertEquals("Ordem de servico so pode ser finalizada com orcamento gerado", exception.getMessage());
+        assertEquals("Ordem so pode aguardar pagamento depois da aprovacao do orcamento", exception.getMessage());
     }
 
     @Test

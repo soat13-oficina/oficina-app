@@ -1,0 +1,66 @@
+# Rotas publicas do OS Service no ALB compartilhado do ambiente (ADR 0008).
+# O AWS Load Balancer Controller junta os Ingress dos tres servicos com o mesmo group.name
+# (definido no overlay: oficina-hml / oficina-prd) num unico ALB.
+#
+# Sem o controller instalado este recurso e aceito pelo cluster e simplesmente nao gera ALB.
+#
+# ATENCAO: o ALB nasce FORA do Terraform. Antes do destroy da plataforma, remova os Ingress
+# (kubectl delete -k k8s/overlays/<env>) ou o destroy da VPC trava com dependencias orfas.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oficina-api
+  labels:
+    app: oficina-api
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
+    alb.ingress.kubernetes.io/healthcheck-port: "8081"
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: oficina-api
+                port:
+                  name: http
+          - path: /clientes
+            pathType: Prefix
+            backend:
+              service:
+                name: oficina-api
+                port:
+                  name: http
+          - path: /veiculos
+            pathType: Prefix
+            backend:
+              service:
+                name: oficina-api
+                port:
+                  name: http
+          - path: /funcionarios
+            pathType: Prefix
+            backend:
+              service:
+                name: oficina-api
+                port:
+                  name: http
+          - path: /ordens-servico
+            pathType: Prefix
+            backend:
+              service:
+                name: oficina-api
+                port:
+                  name: http
+          - path: /sagas
+            pathType: Prefix
+            backend:
+              service:
+                name: oficina-api
+                port:
+                  name: http

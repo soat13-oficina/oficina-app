@@ -41,6 +41,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- BDD da Saga (Fase 4). Versao validada com Spring Boot 4 no spike do Passo 0. -->
+            <dependency>
+                <groupId>io.cucumber</groupId>
+                <artifactId>cucumber-bom</artifactId>
+                <version>8.0.4</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
@@ -114,6 +122,11 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>ses</artifactId>
         </dependency>
+        <!-- Fase 4: mensageria da Saga por SQS FIFO (ADR 0005), SDK puro, sem Spring Cloud AWS. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sqs</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -162,6 +175,50 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- SQS do LocalStack nos testes do transporte (imagem fixada em 4.14.0: as 2026.x exigem token). -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>localstack</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Fase 4: regra de arquitetura que impede novos acoplamentos entre os modulos que viram
+             microsservicos (ordemservico) e que orcamento/pagamento/estoque voltem. Ver
+             ArquiteturaModulosTest. -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>1.5.1</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Fase 4: teste de contrato das mensagens da Saga contra docs/contratos/schemas (JSON
+             Schema 2020-12). A linha 3.x usa o Jackson 3 (tools.jackson), o mesmo do Boot 4. -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>3.0.8</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Fase 4: BDD (Cucumber) do ciclo de vida da OS coordenado pela Saga. Ver src/test/resources/features. -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-spring</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-junit-platform-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-suite</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -277,8 +334,12 @@
                             </rules>
                         </configuration>
                     </execution>
+                    <!-- Fase 4: mensageria (outbox, transporte, consumidor idempotente - ADR 0005) e Saga
+                         orquestrada (ADR 0004). Orcamento e pagamento tem o gate deles no
+                         oficina-billing-service; estoque, diagnostico e execucao, no
+                         oficina-execution-service. -->
                     <execution>
-                        <id>check-orcamento-coverage</id>
+                        <id>check-mensageria-coverage</id>
                         <phase>test</phase>
                         <goals>
                             <goal>check</goal>
@@ -288,7 +349,11 @@
                                 <rule>
                                     <element>PACKAGE</element>
                                     <includes>
-                                        <include>br/com/oficina/orcamento/*</include>
+                                        <include>br/com/oficina/common/application/mensageria</include>
+                                        <include>br/com/oficina/common/infrastructure/mensageria</include>
+                                        <include>br/com/oficina/common/infrastructure/mensageria/*</include>
+                                        <include>br/com/oficina/ordemservico/saga/*</include>
+                                        <include>br/com/oficina/ordemservico/saga/*/*</include>
                                     </includes>
                                     <limits>
                                         <limit>
@@ -318,48 +383,6 @@
                                     <element>PACKAGE</element>
                                     <includes>
                                         <include>br/com/oficina/cliente/*</include>
-                                    </includes>
-                                    <limits>
-                                        <limit>
-                                            <counter>LINE</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>0.80</minimum>
-                                        </limit>
-                                        <limit>
-                                            <counter>BRANCH</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>0.80</minimum>
-                                        </limit>
-                                    </limits>
-                                </rule>
-                            </rules>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>check-pecainsumo-domain-coverage</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <rule>
-                                    <element>PACKAGE</element>
-                                    <includes>
-                                        <include>br/com/oficina/pecainsumo/domain/model</include>
-                                    </includes>
-                                    <limits>
-                                        <limit>
-                                            <counter>LINE</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>0.80</minimum>
-                                        </limit>
-                                    </limits>
-                                </rule>
-                                <rule>
-                                    <element>PACKAGE</element>
-                                    <includes>
-                                        <include>br/com/oficina/pecainsumo/application/service</include>
                                     </includes>
                                     <limits>
                                         <limit>

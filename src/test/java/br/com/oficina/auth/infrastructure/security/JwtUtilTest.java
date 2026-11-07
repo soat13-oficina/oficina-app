@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.Instant;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JwtUtilTest {
@@ -27,5 +28,13 @@ class JwtUtilTest {
 
         assertTrue(!expiracao.isBefore(esperadoMin), "expiração não pode ser anterior à janela esperada");
         assertTrue(!expiracao.isAfter(esperadoMax), "expiração não pode exceder a janela esperada");
+    }
+
+    @Test
+    void tokenDeFuncionarioDeclaraOTipoParaOsServicosDaFase4() {
+        String token = jwtUtil.generateToken("admin@oficina.com");
+
+        assertEquals("FUNCIONARIO", jwtUtil.extractTipo(token));
+        assertEquals("admin@oficina.com", jwtUtil.extractEmail(token));
     }
 }

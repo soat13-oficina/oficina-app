@@ -2,6 +2,16 @@
 
 Backend monolítico para gestão de Oficina Mecânica, desenvolvido com **Java 21 + Spring Boot 4 + PostgreSQL**.
 
+> **Fase 4 (em andamento):** este repositório vira o **OS Service** — dono da ordem de serviço e
+> orquestrador da Saga ([ADR 0004](docs/adr/0004-saga-orquestrada.md)). Orçamento, pagamento
+> (Mercado Pago), webhook de decisão e tokens de integração já saíram para o
+> [`oficina-billing-service`](https://github.com/soat13-oficina/oficina-billing-service), que conversa
+> com o OS pelas filas SQS `billing-commands` / `os-saga-replies`
+> ([mensageria local](docs/arquitetura/mensageria-local.md)). Estoque de peças, diagnóstico e execução
+> também já saíram, para o [`oficina-execution-service`](https://github.com/soat13-oficina/oficina-execution-service)
+> (DynamoDB), que usa a fila `execution-commands`: o mecânico trabalha lá e o OS reage aos eventos.
+> Plano, andamento e como continuar: [`docs/PLANO-FASE-4.md`](docs/PLANO-FASE-4.md) (seção 18).
+
 ## Fase 3 — objetivo desta fase
 
 A Fase 2 entregou containerização, Kubernetes na AWS, Terraform e CI/CD — tudo
@@ -62,7 +72,8 @@ do enunciado ao documento correspondente:
 | [Diagramas de Sequência](docs/arquitetura/diagramas-sequencia.md) | Autenticação por CPF, consumo de rota protegida e abertura de ordem de serviço |
 | [Modelo de Dados](docs/arquitetura/modelo-de-dados.md) | Diagrama ER, relacionamentos e ajustes do modelo relacional |
 | [RFCs](docs/rfc/) | Escolha da nuvem, do banco de dados e da estratégia de autenticação |
-| [ADRs](docs/adr/) | Estratégia de escala (HPA + node group) e snapshot em OS/orçamentos |
+| [ADRs](docs/adr/) | Estratégia de escala (HPA + node group) e snapshot em OS/orçamentos. Fase 4 (propostos): microsserviços, Saga orquestrada, SQS FIFO + outbox, DynamoDB, Mercado Pago e exposição por ALB |
+| [Contratos de mensagens](docs/contratos/mensagens.md) | Fase 4: comandos e eventos da Saga, com JSON Schemas |
 
 Os ADRs de infraestrutura ficam nos repositórios que eles governam —
 `oficina-infra-k8s`, `oficina-infra-database` e `oficina-lambda-auth` — e estão
@@ -107,7 +118,10 @@ Isso sobe um container PostgreSQL com as credenciais padrão:
 ./mvnw spring-boot:run
 ```
 
-Alternativamente, `docker-compose up -d` sobe banco **e** aplicação
+Para a Saga andar (orçamento, decisão, pagamento) o Billing precisa estar no ar: veja
+[Mensageria da Saga: desenvolvimento local](docs/arquitetura/mensageria-local.md#localstack-no-docker-compose).
+
+Alternativamente, `docker-compose up -d` sobe banco, LocalStack (filas SQS) **e** aplicação
 containerizados (usa o `Dockerfile` multi-stage do projeto).
 
 O Flyway executa as migrations automaticamente na inicialização. A aplicação fica disponível em `http://localhost:8080`.
@@ -344,10 +358,13 @@ O token expira em **24 horas**. Para renovar, basta fazer login novamente.
 | Ordens de Serviço (`/ordens-servico`) | `POST`, `GET`, `GET /{numeroOrdemServico}`, `PUT /{numeroOrdemServico}`, `DELETE /{numeroOrdemServico}`, `GET /metricas/tempo-medio`, `GET /{numeroOrdemServico}/acompanhamento` |
 | Diagnóstico da OS | `POST /ordens-servico/{numeroOrdemServico}/diagnostico/iniciar`, `POST /ordens-servico/{numeroOrdemServico}/diagnostico/concluir`, `POST /ordens-servico/{numeroOrdemServico}/diagnostico/enviar-para-orcamento` |
 | Execução e entrega da OS | `POST /ordens-servico/{numeroOrdemServico}/execucao/iniciar`, `POST /ordens-servico/{numeroOrdemServico}/servico/concluir`, `POST /ordens-servico/{numeroOrdemServico}/finalizacao`, `POST /ordens-servico/{numeroOrdemServico}/entrega` |
-| Orçamentos (`/orcamentos`) | `POST /{orcamentoId}/aprovacao`, `POST /{orcamentoId}/rejeicao`, `GET /{orcamentoId}`, `GET`, `PUT /{orcamentoId}`, `DELETE /{orcamentoId}` |
 | Peças e Insumos (`/pecas-insumos`) | `POST`, `GET`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/adicionar-estoque`, `POST /{id}/remover-estoque`, `POST /{id}/reservar`, `POST /{id}/liberar-reserva`, `POST /{id}/consumir` |
-| Webhook de decisão de orçamento (`/integracoes/orcamentos`) | `POST /{numeroOrcamento}/decisao` — exige o header `X-Webhook-Token`, aceitando um token de integração gerado (ver abaixo) ou o segredo estático `ORCAMENTO_WEBHOOK_SECRET` (coexistência temporária) |
-| Tokens de integração (`/integracoes/tokens`) | `POST` (gerar), `GET` (listar), `DELETE /{id}` (revogar) — autenticado via JWT, como as demais rotas |
+| Saga da OS (`/sagas`) | `GET /{ordemServicoId}` — estado, link de pagamento e história da Saga |
+| Interno (`/internal`, fora do API Gateway) | `POST /pecas-insumos/consulta` — catálogo de peças para o Billing; exige `X-Service-Token` (`SERVICE_TOKEN`) |
+
+> **Orçamentos, pagamentos, webhooks (decisão e Mercado Pago) e tokens de integração** moram no
+> [`oficina-billing-service`](https://github.com/soat13-oficina/oficina-billing-service) desde o
+> Passo 3 da Fase 4.
 
 > **Notificações**: não expõem endpoint REST. São disparadas internamente (padrão outbox) a cada mudança de status da OS e reprocessadas por um scheduler em caso de falha de envio. O transporte de e-mail é resolvido por Spring Profile: SMTP/Mailhog (`SMTP_HOST`/`SMTP_PORT`, default) em desenvolvimento, ou Amazon SES com o profile `ses` em produção — ver [Configuração de e-mail em produção (Amazon SES)](#configuração-de-e-mail-em-produção-amazon-ses).
 
@@ -360,9 +377,7 @@ src/main/java/br/com/oficina/
 ├── auth/               # JWT stateless — register, login, filtro, SecurityConfig
 ├── cliente/            # CRUD de clientes (PF/PJ, validacao CPF/CNPJ)
 ├── veiculo/            # CRUD de veiculos (placa formato antigo e Mercosul)
-├── ordemservico/       # Bounded context principal — ciclo de vida da OS
-├── orcamento/          # Orcamentos vinculados a OS
-├── pecainsumo/         # Estoque de pecas e insumos
+├── ordemservico/       # Bounded context principal — ciclo de vida da OS e orquestrador da Saga
 ├── common/             # Excecoes globais e ApiExceptionHandler
 └── config/             # SwaggerConfig, FlywayConfig
 ```
@@ -457,7 +472,7 @@ daquele ambiente não existir.
 (tag `<ambiente>-<sha>`) → o job de deploy aponta o `kubectl` para o EKS,
 descobre o endpoint do RDS daquele ambiente, materializa os Secrets a partir do
 **Secrets Manager**, preenche o overlay e aplica com `kubectl apply -k`,
-aguardando o rollout e confirmando com um healthcheck real pelo NLB.
+aguardando o rollout e publicando a URL do ALB no SSM e confirmando com um healthcheck real pelo ALB.
 
 ### Containerização (Docker)
 
@@ -476,7 +491,9 @@ k8s/
 ├── base/                    comum aos dois ambientes
 │   ├── serviceaccount.yaml  ServiceAccount oficina-api (IRSA para SES)
 │   ├── deployment.yaml      Deployment, probes Actuator, envFrom/secretKeyRef
-│   ├── service.yaml         Service LoadBalancer (NLB público)
+│   ├── service.yaml         Service ClusterIP
+│   ├── ingress.yaml         Rotas públicas do OS no ALB do ambiente (IngressGroup)
+│   ├── ingress-interno.yaml /internal/clientes, só com o header X-Service-Token (Lambda de autenticação)
 │   └── hpa.yaml             HPA por CPU 70% / memória 80%
 └── overlays/
     ├── hml/                 namespace oficina-hml
@@ -505,7 +522,7 @@ cada deploy:
 | Secret | Origem |
 |---|---|
 | `oficina-db-credentials` | Secrets Manager, gerenciado pelo próprio RDS |
-| `oficina-app-secrets` | `JWT_SECRET` vem de `oficina/<ambiente>/jwt-secret` (criado por `oficina-lambda-auth` — é o mesmo segredo que assina o token); `ORCAMENTO_WEBHOOK_SECRET` vem do secret de repositório de mesmo nome |
+| `oficina-app-secrets` | `JWT_SECRET` vem de `oficina/<ambiente>/jwt-secret` (criado pelo [`infra/`](infra/README.md) deste repositório — é o mesmo segredo com que a Lambda assina o token); `ORCAMENTO_WEBHOOK_SECRET` vem do secret de repositório de mesmo nome |
 
 Três marcadores (`__IMAGE_REPO__`, `__IMAGE_TAG__`, `__SES_IAM_ROLE_ARN__`) são
 preenchidos pela pipeline; os comandos para preenchê-los à mão estão comentados
@@ -516,7 +533,8 @@ nos próprios arquivos.
 **Não fica mais neste repositório.** Provisionamento, custos, bootstrap do state
 no S3 e ordem de apply/destroy estão nos READMEs de:
 
-- **`oficina-infra-k8s`** — VPC, EKS, ECR, IAM/IRSA. Aplique **primeiro**.
+- **`oficina-infra-k8s`** — VPC, EKS, IAM/IRSA. Aplique **primeiro**.
+- **[`infra/`](infra/README.md) deste repositório** — ECR, filas e Role do OS, segredos `service-token` e `jwt-secret`.
 - **`oficina-infra-database`** — RDS `oficina-db-hml` e `oficina-db-prd`.
 - **`oficina-lambda-auth`** — API Gateway e Lambdas de autenticação.
 
@@ -551,7 +569,7 @@ Jobs, no padrão de nomes comum aos quatro repositórios do projeto:
 | `testes-integracao` | `./mvnw test -Dspring.profiles.active=integration` contra um PostgreSQL real (service container) |
 | `validacao` | `kubectl kustomize` dos dois overlays; um erro de Kustomize só apareceria no deploy sem este job |
 | `build` | Build e push para o **ECR** com as tags `<ambiente>-<sha>` e `<ambiente>-latest`; só em push nas branches de ambiente, nunca em PR |
-| `deploy` | Descobre RDS e IAM Role, cria os Secrets, preenche e aplica o overlay, aguarda o rollout e faz um **healthcheck real pelo NLB** — um pod pode ficar `Ready` antes de o NLB registrar os alvos |
+| `deploy` | Descobre RDS e IAM Role, cria os Secrets, preenche e aplica o overlay, aguarda o rollout e grava a URL do ALB no SSM (`/oficina/<env>/alb-url`) e faz um **healthcheck real pelo ALB** — um pod pode ficar `Ready` antes de o ALB registrar os alvos |
 
 Os jobs de deploy usam GitHub **Environments** (`homologacao` / `producao`), o
 que permite exigir aprovação manual antes de produção sem alterar o YAML.
@@ -575,6 +593,9 @@ como *status check* obrigatório na proteção de `master` e `homologacao`.
 | `SPRING_PROFILES_ACTIVE` | não definido (SMTP/Mailhog); `ses` ativa o envio via Amazon SES em produção |
 | `AWS_SES_REGION` | *(apenas com profile `ses`)* região AWS do SES, ex. `us-east-1` |
 | `AWS_SES_REMETENTE` | *(apenas com profile `ses`)* endereço remetente, já verificado no SES |
+| `SERVICE_TOKEN` | vazio = nenhuma chamada a `/internal/**` aceita |
+| `MENSAGERIA_SQS_HABILITADO`, `MENSAGERIA_SQS_ENVIO`, `MENSAGERIA_SQS_CONSUMO` | `false`, vazio, vazio — com o Billing fora do processo: `true`, `billing-commands`, `os-saga-replies` ([detalhes](docs/arquitetura/mensageria-local.md)) |
+| `AMBIENTE`, `AWS_ENDPOINT_URL_SQS`, `AWS_REGION` | `local`, vazio (AWS), `us-east-1` — nome das filas `oficina-<ambiente>-<fila>.fifo` e LocalStack |
 
 ## Configuração de e-mail em produção (Amazon SES)
 

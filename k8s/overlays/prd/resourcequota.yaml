@@ -1,15 +1,16 @@
 # Homologação e produção dividem o mesmo cluster (ver ADR 0002 em
-# oficina-infra-k8s). A cota de produção acomoda o HPA no teto (4 réplicas)
-# com folga, e ainda assim é finita: um vazamento aqui não consome o cluster
-# inteiro sem deixar rastro.
+# oficina-infra-k8s). A cota de produção acomoda os TRÊS serviços (OS, Billing e Execution) com o HPA
+# no teto (4 réplicas cada = 12 pods de 250m / 384Mi de requests = 3 / 4,5Gi) e folga para o rolling
+# update, e ainda assim é finita: um vazamento aqui não consome o cluster inteiro sem deixar rastro.
+# PLANO-FASE-4.md, seção 9.4.
 apiVersion: v1
 kind: ResourceQuota
 metadata:
   name: oficina-quota
 spec:
   hard:
-    requests.cpu: "1200m"
-    requests.memory: 2Gi
-    limits.cpu: "4"
-    limits.memory: 4Gi
-    pods: "8"
+    requests.cpu: "3500m"
+    requests.memory: 5Gi
+    limits.cpu: "12"
+    limits.memory: 10Gi
+    pods: "16"

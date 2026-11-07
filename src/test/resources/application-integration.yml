@@ -25,10 +25,6 @@ spring:
     username: ${SMTP_USERNAME:}
     password: ${SMTP_PASSWORD:}
 
-orcamento:
-  webhook:
-    secret: ${ORCAMENTO_WEBHOOK_SECRET:segredo-teste}
-
 notificacao:
   reprocessamento:
     max-tentativas: 3
