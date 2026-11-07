@@ -1492,3 +1492,22 @@ no dia. Causa: `ClienteUnicidadeDocumentoIntegrationTest` não é `@Transactiona
 Postgres compartilhado; quando o runner executa as classes em outra ordem,
 `JpaClienteRepositoryIntegrationTest` conta 3 clientes em vez de 1. Correção: limpeza também no
 `@AfterEach`. Reproduzido e validado localmente com `-Dsurefire.runOrder=random` (seeds 2 e 6 falhavam).
+
+### 18.11 Logs enxutos para a demo e o monitoramento
+
+07/11/2026. A Datadog recebia SQL inteiro e logs do cluster todo. Cortes, todos na origem (branch
+`feature/logs-enxutos`, PR para `desenvolvimento` nos quatro repos):
+
+- `oficina-app`: `show-sql`/`format_sql` desligados (o outbox consulta o banco a cada 1 s e cada linha
+  da query virava um log); sem `hibernate.dialect` (WARN HHH90000025 a cada subida); `open-in-view: true`
+  explícito (cala o WARN de startup sem mudar comportamento).
+- Os três serviços: `logging.level` com `root: WARN` e `br.com.oficina: INFO`; `DD_TRACE_STARTUP_LOGS=false`
+  no `deployment.yaml` (o dump de configuração do tracer saía no stderr e virava `status:error`).
+- `oficina-infra-k8s`: o Agent só coleta logs de `oficina-hml`/`oficina-prd`; o trace-agent descarta
+  `GET /actuator.*` (probes e scrape não entram mais no p95 nem na taxa de erro); novo
+  `datadog-logs.tf` com o pipeline que transforma o `log.level` do ECS em status. A app key precisa
+  também de `logs_write_pipelines`.
+
+Nada foi alterado direto na Datadog: a escrita da MCP estava desligada na organização (liberada
+depois) e o pipeline fica só no Terraform, para o `apply` não criar um segundo igual. Na organização
+ligada à MCP não havia log nem host nos 15 dias anteriores (retenção do índice `main`).
