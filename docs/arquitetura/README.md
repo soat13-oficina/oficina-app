@@ -22,6 +22,7 @@ atravessa o sistema inteiro mora aqui.
 
 | Item | Onde está |
 |---|---|
+| **Texto de entrega (PDF)** — diagrama geral, estratégia da Saga, justificativa da divisão e das tecnologias | [`arquitetura-final-fase-4.md`](arquitetura-final-fase-4.md) |
 | Decisões (divisão, Saga, mensageria, NoSQL, Mercado Pago, exposição) | ADRs [0003](../adr/0003-divisao-em-microsservicos-e-dono-dos-dados.md) a [0008](../adr/0008-exposicao-e-roteamento.md) |
 | Contratos de comandos e eventos da Saga + JSON Schemas | [`../contratos/mensagens.md`](../contratos/mensagens.md) |
 | Convenções de nomes (serviços, filas, tabelas, segredos) | [`convencoes-de-nomes.md`](convencoes-de-nomes.md) |
